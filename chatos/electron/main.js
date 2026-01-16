@@ -96,7 +96,7 @@ const UI_FLAGS = { developerMode: UI_DEVELOPER_MODE, aideInstalled: true, expose
 const ENABLE_ALL_SUBAGENTS = resolveBoolEnv('MODEL_CLI_ENABLE_ALL_SUBAGENTS', Boolean(app?.isPackaged));
 // IMPORTANT: keep UI Apps scanning read-only by default; only enable DB sync explicitly via env.
 const UIAPPS_SYNC_AI_CONTRIBUTES = resolveBoolEnv('MODEL_CLI_UIAPPS_SYNC_AI_CONTRIBUTES', false);
-const BUILTIN_UI_APPS_DIR = path.join(cliRoot, 'ui_apps', 'plugins');
+const BUILTIN_UI_APPS_DIR = path.join(projectRoot, 'ui_apps', 'plugins');
 const REGISTRY_KNOWN_APPS = Array.from(new Set([hostApp, 'aide', 'git_app', 'wsl'].filter(Boolean)));
 const sanitizeAdminForUi = (snapshot) => {
   const sanitized = sanitizeAdminSnapshot(snapshot);

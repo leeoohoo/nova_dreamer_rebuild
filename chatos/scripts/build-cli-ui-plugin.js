@@ -7,12 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const root = path.resolve(__dirname, '..');
-const sharedUiSrc = path.resolve(root, '..', 'common', 'aide-ui');
+const sharedUiSrc = path.resolve(root, 'src', 'common', 'aide-ui');
 
-const pluginSrcRoot = path.join(root, 'cli-ui');
+const pluginSrcRoot = path.join(root, 'src', 'aide', 'cli-ui');
 const entry = path.join(pluginSrcRoot, 'src', 'index.jsx');
 
-const pluginDistRoot = path.join(root, 'ui_apps', 'plugins', 'aide-builtin', 'cli', 'dist');
+const pluginRoot = path.join(root, 'ui_apps', 'plugins', 'aide-builtin');
+const pluginDistRoot = path.join(pluginRoot, 'cli', 'dist');
 const outfile = path.join(pluginDistRoot, 'index.mjs');
 
 const skipIfPresent = process.argv.includes('--skip-if-present');
@@ -30,11 +31,11 @@ function listFilesRecursive(dirPath) {
     } catch {
       continue;
     }
-    for (const entry of entries) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
+    for (const entryItem of entries) {
+      const full = path.join(current, entryItem.name);
+      if (entryItem.isDirectory()) {
         stack.push(full);
-      } else if (entry.isFile()) {
+      } else if (entryItem.isFile()) {
         results.push(full);
       }
     }
@@ -74,10 +75,43 @@ function buildIsFresh() {
   return outMs >= newestSource;
 }
 
+function writePluginManifest() {
+  const manifest = {
+    manifestVersion: 1,
+    id: 'aide-builtin',
+    name: 'AIDE',
+    version: '0.1.0',
+    description: 'AIDE built-in apps',
+    apps: [
+      {
+        id: 'cli',
+        name: 'AIDE CLI',
+        description: 'AIDE CLI workspace',
+        entry: {
+          type: 'module',
+          path: 'cli/dist/index.mjs',
+        },
+      },
+    ],
+  };
+  const payload = `${JSON.stringify(manifest, null, 2)}\n`;
+  fs.mkdirSync(pluginRoot, { recursive: true });
+  try {
+    if (fs.existsSync(path.join(pluginRoot, 'plugin.json'))) {
+      const existing = fs.readFileSync(path.join(pluginRoot, 'plugin.json'), 'utf8');
+      if (existing === payload) return;
+    }
+  } catch {
+    // ignore read errors
+  }
+  fs.writeFileSync(path.join(pluginRoot, 'plugin.json'), payload, 'utf8');
+}
+
 async function main() {
   if (!fs.existsSync(entry)) {
     throw new Error(`CLI plugin entry not found: ${entry}`);
   }
+  writePluginManifest();
   if (skipIfPresent && buildIsFresh()) {
     console.log(`CLI UI plugin dist already fresh at ${outfile}; skipped rebuild.`);
     return;
@@ -103,10 +137,11 @@ async function main() {
     target: ['chrome120'],
     loader: { '.js': 'jsx', '.jsx': 'jsx' },
     nodePaths: [
-      path.resolve(root, '..', '..', 'node_modules'),
       path.resolve(root, '..', 'node_modules'),
-      path.resolve(root, '..', 'deepseek_cli', 'node_modules'),
-      path.join(root, 'node_modules'),
+      path.resolve(root, 'node_modules'),
+      path.resolve(root, 'deepseek_cli', 'node_modules'),
+      path.resolve(root, 'src', 'node_modules'),
+      path.resolve(root, 'src', 'aide', 'node_modules'),
     ],
   });
   console.log(`CLI UI plugin built to ${outfile}`);
