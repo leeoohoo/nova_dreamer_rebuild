@@ -33,27 +33,16 @@ const hostApp =
     .replace(/[^a-z0-9_-]+/g, '_')
     .replace(/^_+|_+$/g, '') || 'aide';
 
-const importEngineCompat = async (...relativePaths) => {
-  const candidates = relativePaths
-    .map((p) => (typeof p === 'string' ? p.trim() : ''))
-    .filter(Boolean)
-    .map((rel) => path.join(projectRoot, rel));
-  if (candidates.length === 0) {
+const importEngine = async (relativePath) => {
+  const normalized = typeof relativePath === 'string' ? relativePath.trim() : '';
+  if (!normalized) {
     throw new Error('relativePath is required');
   }
-  for (const candidate of candidates) {
-    try {
-      if (fs.existsSync(candidate)) {
-        return await import(pathToFileURL(candidate).href);
-      }
-    } catch {
-      // ignore fs errors and try next candidate
-    }
-  }
-  return await import(pathToFileURL(candidates[0]).href);
+  const target = path.join(projectRoot, normalized);
+  return await import(pathToFileURL(target).href);
 };
 
-const { createSubAgentManager } = await importEngineCompat('src/subagents/index.js', 'dist/subagents/index.js');
+const { createSubAgentManager } = await importEngine('src/subagents/index.js');
 const appIconPath = resolveAppIconPath();
 // 会话根：优先环境变量，其次读取 CLI 持久化的 last-session-root；若都没有则回退 home/cwd
 const sessionRoot = resolveSessionRoot();

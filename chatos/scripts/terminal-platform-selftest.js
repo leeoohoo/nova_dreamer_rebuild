@@ -1,5 +1,4 @@
 import assert from 'assert/strict';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
@@ -19,27 +18,7 @@ const importAide = async (relativePath) => {
   return await import(pathToFileURL(target).href);
 };
 
-const importAideCompat = async (...relativePaths) => {
-  const candidates = relativePaths
-    .map((p) => (typeof p === 'string' ? p.trim() : ''))
-    .filter(Boolean);
-  if (candidates.length === 0) {
-    throw new Error('relativePath is required');
-  }
-  for (const rel of candidates) {
-    const target = path.join(cliRoot, rel);
-    try {
-      if (fs.existsSync(target)) {
-        return await import(pathToFileURL(target).href);
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return await importAide(candidates[0]);
-};
-
-const { getTerminalPlatform } = await importAideCompat('dist/terminal/platform/index.js', 'src/terminal/platform/index.js');
+const { getTerminalPlatform } = await importAide('src/terminal/platform/index.js');
 const { getSystemTerminalLauncher } = await importAide('electron/terminal-manager/system-terminal/launcher.js');
 function assertTerminalPlatform(platform, expected) {
   const impl = getTerminalPlatform(platform);

@@ -20,7 +20,6 @@ import { registerQuickSwitchHandlers } from './config-manager/quick-switch.js';
 import { resolveAideRoot } from '../src/aide-paths.js';
 import { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
 import { ensureAppStateDir } from '../src/common/state-core/state-paths.js';
-import { installAideEngine, getAideInstallStatus, detectAideVersion } from './aide-installer.js';
 import { createLspInstaller } from './lsp-installer.js';
 import { ConfigApplier } from '../src/core/session/ConfigApplier.js';
 
@@ -36,7 +35,9 @@ process.env.MODEL_CLI_SESSION_ROOT = sessionRoot;
 persistSessionRoot(sessionRoot);
 
 const cliRoot = resolveAideRoot({ projectRoot });
-const AIDE_INSTALLED = Boolean(cliRoot);
+if (!cliRoot) {
+  throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
+}
 
 const importAide = async (relativePath) => {
   if (!cliRoot) {
@@ -48,29 +49,6 @@ const importAide = async (relativePath) => {
   }
   const target = path.join(cliRoot, normalized);
   return await import(pathToFileURL(target).href);
-};
-
-const importAideCompat = async (...relativePaths) => {
-  if (!cliRoot) {
-    throw new Error('AIDE engine is not installed.');
-  }
-  const candidates = relativePaths
-    .map((p) => (typeof p === 'string' ? p.trim() : ''))
-    .filter(Boolean);
-  if (candidates.length === 0) {
-    throw new Error('relativePath is required');
-  }
-  for (const rel of candidates) {
-    const target = path.join(cliRoot, rel);
-    try {
-      if (fs.existsSync(target)) {
-        return await import(pathToFileURL(target).href);
-      }
-    } catch {
-      // ignore fs errors and try next candidate
-    }
-  }
-  return await importAide(candidates[0]);
 };
 
 const appIconPath = resolveAppIconPath();
@@ -102,11 +80,11 @@ const CLI_COMMAND_NAME = process.platform === 'win32' ? WINDOWS_DESKTOP_CLI_COMM
 const LEGACY_CLI_COMMAND_NAME = DEFAULT_CLI_COMMAND_NAME;
 const UI_DEVELOPER_MODE = (!app?.isPackaged) || process.env.MODEL_CLI_UI_DEVELOPER_MODE === '1';
 const UI_EXPOSE_SUBAGENTS = resolveBoolEnv('MODEL_CLI_UI_EXPOSE_SUBAGENTS', true);
-const UI_FLAGS = { developerMode: UI_DEVELOPER_MODE, aideInstalled: AIDE_INSTALLED, exposeSubagents: UI_EXPOSE_SUBAGENTS };
+const UI_FLAGS = { developerMode: UI_DEVELOPER_MODE, aideInstalled: true, exposeSubagents: UI_EXPOSE_SUBAGENTS };
 const ENABLE_ALL_SUBAGENTS = resolveBoolEnv('MODEL_CLI_ENABLE_ALL_SUBAGENTS', Boolean(app?.isPackaged));
 // IMPORTANT: keep UI Apps scanning read-only by default; only enable DB sync explicitly via env.
 const UIAPPS_SYNC_AI_CONTRIBUTES = resolveBoolEnv('MODEL_CLI_UIAPPS_SYNC_AI_CONTRIBUTES', false);
-const BUILTIN_UI_APPS_DIR = cliRoot ? path.join(cliRoot, 'ui_apps', 'plugins') : path.join(projectRoot, 'ui_apps', 'plugins');
+const BUILTIN_UI_APPS_DIR = path.join(cliRoot, 'ui_apps', 'plugins');
 const sanitizeAdminForUi = (snapshot) => {
   const sanitized = sanitizeAdminSnapshot(snapshot);
   if (UI_DEVELOPER_MODE || UI_EXPOSE_SUBAGENTS) return sanitized;
@@ -505,166 +483,6 @@ function patchProcessPath() {
   process.env.PATH = [...prepend, ...parts].join(':');
 }
 
-const AIDE_NOT_INSTALLED_MESSAGE =
-  'AIDE 引擎不可用：请确认当前安装包已内置引擎（必要时重新安装/重新打包）；开发环境请确保存在 <projectRoot>/src/aide。';
-
-function isPathInsideAsar(targetPath) {
-  const raw = typeof targetPath === 'string' ? targetPath : '';
-  if (!raw) return false;
-  const normalized = path.normalize(raw);
-  const parts = normalized.split(path.sep).filter(Boolean);
-  return parts.some((part) => String(part).toLowerCase().endsWith('.asar'));
-}
-
-function isRealDirectory(dirPath) {
-  const dir = typeof dirPath === 'string' ? dirPath.trim() : '';
-  if (!dir) return false;
-  if (isPathInsideAsar(dir)) return false;
-  try {
-    return fs.existsSync(dir) && fs.statSync(dir).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-function resolveHostNodeModulesDir() {
-  const candidates = [];
-  if (projectRoot) {
-    candidates.push(path.join(projectRoot, 'node_modules'));
-  }
-  const resources = process.resourcesPath;
-  if (resources) {
-    candidates.push(path.join(resources, 'app.asar.unpacked', 'node_modules'));
-    candidates.push(path.join(resources, 'app', 'node_modules'));
-    candidates.push(path.join(resources, 'node_modules'));
-  }
-  for (const candidate of candidates) {
-    if (isRealDirectory(candidate)) return candidate;
-  }
-  return null;
-}
-
-function registerAideEngineIpc() {
-  ipcMain.handle('aide:engine:status', async () => ({
-    ok: true,
-    ...(() => {
-      const allowExternalInstall = resolveBoolEnv('MODEL_CLI_ALLOW_EXTERNAL_AIDE_ENGINE_INSTALL', false);
-      const userInstalled = getAideInstallStatus({ stateDir });
-
-      if (AIDE_INSTALLED && cliRoot) {
-        const version = detectAideVersion(cliRoot);
-        return {
-          installed: true,
-          engineDir: cliRoot,
-          version,
-          installedAt: '',
-          source: app?.isPackaged ? 'builtin' : 'dev',
-          allowExternalInstall,
-          ...(allowExternalInstall
-            ? null
-            : userInstalled?.installed
-              ? {
-                  blockedExternal: {
-                    engineDir: userInstalled.engineDir,
-                    version: userInstalled.version || '',
-                    installedAt: userInstalled.installedAt || '',
-                  },
-                }
-              : null),
-        };
-      }
-
-      if (allowExternalInstall && userInstalled?.installed) {
-        return { ...userInstalled, source: 'user', allowExternalInstall };
-      }
-
-      return { ...userInstalled, source: 'none', allowExternalInstall };
-    })(),
-    aideInstalled: AIDE_INSTALLED,
-    hostNodeModulesDir: resolveHostNodeModulesDir(),
-  }));
-
-  ipcMain.handle('aide:engine:install', async (_event, payload = {}) => {
-    if (!resolveBoolEnv('MODEL_CLI_ALLOW_EXTERNAL_AIDE_ENGINE_INSTALL', false)) {
-      return { ok: false, message: 'External AIDE engine installation is disabled in this build.' };
-    }
-
-    const hostNodeModulesDir = resolveHostNodeModulesDir();
-    if (!hostNodeModulesDir) {
-      return {
-        ok: false,
-        message:
-          'Host node_modules not found. If this is a packaged app, configure electron-builder to unpack node_modules (app.asar.unpacked/node_modules).',
-      };
-    }
-
-    let selectedPath = typeof payload?.path === 'string' ? payload.path.trim() : '';
-    if (!selectedPath) {
-      if (!dialog || typeof dialog.showOpenDialog !== 'function') {
-        return { ok: false, message: 'dialog not available' };
-      }
-      let result = null;
-      if (process.platform === 'win32') {
-        let mode = typeof payload?.mode === 'string' ? payload.mode.trim().toLowerCase() : '';
-        if (!mode && dialog && typeof dialog.showMessageBox === 'function') {
-          const selection = await dialog.showMessageBox(mainWindow || undefined, {
-            type: 'question',
-            title: '安装 AIDE 引擎',
-            message: '请选择 AIDE 引擎包类型',
-            detail: 'Windows 的文件选择器在“目录/文件混选”模式下可能看不到 .zip。',
-            buttons: ['选择 .zip', '选择目录', '取消'],
-            defaultId: 0,
-            cancelId: 2,
-          });
-          if (selection?.response === 2) {
-            return { ok: false, canceled: true };
-          }
-          mode = selection?.response === 1 ? 'dir' : 'zip';
-        }
-        if (mode !== 'dir' && mode !== 'zip') {
-          mode = 'zip';
-        }
-        result = await dialog.showOpenDialog(mainWindow || undefined, {
-          title: mode === 'dir' ? '选择 AIDE 引擎目录' : '选择 AIDE 引擎包（.zip）',
-          properties: mode === 'dir' ? ['openDirectory'] : ['openFile'],
-          ...(mode === 'zip' ? { filters: [{ name: 'AIDE package', extensions: ['zip'] }] } : null),
-        });
-      } else {
-        result = await dialog.showOpenDialog(mainWindow || undefined, {
-          title: '选择 AIDE 引擎包（目录或 .zip）',
-          properties: ['openFile', 'openDirectory'],
-          filters: [{ name: 'AIDE package', extensions: ['zip'] }],
-        });
-      }
-      if (result.canceled) {
-        return { ok: false, canceled: true };
-      }
-      selectedPath = Array.isArray(result.filePaths) ? result.filePaths[0] : '';
-      if (!selectedPath) {
-        return { ok: false, canceled: true };
-      }
-    }
-
-    try {
-      return await installAideEngine({ inputPath: selectedPath, stateDir, hostNodeModulesDir });
-    } catch (err) {
-      return { ok: false, message: err?.message || String(err) };
-    }
-  });
-
-  ipcMain.handle('aide:engine:relaunch', async () => {
-    try {
-      app.relaunch();
-      app.exit(0);
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, message: err?.message || String(err) };
-    }
-  });
-}
-
-registerAideEngineIpc();
-
 function registerUiAppsPluginInstallerIpc() {
   ipcMain.handle('uiApps:plugins:install', async (_event, payload = {}) => {
     let selectedPath = typeof payload?.path === 'string' ? payload.path.trim() : '';
@@ -742,7 +560,6 @@ ipcMain.handle('lsp:install', async (_event, payload = {}) => {
   }
 });
 
-	  if (AIDE_INSTALLED) {
 	  const { createAdminDefaultsManager } = await import('./admin-defaults.js');
 	  const { createDb } = await import('../src/common/admin-data/storage.js');
 	  const { createAdminServices } = await import('../src/common/admin-data/services/index.js');
@@ -760,11 +577,11 @@ ipcMain.handle('lsp:install', async (_event, payload = {}) => {
   const { createSessionApi } = await importAide('electron/session-api.js');
   const { createCliShim } = await importAide('electron/cli-shim.js');
   const { createTerminalManager } = await importAide('electron/terminal-manager.js');
-	  const { createSubAgentManager } = await importAideCompat('src/subagents/index.js', 'dist/subagents/index.js');
+	  const { createSubAgentManager } = await importAide('src/subagents/index.js');
 	  const { registerChatApi } = await importAide('electron/chat/index.js');
-	  const { ChatSession } = await importAideCompat('src/session.js', 'dist/session.js');
-	  const { ModelClient } = await importAideCompat('src/client.js', 'dist/client.js');
-	  const { createAppConfigFromModels } = await importAideCompat('src/config.js', 'dist/config.js');
+	  const { ChatSession } = await importAide('src/session.js');
+	  const { ModelClient } = await importAide('src/client.js');
+	  const { createAppConfigFromModels } = await importAide('src/config.js');
 	  const { applySecretsToProcessEnv } = await import('../src/common/secrets-env.js');
 
   const defaultPaths = {
@@ -1290,109 +1107,6 @@ ipcMain.handle('terminal:intervene', async (_event, payload = {}) => terminalMan
 ipcMain.handle('terminal:stop', async (_event, payload = {}) => terminalManager.stopRun(payload));
 ipcMain.handle('terminal:terminate', async (_event, payload = {}) => terminalManager.terminateRun(payload));
 ipcMain.handle('terminal:close', async (_event, payload = {}) => terminalManager.closeRun(payload));
-} else {
-  const emptyAdmin = {
-    models: [],
-    secrets: [],
-    mcpServers: [],
-    subagents: [],
-    prompts: [],
-    settings: [],
-  };
-
-  ipcMain.handle('admin:state', async () => ({ data: emptyAdmin, dbPath: '', uiFlags: UI_FLAGS }));
-
-  uiAppsManager = registerUiAppsApi(ipcMain, {
-    projectRoot,
-    stateDir,
-    defaultsRoot: null,
-    adminServices: null,
-    llm: null,
-    syncAiContributes: UIAPPS_SYNC_AI_CONTRIBUTES,
-    builtinPluginsDir: BUILTIN_UI_APPS_DIR,
-  });
-  if (UIAPPS_SYNC_AI_CONTRIBUTES && uiAppsManager && typeof uiAppsManager.listRegistry === 'function') {
-    uiAppsManager.listRegistry().catch(() => {});
-  }
-
-  ipcMain.handle('dialog:selectDirectory', async (_event, payload = {}) => {
-    const preferred = typeof payload?.defaultPath === 'string' ? payload.defaultPath.trim() : '';
-    const fallback = process.env.HOME || process.env.USERPROFILE || os.homedir() || process.cwd();
-    const defaultPath = preferred && fs.existsSync(preferred) ? preferred : fallback;
-    try {
-      if (!dialog || typeof dialog.showOpenDialog !== 'function') {
-        return { ok: false, message: 'dialog not available' };
-      }
-      const result = await dialog.showOpenDialog(mainWindow || undefined, {
-        title: '选择工作目录',
-        defaultPath,
-        properties: ['openDirectory'],
-      });
-      if (result.canceled) {
-        return { ok: false, canceled: true };
-      }
-      const selected = Array.isArray(result.filePaths) ? result.filePaths[0] : '';
-      if (!selected) {
-        return { ok: false, canceled: true };
-      }
-      return { ok: true, path: selected };
-    } catch (err) {
-      return { ok: false, message: err?.message || String(err) };
-    }
-  });
-
-  const unavailable = { ok: false, message: AIDE_NOT_INSTALLED_MESSAGE };
-  const unavailableOk = async () => unavailable;
-  const unavailableThrow = async () => {
-    throw new Error(AIDE_NOT_INSTALLED_MESSAGE);
-  };
-
-  [
-    'chat:agents:list',
-    'chat:agents:ensureDefault',
-    'chat:agents:create',
-    'chat:agents:update',
-    'chat:agents:delete',
-    'chat:sessions:list',
-    'chat:sessions:ensureDefault',
-    'chat:sessions:create',
-    'chat:sessions:update',
-    'chat:sessions:delete',
-    'chat:messages:list',
-    'chat:send',
-    'chat:abort',
-  ].forEach((channel) => ipcMain.handle(channel, unavailableOk));
-
-  ipcMain.handle('cli:status', unavailableOk);
-  ipcMain.handle('cli:install', unavailableOk);
-  ipcMain.handle('cli:uninstall', unavailableThrow);
-
-  ipcMain.handle('subagents:marketplace:list', unavailableOk);
-  ipcMain.handle('subagents:marketplace:addSource', unavailableOk);
-  ipcMain.handle('subagents:plugins:install', unavailableOk);
-  ipcMain.handle('subagents:plugins:uninstall', unavailableOk);
-  ipcMain.handle('subagents:setModel', unavailableThrow);
-
-  [
-    'admin:models:create',
-    'admin:models:update',
-    'admin:models:delete',
-    'admin:models:setDefault',
-    'admin:secrets:create',
-    'admin:secrets:update',
-    'admin:secrets:delete',
-    'admin:mcpServers:create',
-    'admin:mcpServers:update',
-    'admin:mcpServers:delete',
-    'admin:subagents:create',
-    'admin:subagents:update',
-    'admin:subagents:delete',
-    'admin:prompts:create',
-    'admin:prompts:update',
-    'admin:prompts:delete',
-    'admin:settings:save',
-  ].forEach((channel) => ipcMain.handle(channel, unavailableThrow));
-}
 
 app.whenReady().then(() => {
   if (process.platform === 'darwin' && appIconPath) {

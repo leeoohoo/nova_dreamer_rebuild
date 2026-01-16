@@ -852,9 +852,7 @@ async function spawnCliChat({ runId, sessionRoot, workspaceRoot, cwd, uiTerminal
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const distCliPath = path.resolve(__dirname, '../dist/cli.js');
-  const legacyCliPath = path.resolve(__dirname, '../src/cli.js');
-  const cliPath = fs.existsSync(distCliPath) ? distCliPath : legacyCliPath;
+  const cliPath = path.resolve(__dirname, '../src/cli.js');
 
   const mode = resolveEffectiveUiTerminalMode({ requested: uiTerminalMode, current: null });
   const autoPrefersSystemTerminal = process.platform === 'darwin' || process.platform === 'win32';

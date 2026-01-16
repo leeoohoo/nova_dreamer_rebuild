@@ -110,6 +110,7 @@ async function main() {
     loader: { '.js': 'jsx', '.jsx': 'jsx', '.css': 'css' },
     external: [],
     nodePaths: [
+      path.resolve(root, '..', '..', 'node_modules'),
       path.resolve(root, '..', 'node_modules'),
       path.join(root, 'node_modules'),
       path.resolve(root, '..', 'deepseek_cli', 'node_modules'),
