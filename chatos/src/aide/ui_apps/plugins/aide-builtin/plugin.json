@@ -1,0 +1,18 @@
+{
+  "manifestVersion": 1,
+  "id": "aide-builtin",
+  "name": "AIDE",
+  "version": "0.1.0",
+  "description": "AIDE built-in apps",
+  "apps": [
+    {
+      "id": "cli",
+      "name": "AIDE CLI",
+      "description": "AIDE CLI workspace",
+      "entry": {
+        "type": "module",
+        "path": "cli/dist/index.mjs"
+      }
+    }
+  ]
+}

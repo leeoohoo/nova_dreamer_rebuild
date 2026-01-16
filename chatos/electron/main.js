@@ -97,6 +97,7 @@ const ENABLE_ALL_SUBAGENTS = resolveBoolEnv('MODEL_CLI_ENABLE_ALL_SUBAGENTS', Bo
 // IMPORTANT: keep UI Apps scanning read-only by default; only enable DB sync explicitly via env.
 const UIAPPS_SYNC_AI_CONTRIBUTES = resolveBoolEnv('MODEL_CLI_UIAPPS_SYNC_AI_CONTRIBUTES', false);
 const BUILTIN_UI_APPS_DIR = path.join(cliRoot, 'ui_apps', 'plugins');
+const REGISTRY_KNOWN_APPS = Array.from(new Set([hostApp, 'aide', 'git_app', 'wsl'].filter(Boolean)));
 const sanitizeAdminForUi = (snapshot) => {
   const sanitized = sanitizeAdminSnapshot(snapshot);
   if (UI_DEVELOPER_MODE || UI_EXPOSE_SUBAGENTS) return sanitized;
@@ -480,7 +481,7 @@ uiAppsManager = registerUiAppsApi(ipcMain, {
 if (uiAppsManager && typeof uiAppsManager.listRegistry === 'function') {
   uiAppsManager.listRegistry().catch(() => {});
 }
-registerRegistryApi(ipcMain, { sessionRoot });
+registerRegistryApi(ipcMain, { sessionRoot, knownApps: REGISTRY_KNOWN_APPS });
 
 Promise.resolve()
   .then(async () => {
@@ -494,7 +495,7 @@ Promise.resolve()
       // ignore
     }
 
-    const otherApps = ['aide', 'git_app', 'wsl'].filter((appId) => appId !== hostApp);
+    const otherApps = REGISTRY_KNOWN_APPS.filter((appId) => appId !== hostApp);
     for (const appId of otherApps) {
       const { dbPath, dbExists } = resolveExistingAppDbPath({ sessionRoot, hostApp: appId });
       if (dbExists) {
