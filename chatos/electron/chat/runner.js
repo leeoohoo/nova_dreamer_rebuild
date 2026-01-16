@@ -583,8 +583,12 @@ export function createChatRunner({
     const landConfigId = typeof runtimeConfig?.landConfigId === 'string' ? runtimeConfig.landConfigId.trim() : '';
     const landConfigRecords = adminServices.landConfigs?.list ? adminServices.landConfigs.list() : [];
     const selectedLandConfig = resolveLandConfig({ landConfigs: landConfigRecords, landConfigId });
+    const agentHasUiApps = Array.isArray(agentRecord?.uiApps) && agentRecord.uiApps.length > 0;
+    const agentHasMcpIds = Array.isArray(agentRecord?.mcpServerIds) && agentRecord.mcpServerIds.length > 0;
+    const agentHasPromptIds = Array.isArray(agentRecord?.promptIds) && agentRecord.promptIds.length > 0;
+    const shouldUseLandConfig = Boolean(selectedLandConfig) && !(agentHasUiApps || agentHasMcpIds || agentHasPromptIds);
     const registrySnapshot = readRegistrySnapshot(adminServices);
-    const landSelection = selectedLandConfig
+    const landSelection = shouldUseLandConfig
       ? buildLandConfigSelection({
           landConfig: selectedLandConfig,
           prompts,

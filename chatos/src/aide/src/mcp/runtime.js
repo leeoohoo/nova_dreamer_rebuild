@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { createRequire } from 'module';
 import * as colors from '../colors.js';
 import { createLogger } from '../logger.js';
 import { loadMcpConfig } from '../mcp.js';
@@ -25,6 +26,63 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
 
 const log = createLogger('MCP');
+const require = createRequire(import.meta.url);
+
+const uiAppNodeModulesReady = new Set();
+let cachedHostNodeModulesDir = null;
+
+function resolveHostNodeModulesDir() {
+  if (cachedHostNodeModulesDir !== null) {
+    return cachedHostNodeModulesDir;
+  }
+  try {
+    const pkgJsonPath = require.resolve('@modelcontextprotocol/sdk/package.json');
+    const pkgDir = path.dirname(pkgJsonPath);
+    const nodeModulesDir = path.dirname(path.dirname(pkgDir));
+    cachedHostNodeModulesDir = nodeModulesDir;
+    return nodeModulesDir;
+  } catch {
+    cachedHostNodeModulesDir = '';
+    return '';
+  }
+}
+
+function isUiAppMcpServer(entry) {
+  const tags = Array.isArray(entry?.tags) ? entry.tags : [];
+  return tags
+    .map((tag) => String(tag || '').trim().toLowerCase())
+    .filter(Boolean)
+    .some((tag) => tag === 'uiapp' || tag.startsWith('uiapp:'));
+}
+
+function ensureUiAppNodeModules(sessionRoot) {
+  const root = typeof sessionRoot === 'string' && sessionRoot.trim() ? sessionRoot.trim() : process.cwd();
+  const stateDir = resolveAppStateDir(root);
+  if (!stateDir || uiAppNodeModulesReady.has(stateDir)) return;
+  uiAppNodeModulesReady.add(stateDir);
+
+  const hostNodeModules = resolveHostNodeModulesDir();
+  if (!hostNodeModules) return;
+
+  const target = path.join(stateDir, 'node_modules');
+  try {
+    if (fs.existsSync(target)) return;
+  } catch {
+    return;
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+  } catch {
+    // ignore
+  }
+  try {
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    fs.symlinkSync(hostNodeModules, target, linkType);
+  } catch (err) {
+    log.warn('UI Apps MCP node_modules 连接失败', err);
+  }
+}
 
 async function initializeMcpRuntime(
   configPath,
@@ -130,6 +188,9 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   }
 
   if (endpoint.type === 'command') {
+    if (isUiAppMcpServer(entry)) {
+      ensureUiAppNodeModules(sessionRoot);
+    }
     const client = new Client({
       name: 'model-cli',
       version: '0.1.0',
