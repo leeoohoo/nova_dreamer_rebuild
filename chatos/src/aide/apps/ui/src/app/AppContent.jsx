@@ -66,6 +66,7 @@ export function AppContent({
           onCreate={mcpActions?.create}
           onUpdate={mcpActions?.update}
           onDelete={mcpActions?.delete}
+          promptActions={promptActions}
           loading={loading}
           developerMode={developerMode}
         />

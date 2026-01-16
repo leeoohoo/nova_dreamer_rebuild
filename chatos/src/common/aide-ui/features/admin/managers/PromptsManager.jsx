@@ -9,6 +9,10 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
   const [restoringId, setRestoringId] = useState(null);
   const [toggling, setToggling] = useState(null);
   const [showBuiltins, setShowBuiltins] = useState(false);
+  const isMcpPromptName = useCallback((value) => {
+    const name = String(value || '').trim().toLowerCase();
+    return name.startsWith('mcp_');
+  }, []);
   const normalizeServerName = useCallback(
     (value) =>
       String(value || '')
@@ -55,15 +59,15 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
   const showLocked = developerMode || showBuiltins;
   const visible = useMemo(() => {
     const list = Array.isArray(data) ? data : [];
-    if (developerMode) return list;
     return list.filter((record) => {
       if (!record || typeof record !== 'object') return false;
+      if (isMcpPromptName(record?.name)) return false;
       if (reservedPromptNames.has(record?.name)) return false;
       if (!showLocked && record.builtin) return false;
       if (!showLocked && record.locked) return false;
       return true;
     });
-  }, [data, developerMode, reservedPromptNames, showLocked]);
+  }, [data, isMcpPromptName, reservedPromptNames, showLocked]);
   const isLockedPrompt = (record) => Boolean(record?.locked || reservedPromptNames.has(record?.name));
   const shouldMaskContent = useCallback((record) => record?.builtin || reservedPromptNames.has(record?.name), [
     reservedPromptNames,
@@ -266,11 +270,23 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
     ],
     []
   );
+  const handleCreate = async (values) => {
+    if (isMcpPromptName(values?.name)) {
+      throw new Error('MCP Prompt 请在 MCP Servers 中维护');
+    }
+    return onCreate(values);
+  };
+  const handleUpdate = async (id, values) => {
+    if (isMcpPromptName(values?.name)) {
+      throw new Error('MCP Prompt 请在 MCP Servers 中维护');
+    }
+    return onUpdate(id, values);
+  };
 
   return (
     <EntityManager
       title="Prompt 管理"
-      description="集中维护系统/任务/工具 Prompt 模板（mcp_* prompts 的主/子注入由 MCP Server 的启用与 allowMain/allowSub 自动派生）。"
+      description="集中维护系统/任务/工具 Prompt 模板（MCP Prompt 请在 MCP Servers 中维护）。"
       data={visible}
       tableProps={{
         title: () => (
@@ -288,8 +304,8 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
       }}
       fields={fields}
       columns={columns}
-      onCreate={onCreate}
-      onUpdate={onUpdate}
+      onCreate={handleCreate}
+      onUpdate={handleUpdate}
       onDelete={onDelete}
       renderActions={(record, { onEdit, onDelete: handleDelete }) => {
         const reserved = reservedPromptNames.has(record?.name);

@@ -3,13 +3,18 @@ import { Button, Popconfirm, Space, Switch, Tag, Typography, message } from 'ant
 
 import { EntityManager } from '../../../components/EntityManager.jsx';
 
-const { Text } = Typography;
+const { Paragraph, Text } = Typography;
 
-function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loading, developerMode = false }) {
-  const normalized = (data || []).map((item) => ({
-    ...item,
-    authToken: item?.auth?.token || '',
-  }));
+function McpServersManager({
+  data,
+  prompts,
+  onCreate,
+  onUpdate,
+  onDelete,
+  promptActions,
+  loading,
+  developerMode = false,
+}) {
   const [showBuiltins, setShowBuiltins] = useState(false);
   const classifyEndpoint = useCallback((value) => {
     const raw = String(value || '').trim();
@@ -30,15 +35,46 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
         .replace(/^_+|_+$/g, ''),
     []
   );
+  const getPromptNames = useCallback(
+    (value) => {
+      const normalizedName = normalizeServerName(value);
+      if (!normalizedName) return { zh: '', en: '' };
+      const base = `mcp_${normalizedName}`;
+      return { zh: base, en: `${base}__en` };
+    },
+    [normalizeServerName]
+  );
+  const normalizePromptText = useCallback((value) => {
+    if (typeof value !== 'string') return '';
+    return value.trim();
+  }, []);
   const promptMap = useMemo(() => {
     const map = new Map();
     (Array.isArray(prompts) ? prompts : []).forEach((prompt) => {
-      const name = String(prompt?.name || '').trim();
+      const name = String(prompt?.name || '').trim().toLowerCase();
       if (!name) return;
       map.set(name, prompt);
     });
     return map;
   }, [prompts]);
+  const normalized = useMemo(() => {
+    const list = Array.isArray(data) ? data : [];
+    return list.map((item) => {
+      const { zh: promptZhName, en: promptEnName } = getPromptNames(item?.name);
+      const promptZh = promptZhName ? promptMap.get(promptZhName.toLowerCase()) : null;
+      const promptEn = promptEnName ? promptMap.get(promptEnName.toLowerCase()) : null;
+      return {
+        ...item,
+        authToken: item?.auth?.token || '',
+        promptZh: promptZh?.content || '',
+        promptEn: promptEn?.content || '',
+        promptZhId: promptZh?.id || '',
+        promptEnId: promptEn?.id || '',
+        promptZhTitle: promptZh?.title || '',
+        promptEnTitle: promptEn?.title || '',
+      };
+    });
+  }, [data, getPromptNames, promptMap]);
   const builtinNames = useMemo(
     () =>
       new Set([
@@ -58,6 +94,93 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
   const isLocked = (record) => record?.locked || builtinNames.has(record?.name);
   const showLocked = developerMode || showBuiltins;
   const visible = showLocked ? normalized : normalized.filter((item) => !isLocked(item));
+  const canManagePrompts = Boolean(promptActions?.create && promptActions?.update);
+  const resolvePromptRecord = useCallback(
+    (name, fallback) => {
+      const primaryKey = typeof name === 'string' ? name.trim().toLowerCase() : '';
+      const fallbackKey = typeof fallback === 'string' ? fallback.trim().toLowerCase() : '';
+      if (primaryKey && promptMap.has(primaryKey)) return promptMap.get(primaryKey);
+      if (fallbackKey && promptMap.has(fallbackKey)) return promptMap.get(fallbackKey);
+      return null;
+    },
+    [promptMap]
+  );
+  const resolvePromptTitle = useCallback((existing, serverName, lang) => {
+    const current = typeof existing?.title === 'string' ? existing.title.trim() : '';
+    if (current) return current;
+    const suffix = lang === 'en' ? ' (EN)' : '（中文）';
+    return `MCP / ${serverName}${suffix}`;
+  }, []);
+  const renderPromptPreview = useCallback((value) => {
+    const content = normalizePromptText(value);
+    if (!content) return <Tag color="red">缺失</Tag>;
+    return (
+      <Paragraph style={{ margin: 0 }} ellipsis={{ rows: 2, expandable: false }}>
+        {content}
+      </Paragraph>
+    );
+  }, [normalizePromptText]);
+  const upsertPrompt = useCallback(
+    async ({ existing, name, serverName, content, lang, allowMain, allowSub }) => {
+      if (!canManagePrompts) return;
+      const trimmed = normalizePromptText(content);
+      if (!trimmed) return;
+      if (existing?.locked || existing?.builtin) {
+        const current = normalizePromptText(existing?.content);
+        if (current && current !== trimmed) {
+          message.warning('内置 MCP Prompt 不支持编辑');
+        }
+        return;
+      }
+      const payload = {
+        name,
+        title: resolvePromptTitle(existing, serverName, lang),
+        type: 'system',
+        content: trimmed,
+        allowMain: allowMain === true,
+        allowSub: allowSub !== false,
+      };
+      if (existing?.id) {
+        await promptActions.update(existing.id, payload);
+      } else {
+        await promptActions.create(payload);
+      }
+    },
+    [canManagePrompts, normalizePromptText, promptActions, resolvePromptTitle]
+  );
+  const syncPrompts = useCallback(
+    async ({ existing, values }) => {
+      if (!canManagePrompts) return;
+      const serverName = typeof values?.name === 'string' ? values.name.trim() : '';
+      if (!serverName) return;
+      const allowMain = existing?.allowMain === true;
+      const allowSub = existing?.allowSub !== false;
+      const { zh: promptZhName, en: promptEnName } = getPromptNames(serverName);
+      const previous = existing?.name || '';
+      const { zh: prevZhName, en: prevEnName } = getPromptNames(previous);
+      const zhPrompt = resolvePromptRecord(promptZhName, prevZhName);
+      const enPrompt = resolvePromptRecord(promptEnName, prevEnName);
+      await upsertPrompt({
+        existing: zhPrompt,
+        name: promptZhName,
+        serverName,
+        content: values?.promptZh,
+        lang: 'zh',
+        allowMain,
+        allowSub,
+      });
+      await upsertPrompt({
+        existing: enPrompt,
+        name: promptEnName,
+        serverName,
+        content: values?.promptEn,
+        lang: 'en',
+        allowMain,
+        allowSub,
+      });
+    },
+    [canManagePrompts, getPromptNames, resolvePromptRecord, upsertPrompt]
+  );
   const columns = useMemo(
     () => [
       { title: '名称', dataIndex: 'name', width: 180 },
@@ -99,59 +222,16 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
         ),
       },
       {
-        title: '主程序可用',
-        dataIndex: 'allowMain',
-        width: 120,
-        render: (allowMain, record) => (
-          <Switch
-            size="small"
-            checked={allowMain === true}
-            disabled={!record?.id || loading || isExternalOnly(record)}
-            onChange={async (checked) => {
-              try {
-                await onUpdate(record.id, { allowMain: checked });
-                message.success('已更新主程序权限');
-              } catch (err) {
-                message.error(err?.message || '更新失败');
-              }
-            }}
-          />
-        ),
+        title: 'Prompt（中文）',
+        dataIndex: 'promptZh',
+        width: 260,
+        render: (value) => renderPromptPreview(value),
       },
       {
-        title: '子流程可用',
-        dataIndex: 'allowSub',
-        width: 120,
-        render: (allowSub, record) => (
-          <Switch
-            size="small"
-            checked={allowSub !== false}
-            disabled={!record?.id || loading || isExternalOnly(record)}
-            onChange={async (checked) => {
-              try {
-                await onUpdate(record.id, { allowSub: checked });
-                message.success('已更新子流程权限');
-              } catch (err) {
-                message.error(err?.message || '更新失败');
-              }
-            }}
-          />
-        ),
-      },
-      {
-        title: 'Prompt',
-        key: 'prompt',
-        width: 220,
-        render: (_val, record) => {
-          const promptName = `mcp_${normalizeServerName(record?.name)}`;
-          const exists = promptMap.has(promptName);
-          return (
-            <Space size={6}>
-              <Text code>{promptName}</Text>
-              {exists ? <Tag color="green">已绑定</Tag> : <Tag color="red">缺失</Tag>}
-            </Space>
-          );
-        },
+        title: 'Prompt（英文）',
+        dataIndex: 'promptEn',
+        width: 260,
+        render: (value) => renderPromptPreview(value),
       },
       {
         title: '标签',
@@ -173,7 +253,7 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
       },
       { title: '更新时间', dataIndex: 'updatedAt', width: 180 },
     ],
-    [classifyEndpoint, isExternalOnly, loading, normalizeServerName, onUpdate, promptMap]
+    [classifyEndpoint, isExternalOnly, loading, onUpdate, renderPromptPreview]
   );
   const fields = useMemo(
     () => [
@@ -197,24 +277,32 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
         extra: '关闭后不会连接该 MCP server，也不会注册其工具',
       },
       {
-        name: 'allowMain',
-        label: '允许主程序使用',
-        type: 'switch',
-        defaultValue: false,
-        extra: '关闭 = 仅 sub-agent 可用（推荐）',
+        name: 'promptZh',
+        label: 'Prompt（中文）',
+        type: 'textarea',
+        rows: 8,
+        autoSize: { minRows: 8, maxRows: 18 },
+        inputStyle: { fontFamily: 'SFMono-Regular, Consolas, Menlo, monospace' },
+        requiredOnCreate: true,
+        extra: '保存后会写入 mcp_<name>（中文版本）。',
       },
       {
-        name: 'allowSub',
-        label: '允许子流程使用',
-        type: 'switch',
-        defaultValue: true,
-        extra: '关闭 = 仅主程序可用',
+        name: 'promptEn',
+        label: 'Prompt（英文）',
+        type: 'textarea',
+        rows: 8,
+        autoSize: { minRows: 8, maxRows: 18 },
+        inputStyle: { fontFamily: 'SFMono-Regular, Consolas, Menlo, monospace' },
+        requiredOnCreate: true,
+        extra: '保存后会写入 mcp_<name>__en（英文版本）。',
       },
     ],
     []
   );
   const mapPayload = (values, existing) => {
     const payload = { ...values };
+    delete payload.promptZh;
+    delete payload.promptEn;
     const token = typeof payload.authToken === 'string' ? payload.authToken.trim() : '';
     delete payload.authToken;
     const prevToken = typeof existing?.auth?.token === 'string' ? existing.auth.token.trim() : '';
@@ -231,11 +319,54 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
     }
     return payload;
   };
+  const handleCreate = async (values) => {
+    const promptZh = normalizePromptText(values?.promptZh);
+    const promptEn = normalizePromptText(values?.promptEn);
+    if (!promptZh || !promptEn) {
+      throw new Error('请补全中英文 MCP Prompt');
+    }
+    const payload = mapPayload({ ...values, promptZh, promptEn }, null);
+    await onCreate(payload);
+    if (!canManagePrompts) return;
+    try {
+      await syncPrompts({ existing: null, values: { ...values, promptZh, promptEn } });
+    } catch (err) {
+      throw new Error(`MCP Server 已创建，但 Prompt 保存失败：${err?.message || '未知错误'}`);
+    }
+  };
+  const handleUpdate = async (id, values) => {
+    const existing = normalized.find((item) => item?.id === id) || null;
+    const payload = mapPayload(values, existing);
+    await onUpdate(id, payload);
+    if (!canManagePrompts) return;
+    try {
+      await syncPrompts({ existing, values });
+    } catch (err) {
+      throw new Error(`MCP Server 已更新，但 Prompt 保存失败：${err?.message || '未知错误'}`);
+    }
+  };
+  const handleDelete = async (id) => {
+    const existing = normalized.find((item) => item?.id === id) || null;
+    await onDelete(id);
+    if (!promptActions?.delete || !existing?.name) return;
+    const { zh: promptZhName, en: promptEnName } = getPromptNames(existing.name);
+    const zhPrompt = resolvePromptRecord(promptZhName, '');
+    const enPrompt = resolvePromptRecord(promptEnName, '');
+    const deletions = [];
+    if (zhPrompt?.id) deletions.push(promptActions.delete(zhPrompt.id));
+    if (enPrompt?.id) deletions.push(promptActions.delete(enPrompt.id));
+    if (deletions.length === 0) return;
+    try {
+      await Promise.all(deletions);
+    } catch (err) {
+      message.warning(err?.message || '删除 MCP Prompt 失败');
+    }
+  };
 
   return (
     <EntityManager
       title="MCP Server 管理"
-      description="注册/维护 MCP 服务端的端点（URL 或本地命令）、鉴权与标签。"
+      description="注册/维护 MCP 服务端的端点（URL 或本地命令）、鉴权与标签，并在此维护中英文 MCP Prompt。"
       data={visible}
       tableProps={{
         title: () => (
@@ -253,9 +384,9 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
       }}
       fields={fields}
       columns={columns}
-      onCreate={(values) => onCreate(mapPayload(values, null))}
-      onUpdate={(id, values) => onUpdate(id, mapPayload(values, normalized.find((item) => item?.id === id) || null))}
-      onDelete={onDelete}
+      onCreate={handleCreate}
+      onUpdate={handleUpdate}
+      onDelete={handleDelete}
       renderActions={(record, { onEdit, onDelete: handleDelete }) =>
         isLocked(record) ? (
           <Tag color="blue">内置只读</Tag>
@@ -273,6 +404,7 @@ function McpServersManager({ data, prompts, onCreate, onUpdate, onDelete, loadin
         )
       }
       loading={loading}
+      drawerWidth={820}
     />
   );
 }
