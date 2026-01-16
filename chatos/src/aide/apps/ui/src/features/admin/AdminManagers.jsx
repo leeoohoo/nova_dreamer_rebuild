@@ -4,3 +4,4 @@ export { SecretsManager } from './managers/SecretsManager.jsx';
 export { McpServersManager } from './managers/McpServersManager.jsx';
 export { SubagentsManager } from './managers/SubagentsManager.jsx';
 export { PromptsManager } from './managers/PromptsManager.jsx';
+export { AdvancedSettingsManager } from './managers/AdvancedSettingsManager.jsx';

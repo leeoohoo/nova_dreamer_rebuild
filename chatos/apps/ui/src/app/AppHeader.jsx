@@ -38,15 +38,9 @@ export function AppHeader({
   const showCliConsoleShortcut = normalizedMenu.startsWith('admin/');
 
   const adminMenuItems = [
-    { key: 'admin/land_configs', label: 'land_configs' },
-    { type: 'divider' },
     { key: 'admin/models', label: '模型' },
-    { key: 'admin/mcp', label: 'MCP Servers' },
-    { key: 'admin/prompts', label: 'Prompts' },
-    { key: 'admin/subagents', label: 'Subagents' },
-    { type: 'divider' },
     { key: 'admin/secrets', label: 'API Keys' },
-    { key: 'admin/lsp', label: '语言服务 (LSP)' },
+    { key: 'admin/advanced', label: '高级设置' },
   ];
 
   return (

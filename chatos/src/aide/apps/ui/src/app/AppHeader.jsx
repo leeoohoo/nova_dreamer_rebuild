@@ -14,10 +14,7 @@ export function AppHeader({ themeMode = 'light', onToggleTheme, menu, onMenuChan
   const adminMenuItems = [
     { key: 'admin/models', label: '模型' },
     { key: 'admin/secrets', label: 'API Keys' },
-    { key: 'admin/mcp', label: 'MCP Servers' },
-    { key: 'admin/subagents', label: 'Sub-agents' },
-    { key: 'admin/prompts', label: 'Prompts' },
-    { key: 'admin/settings', label: '运行配置' },
+    { key: 'admin/advanced', label: '高级设置' },
   ];
 
   return (

@@ -1,18 +1,14 @@
 import React from 'react';
 
 import {
-  LspServersManager,
-  McpServersManager,
+  AdvancedSettingsManager,
   ModelsManager,
-  PromptsManager,
   SecretsManager,
-  SubagentsManager,
 } from '../features/admin/AdminManagers.jsx';
 import { ChatView } from '../features/chat/ChatView.jsx';
 import { ChatAgentsView } from '../features/chat/ChatAgentsView.jsx';
 import { AppsHubView } from '../features/apps/AppsHubView.jsx';
 import { AppsPluginView } from '../features/apps/AppsPluginView.jsx';
-import { LandConfigsManager } from '../features/land-configs/LandConfigsManager.jsx';
 
 export function AppContent({
   menu,
@@ -37,6 +33,13 @@ export function AppContent({
     normalizedMenu.startsWith('cli/');
   const currentMenu = legacyCliMenu ? 'chat/session' : normalizedMenu;
   const navigate = typeof onNavigate === 'function' ? onNavigate : () => {};
+  const advancedTabMap = {
+    'admin/land_configs': 'land_configs',
+    'admin/mcp': 'mcp',
+    'admin/prompts': 'prompts',
+    'admin/subagents': 'subagents',
+    'admin/lsp': 'lsp',
+  };
 
   if (currentMenu.startsWith('admin')) {
     if (currentMenu === 'admin/models' || currentMenu === 'admin/settings') {
@@ -63,54 +66,32 @@ export function AppContent({
         />
       );
     }
-    if (currentMenu === 'admin/mcp') {
+    if (currentMenu === 'admin/advanced') {
       return (
-        <McpServersManager
-          data={admin?.mcpServers}
-          prompts={admin?.prompts}
-          onCreate={mcpActions?.create}
-          onUpdate={mcpActions?.update}
-          onDelete={mcpActions?.delete}
+        <AdvancedSettingsManager
+          admin={admin}
+          loading={loading}
+          mcpActions={mcpActions}
           promptActions={promptActions}
-          loading={loading}
+          subagentActions={subagentActions}
+          onSetSubagentModel={onSetSubagentModel}
           developerMode={developerMode}
         />
       );
     }
-    if (currentMenu === 'admin/subagents') {
+    if (advancedTabMap[currentMenu]) {
       return (
-        <SubagentsManager
-          data={admin?.subagents}
-          models={admin?.models}
-          onUpdateStatus={subagentActions?.updateStatus}
-          onListMarketplace={subagentActions?.listMarketplace}
-          onAddMarketplaceSource={subagentActions?.addMarketplaceSource}
-          onInstallPlugin={subagentActions?.installPlugin}
-          onUninstallPlugin={subagentActions?.uninstallPlugin}
-          onSetModel={onSetSubagentModel}
+        <AdvancedSettingsManager
+          activeTab={advancedTabMap[currentMenu]}
+          admin={admin}
           loading={loading}
+          mcpActions={mcpActions}
+          promptActions={promptActions}
+          subagentActions={subagentActions}
+          onSetSubagentModel={onSetSubagentModel}
           developerMode={developerMode}
         />
       );
-    }
-    if (currentMenu === 'admin/prompts') {
-      return (
-        <PromptsManager
-          data={admin?.prompts}
-          mcpServers={admin?.mcpServers}
-          onCreate={promptActions?.create}
-          onUpdate={promptActions?.update}
-          onDelete={promptActions?.delete}
-          loading={loading}
-          developerMode={developerMode}
-        />
-      );
-    }
-    if (currentMenu === 'admin/lsp') {
-      return <LspServersManager />;
-    }
-    if (currentMenu === 'admin/land_configs') {
-      return <LandConfigsManager admin={admin} />;
     }
   }
 
