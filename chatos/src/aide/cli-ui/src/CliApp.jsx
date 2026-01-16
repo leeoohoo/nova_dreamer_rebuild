@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Dropdown, Layout, Modal, Segmented, Space, Typography, message } from 'antd';
+import { Alert, Button, Layout, Modal, Segmented, Space, Typography, message } from 'antd';
 import { ConfigProvider, theme as antdTheme } from 'antd';
-import { ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 
 import { createAdminActions } from './app/admin-actions.js';
 import { EventStreamMarkdownView } from './features/session/EventStreamMarkdownView.jsx';
@@ -98,36 +97,7 @@ function CliAppBody({ host, mountContainer }) {
   const [workspaceSelection, setWorkspaceSelection] = useState(null);
   const [terminalStatusMap, setTerminalStatusMap] = useState({});
   const [dispatchInput, setDispatchInput] = useState('');
-  const hostNavigate = typeof host?.ui?.navigate === 'function' ? host.ui.navigate : null;
   const hideTopBar = Boolean(host?.ui?.aideui?.hideTopBar);
-  const configMenuItems = useMemo(
-    () => [
-      { key: 'admin/models', label: '模型' },
-      { key: 'admin/secrets', label: 'API Keys' },
-      { type: 'divider' },
-      { key: 'admin/mcp', label: 'MCP Servers' },
-      { key: 'admin/subagents', label: 'Sub-agents' },
-      { key: 'admin/prompts', label: 'Prompts' },
-      { key: 'admin/settings', label: '运行配置' },
-    ],
-    []
-  );
-  const navigateToMenu = useCallback(
-    (menu) => {
-      const target = typeof menu === 'string' ? menu.trim() : '';
-      if (!target) return;
-      if (!hostNavigate) {
-        message.error('Host navigation not available');
-        return;
-      }
-      try {
-        hostNavigate(target);
-      } catch (err) {
-        message.error(err?.message || '跳转失败');
-      }
-    },
-    [hostNavigate]
-  );
   const [dispatchCwd, setDispatchCwd] = useState(() => {
     const raw = safeLocalStorageGet(DISPATCH_CWD_STORAGE_KEY);
     return typeof raw === 'string' ? raw.trim() : '';
@@ -909,21 +879,6 @@ function CliAppBody({ host, mountContainer }) {
             onChange={(value) => setTab(normalizeTab(String(value)))}
           />
           <div style={{ flex: 1 }} />
-          <Button icon={<ReloadOutlined />} onClick={refreshLogs} disabled={loading || !hasApi}>
-            刷新
-          </Button>
-          <Dropdown
-            placement="bottomRight"
-            trigger={['click']}
-            menu={{
-              items: configMenuItems,
-              onClick: ({ key }) => navigateToMenu(String(key)),
-            }}
-          >
-            <Button disabled={!hostNavigate} icon={<SettingOutlined />}>
-              配置
-            </Button>
-          </Dropdown>
         </div>
 	      ) : null}
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Card, Dropdown, Segmented, Space, Typography, message } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Segmented, Space, Typography, message } from 'antd';
+import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { api, hasApi } from '../../lib/api.js';
 import { useUiAppsRegistry } from './hooks/useUiAppsRegistry.js';
@@ -64,34 +64,6 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
     return () => window.removeEventListener('aideui:cli:tabChange', handler);
   }, [isBuiltinCliConsole]);
 
-  const configMenuItems = useMemo(
-    () => [
-      { key: 'admin/models', label: '模型' },
-      { key: 'admin/secrets', label: 'API Keys' },
-      { type: 'divider' },
-      { key: 'admin/mcp', label: 'MCP Servers' },
-      { key: 'admin/subagents', label: 'Sub-agents' },
-      { key: 'admin/prompts', label: 'Prompts' },
-      { key: 'admin/settings', label: '运行配置' },
-    ],
-    []
-  );
-  const navigateToMenu = useCallback(
-    (menu) => {
-      const target = typeof menu === 'string' ? menu.trim() : '';
-      if (!target) return;
-      if (typeof onNavigate !== 'function') {
-        message.error('Host navigation not available');
-        return;
-      }
-      try {
-        onNavigate(target);
-      } catch (err) {
-        message.error(err?.message || '跳转失败');
-      }
-    },
-    [onNavigate]
-  );
 
   const handleCliTabChange = useCallback((value) => {
     const next = normalizeBuiltinCliTab(String(value || ''));
@@ -955,23 +927,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
             />
           ) : null}
           <div style={{ flex: 1 }} />
-          {isBuiltinCliConsole ? (
-            <Space size={8} align="center">
-              <Button icon={<ReloadOutlined />} onClick={reload} disabled={loading}>
-                刷新
-              </Button>
-              <Dropdown
-                placement="bottomRight"
-                trigger={['click']}
-                menu={{
-                  items: configMenuItems,
-                  onClick: ({ key }) => navigateToMenu(String(key)),
-                }}
-              >
-                <Button icon={<SettingOutlined />}>配置</Button>
-              </Dropdown>
-            </Space>
-          ) : (
+          {isBuiltinCliConsole ? null : (
             <Button icon={<ReloadOutlined />} onClick={reload} disabled={loading}>
               刷新
             </Button>
