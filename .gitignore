@@ -7,7 +7,7 @@ chatos-uiapps-devkit/bin
 .idea/
 /doc
 # Build output
-dist/
+
 dist_desktop/
 dist_engine/
 build/
