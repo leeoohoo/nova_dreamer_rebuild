@@ -17,7 +17,6 @@ function formatTime(ts) {
 export function ChatSidebar({
   sessions,
   selectedSessionId,
-  streaming,
   onSelectSession,
   onCreateSession,
   onDeleteSession,
@@ -50,7 +49,7 @@ export function ChatSidebar({
         </Text>
         {onCollapse ? <Button size="small" icon={<MenuFoldOutlined />} onClick={() => onCollapse?.()} /> : null}
         <Button size="small" icon={<ReloadOutlined />} onClick={() => onRefresh?.()} />
-        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => onCreateSession?.()} disabled={streaming} />
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => onCreateSession?.()} />
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>

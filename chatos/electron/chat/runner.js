@@ -23,14 +23,12 @@ let engineDepsPromise = null;
 async function loadEngineDeps() {
   if (engineDepsPromise) return engineDepsPromise;
   engineDepsPromise = (async () => {
-    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod, mcpMod, landConfigMod] = await Promise.all([
+    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod] = await Promise.all([
       import(pathToFileURL(resolveEngineModule('session.js')).href),
       import(pathToFileURL(resolveEngineModule('client.js')).href),
       import(pathToFileURL(resolveEngineModule('config.js')).href),
       import(pathToFileURL(resolveEngineModule('mcp/runtime.js')).href),
       import(pathToFileURL(resolveEngineModule('subagents/runtime.js')).href),
-      import(pathToFileURL(resolveEngineModule('mcp.js')).href),
-      import(pathToFileURL(resolveEngineModule('land-config.js')).href),
     ]);
     return {
       ChatSession: sessionMod.ChatSession,
@@ -38,9 +36,6 @@ async function loadEngineDeps() {
       createAppConfigFromModels: configMod.createAppConfigFromModels,
       initializeMcpRuntime: mcpRuntimeMod.initializeMcpRuntime,
       runWithSubAgentContext: subagentRuntimeMod.runWithSubAgentContext,
-      loadMcpConfig: mcpMod.loadMcpConfig,
-      buildLandConfigSelection: landConfigMod.buildLandConfigSelection,
-      resolveLandConfig: landConfigMod.resolveLandConfig,
     };
   })();
   return engineDepsPromise;
@@ -60,10 +55,6 @@ function normalizePromptLanguage(value) {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
   if (raw === 'zh' || raw === 'en') return raw;
   return '';
-}
-
-function normalizeKey(value) {
-  return String(value || '').trim().toLowerCase();
 }
 
 function normalizeMcpServerName(value) {
@@ -120,80 +111,6 @@ function buildUserMessageContent({ text, attachments, allowVisionInput } = {}) {
   return parts;
 }
 
-function appendPromptBlock(baseText, extraText) {
-  const base = typeof baseText === 'string' ? baseText.trim() : '';
-  const extra = typeof extraText === 'string' ? extraText.trim() : '';
-  if (!base) return extra;
-  if (!extra) return base;
-  return `${base}\n\n${extra}`;
-}
-
-function buildToolAllowPrefixes(serverNames, options = {}) {
-  const list = Array.isArray(serverNames) ? serverNames : [];
-  const prefixes = Array.from(
-    new Set(
-      list
-        .map((name) => String(name || '').trim())
-        .filter(Boolean)
-        .map((name) => `mcp_${name}_`)
-    )
-  );
-  if (prefixes.length === 0 && options.emptyToNone) {
-    return ['__none__'];
-  }
-  return prefixes;
-}
-
-function mergeLandMcpServers({ mcpServers, selectedServers } = {}) {
-  const base = Array.isArray(mcpServers) ? mcpServers : [];
-  const byId = new Map();
-  const byName = new Map();
-  base.forEach((srv) => {
-    const id = normalizeId(srv?.id);
-    if (id && !byId.has(id)) byId.set(id, srv);
-    const nameKey = normalizeKey(srv?.name);
-    if (nameKey && !byName.has(nameKey)) byName.set(nameKey, srv);
-  });
-  const merged = base.slice();
-  const selectedIds = [];
-  (Array.isArray(selectedServers) ? selectedServers : []).forEach((entry) => {
-    const server = entry?.server || entry;
-    if (!server) return;
-    const nameKey = normalizeKey(server?.name);
-    const existingByName = nameKey ? byName.get(nameKey) : null;
-    if (existingByName?.id) {
-      const id = normalizeId(existingByName.id);
-      if (id) selectedIds.push(id);
-      return;
-    }
-    const explicitId = normalizeId(server?.id);
-    if (explicitId) {
-      if (!byId.has(explicitId)) {
-        merged.push(server);
-        byId.set(explicitId, server);
-      }
-      selectedIds.push(explicitId);
-      return;
-    }
-    if (!nameKey) return;
-    const generatedId = `registry:${normalizeMcpServerName(server.name) || nameKey}`;
-    if (!byId.has(generatedId)) {
-      const withId = { ...server, id: generatedId };
-      merged.push(withId);
-      byId.set(generatedId, withId);
-    }
-    selectedIds.push(generatedId);
-  });
-  const uniqueIds = [];
-  const seen = new Set();
-  selectedIds.forEach((id) => {
-    const key = normalizeId(id);
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    uniqueIds.push(key);
-  });
-  return { merged, selectedIds: uniqueIds };
-}
 
 function getMcpPromptNameForServer(serverName, language) {
   const base = `mcp_${normalizeMcpServerName(serverName)}`;
@@ -309,21 +226,6 @@ function buildSystemPrompt({ agent, prompts, subagents, mcpServers, language, ex
     blocks.push(['【能力范围】', ...capabilityLines].join('\n'));
   }
   return blocks.join('\n\n').trim();
-}
-
-function readRegistrySnapshot(services) {
-  const db = services?.mcpServers?.db || services?.prompts?.db || null;
-  if (!db || typeof db.list !== 'function') {
-    return { mcpServers: [], prompts: [] };
-  }
-  try {
-    return {
-      mcpServers: db.list('registryMcpServers') || [],
-      prompts: db.list('registryPrompts') || [],
-    };
-  } catch {
-    return { mcpServers: [], prompts: [] };
-  }
 }
 
 export function createChatRunner({
@@ -564,9 +466,6 @@ export function createChatRunner({
       ModelClient,
       createAppConfigFromModels,
       runWithSubAgentContext,
-      loadMcpConfig,
-      buildLandConfigSelection,
-      resolveLandConfig,
     } = await loadEngineDeps();
 
     applySecretsToProcessEnv(adminServices);
@@ -580,24 +479,6 @@ export function createChatRunner({
     const prompts = adminServices.prompts.list();
     const subagents = adminServices.subagents.list();
     const mcpServers = adminServices.mcpServers.list();
-    const landConfigId = typeof runtimeConfig?.landConfigId === 'string' ? runtimeConfig.landConfigId.trim() : '';
-    const landConfigRecords = adminServices.landConfigs?.list ? adminServices.landConfigs.list() : [];
-    const selectedLandConfig = resolveLandConfig({ landConfigs: landConfigRecords, landConfigId });
-    const agentHasUiApps = Array.isArray(agentRecord?.uiApps) && agentRecord.uiApps.length > 0;
-    const agentHasMcpIds = Array.isArray(agentRecord?.mcpServerIds) && agentRecord.mcpServerIds.length > 0;
-    const agentHasPromptIds = Array.isArray(agentRecord?.promptIds) && agentRecord.promptIds.length > 0;
-    const shouldUseLandConfig = Boolean(selectedLandConfig) && !(agentHasUiApps || agentHasMcpIds || agentHasPromptIds);
-    const registrySnapshot = readRegistrySnapshot(adminServices);
-    const landSelection = shouldUseLandConfig
-      ? buildLandConfigSelection({
-          landConfig: selectedLandConfig,
-          prompts,
-          mcpServers,
-          registryMcpServers: registrySnapshot.mcpServers,
-          registryPrompts: registrySnapshot.prompts,
-          promptLanguage,
-        })
-      : null;
     const serverById = new Map(
       (Array.isArray(mcpServers) ? mcpServers : [])
         .filter((srv) => srv?.id)
@@ -627,170 +508,168 @@ export function createChatRunner({
     const extraMcpRuntimeServers = [];
     const extraPrompts = [];
 
-    if (!landSelection) {
-      const uiRefs = Array.isArray(agentRecord?.uiApps) ? agentRecord.uiApps : [];
-      for (const ref of uiRefs) {
-        const pluginId = normalizeId(ref?.pluginId);
-        const appId = normalizeId(ref?.appId);
-        if (!pluginId || !appId) continue;
-        const serverName = `${pluginId}.${appId}`;
-        const wantsMcp = ref?.mcp !== false;
-        const wantsPrompt = ref?.prompt !== false;
+    const uiRefs = Array.isArray(agentRecord?.uiApps) ? agentRecord.uiApps : [];
+    for (const ref of uiRefs) {
+      const pluginId = normalizeId(ref?.pluginId);
+      const appId = normalizeId(ref?.appId);
+      if (!pluginId || !appId) continue;
+      const serverName = `${pluginId}.${appId}`;
+      const wantsMcp = ref?.mcp !== false;
+      const wantsPrompt = ref?.prompt !== false;
 
-        let resolvedContribution = undefined;
-        const resolveContribution = async () => {
-          if (resolvedContribution !== undefined) return resolvedContribution;
-          if (!resolveUiAppAi) {
-            resolvedContribution = null;
-            return null;
-          }
-          try {
-            resolvedContribution = await resolveUiAppAi({ pluginId, appId });
-            return resolvedContribution;
-          } catch {
-            resolvedContribution = null;
-            return null;
-          }
-        };
+      let resolvedContribution = undefined;
+      const resolveContribution = async () => {
+        if (resolvedContribution !== undefined) return resolvedContribution;
+        if (!resolveUiAppAi) {
+          resolvedContribution = null;
+          return null;
+        }
+        try {
+          resolvedContribution = await resolveUiAppAi({ pluginId, appId });
+          return resolvedContribution;
+        } catch {
+          resolvedContribution = null;
+          return null;
+        }
+      };
 
-        if (wantsMcp) {
-          const explicitMcpIds = Array.isArray(ref?.mcpServerIds)
-            ? ref.mcpServerIds.map((id) => normalizeId(id)).filter(Boolean)
-            : [];
-          const explicitMcpValidIds = explicitMcpIds.filter((id) => serverById.has(id));
-          if (explicitMcpValidIds.length > 0) {
-            explicitMcpValidIds.forEach((id) => derivedMcpServerIds.push(id));
+      if (wantsMcp) {
+        const explicitMcpIds = Array.isArray(ref?.mcpServerIds)
+          ? ref.mcpServerIds.map((id) => normalizeId(id)).filter(Boolean)
+          : [];
+        const explicitMcpValidIds = explicitMcpIds.filter((id) => serverById.has(id));
+        if (explicitMcpValidIds.length > 0) {
+          explicitMcpValidIds.forEach((id) => derivedMcpServerIds.push(id));
+        } else {
+          const srv = serverByName.get(serverName.toLowerCase());
+          if (srv?.id) {
+            derivedMcpServerIds.push(srv.id);
           } else {
-            const srv = serverByName.get(serverName.toLowerCase());
-            if (srv?.id) {
-              derivedMcpServerIds.push(srv.id);
-            } else {
-              const contribute = await resolveContribution();
-              const mcp = contribute?.mcp && typeof contribute.mcp === 'object' ? contribute.mcp : null;
-              const mcpUrl = typeof mcp?.url === 'string' ? mcp.url.trim() : '';
-              if (mcpUrl) {
-                const uiId = `uiapp:${serverName}`;
-                const tags = Array.isArray(mcp?.tags) ? mcp.tags : [];
-                const mergedTags = [
-                  ...tags,
-                  'uiapp',
-                  `uiapp:${pluginId}`,
-                  `uiapp:${pluginId}:${appId}`,
-                  `uiapp:${pluginId}.${appId}`,
-                ];
-                const allowMain = typeof mcp?.allowMain === 'boolean' ? mcp.allowMain : true;
-                const allowSub = typeof mcp?.allowSub === 'boolean' ? mcp.allowSub : true;
-                const enabled = typeof mcp?.enabled === 'boolean' ? mcp.enabled : true;
-                const auth = mcp?.auth || undefined;
+            const contribute = await resolveContribution();
+            const mcp = contribute?.mcp && typeof contribute.mcp === 'object' ? contribute.mcp : null;
+            const mcpUrl = typeof mcp?.url === 'string' ? mcp.url.trim() : '';
+            if (mcpUrl) {
+              const uiId = `uiapp:${serverName}`;
+              const tags = Array.isArray(mcp?.tags) ? mcp.tags : [];
+              const mergedTags = [
+                ...tags,
+                'uiapp',
+                `uiapp:${pluginId}`,
+                `uiapp:${pluginId}:${appId}`,
+                `uiapp:${pluginId}.${appId}`,
+              ];
+              const allowMain = typeof mcp?.allowMain === 'boolean' ? mcp.allowMain : true;
+              const allowSub = typeof mcp?.allowSub === 'boolean' ? mcp.allowSub : true;
+              const enabled = typeof mcp?.enabled === 'boolean' ? mcp.enabled : true;
+              const auth = mcp?.auth || undefined;
 
-                extraMcpServers.push({
-                  id: uiId,
-                  name: mcp?.name || serverName,
-                  url: mcpUrl,
-                  description: typeof mcp?.description === 'string' ? mcp.description : '',
-                  tags: mergedTags,
-                  enabled,
-                  allowMain,
-                  allowSub,
-                  auth,
-                  callMeta: mcp?.callMeta || undefined,
-                });
-                extraMcpRuntimeServers.push({
-                  name: mcp?.name || serverName,
-                  url: mcpUrl,
-                  description: typeof mcp?.description === 'string' ? mcp.description : '',
-                  tags: mergedTags,
-                  enabled,
-                  allowMain,
-                  allowSub,
-                  auth,
-                  callMeta: mcp?.callMeta || undefined,
-                });
-                derivedMcpServerIds.push(uiId);
-              } else {
-                missingUiAppServers.push(serverName);
-              }
+              extraMcpServers.push({
+                id: uiId,
+                name: mcp?.name || serverName,
+                url: mcpUrl,
+                description: typeof mcp?.description === 'string' ? mcp.description : '',
+                tags: mergedTags,
+                enabled,
+                allowMain,
+                allowSub,
+                auth,
+                callMeta: mcp?.callMeta || undefined,
+              });
+              extraMcpRuntimeServers.push({
+                name: mcp?.name || serverName,
+                url: mcpUrl,
+                description: typeof mcp?.description === 'string' ? mcp.description : '',
+                tags: mergedTags,
+                enabled,
+                allowMain,
+                allowSub,
+                auth,
+                callMeta: mcp?.callMeta || undefined,
+              });
+              derivedMcpServerIds.push(uiId);
+            } else {
+              missingUiAppServers.push(serverName);
             }
           }
         }
+      }
 
-        if (wantsPrompt) {
-          const explicitPromptIds = Array.isArray(ref?.promptIds)
-            ? ref.promptIds.map((id) => normalizeId(id)).filter(Boolean)
-            : [];
-          const explicitPromptValidIds = explicitPromptIds.filter((id) => promptById.has(id));
-          if (explicitPromptValidIds.length > 0) {
-            explicitPromptValidIds.forEach((id) => derivedPromptIds.push(id));
-            continue;
-          }
+      if (wantsPrompt) {
+        const explicitPromptIds = Array.isArray(ref?.promptIds)
+          ? ref.promptIds.map((id) => normalizeId(id)).filter(Boolean)
+          : [];
+        const explicitPromptValidIds = explicitPromptIds.filter((id) => promptById.has(id));
+        if (explicitPromptValidIds.length > 0) {
+          explicitPromptValidIds.forEach((id) => derivedPromptIds.push(id));
+          continue;
+        }
 
-          const preferredName = getMcpPromptNameForServer(serverName, promptLanguage).toLowerCase();
-          const fallbackName = getMcpPromptNameForServer(serverName).toLowerCase();
-          const preferred = promptByName.get(preferredName);
-          const preferredContent = typeof preferred?.content === 'string' ? preferred.content.trim() : '';
-          if (preferredContent) {
-            derivedPromptNames.push(preferredName);
-            continue;
-          }
-          const fallback = preferredName === fallbackName ? null : promptByName.get(fallbackName);
-          const fallbackContent = typeof fallback?.content === 'string' ? fallback.content.trim() : '';
-          if (fallbackContent) {
-            derivedPromptNames.push(fallbackName);
-            continue;
-          }
+        const preferredName = getMcpPromptNameForServer(serverName, promptLanguage).toLowerCase();
+        const fallbackName = getMcpPromptNameForServer(serverName).toLowerCase();
+        const preferred = promptByName.get(preferredName);
+        const preferredContent = typeof preferred?.content === 'string' ? preferred.content.trim() : '';
+        if (preferredContent) {
+          derivedPromptNames.push(preferredName);
+          continue;
+        }
+        const fallback = preferredName === fallbackName ? null : promptByName.get(fallbackName);
+        const fallbackContent = typeof fallback?.content === 'string' ? fallback.content.trim() : '';
+        if (fallbackContent) {
+          derivedPromptNames.push(fallbackName);
+          continue;
+        }
 
-          const contribute = await resolveContribution();
-          const prompt = contribute?.mcpPrompt && typeof contribute.mcpPrompt === 'object' ? contribute.mcpPrompt : null;
-          const zhText = typeof prompt?.zh === 'string' ? prompt.zh.trim() : '';
-          const enText = typeof prompt?.en === 'string' ? prompt.en.trim() : '';
-          const lang = normalizePromptLanguage(promptLanguage) || 'zh';
+        const contribute = await resolveContribution();
+        const prompt = contribute?.mcpPrompt && typeof contribute.mcpPrompt === 'object' ? contribute.mcpPrompt : null;
+        const zhText = typeof prompt?.zh === 'string' ? prompt.zh.trim() : '';
+        const enText = typeof prompt?.en === 'string' ? prompt.en.trim() : '';
+        const lang = normalizePromptLanguage(promptLanguage) || 'zh';
 
-          let pickedName = '';
-          let pickedText = '';
-          if (lang === 'en' && enText) {
-            pickedName = preferredName;
-            pickedText = enText;
-          } else if (zhText) {
-            pickedName = fallbackName;
-            pickedText = zhText;
-          } else if (enText) {
-            pickedName = preferredName;
-            pickedText = enText;
-          }
+        let pickedName = '';
+        let pickedText = '';
+        if (lang === 'en' && enText) {
+          pickedName = preferredName;
+          pickedText = enText;
+        } else if (zhText) {
+          pickedName = fallbackName;
+          pickedText = zhText;
+        } else if (enText) {
+          pickedName = preferredName;
+          pickedText = enText;
+        }
 
-          if (pickedName && pickedText) {
-            extraPrompts.push({
-              id: `uiapp:${pickedName}`,
-              name: pickedName,
-              title: typeof prompt?.title === 'string' ? prompt.title : '',
-              type: 'system',
-              content: pickedText,
-              allowMain: true,
-              allowSub: true,
-            });
-            derivedPromptNames.push(pickedName);
-          } else {
-            missingUiAppPrompts.push(preferredName);
-          }
+        if (pickedName && pickedText) {
+          extraPrompts.push({
+            id: `uiapp:${pickedName}`,
+            name: pickedName,
+            title: typeof prompt?.title === 'string' ? prompt.title : '',
+            type: 'system',
+            content: pickedText,
+            allowMain: true,
+            allowSub: true,
+          });
+          derivedPromptNames.push(pickedName);
+        } else {
+          missingUiAppPrompts.push(preferredName);
         }
       }
+    }
 
-      if (missingUiAppServers.length > 0) {
-        sendEvent({
-          type: 'notice',
-          message: `[UI Apps] 未找到 MCP server：${missingUiAppServers.slice(0, 6).join(', ')}${
-            missingUiAppServers.length > 6 ? ' ...' : ''
-          }`,
-        });
-      }
-      if (missingUiAppPrompts.length > 0) {
-        sendEvent({
-          type: 'notice',
-          message: `[UI Apps] 未找到 Prompt：${missingUiAppPrompts.slice(0, 6).join(', ')}${
-            missingUiAppPrompts.length > 6 ? ' ...' : ''
-          }`,
-        });
-      }
+    if (missingUiAppServers.length > 0) {
+      sendEvent({
+        type: 'notice',
+        message: `[UI Apps] 未找到 MCP server：${missingUiAppServers.slice(0, 6).join(', ')}${
+          missingUiAppServers.length > 6 ? ' ...' : ''
+        }`,
+      });
+    }
+    if (missingUiAppPrompts.length > 0) {
+      sendEvent({
+        type: 'notice',
+        message: `[UI Apps] 未找到 Prompt：${missingUiAppPrompts.slice(0, 6).join(', ')}${
+          missingUiAppPrompts.length > 6 ? ' ...' : ''
+        }`,
+      });
     }
 
     const uniqueIds = (list) => {
@@ -804,128 +683,49 @@ export function createChatRunner({
       });
       return out;
     };
-    let effectiveAgent = agentRecord;
-    let mergedPrompts = prompts;
-    let mergedMcpServers = mcpServers;
-    let systemPrompt = '';
-    let extraRuntimeServers = extraMcpRuntimeServers;
-    let allowedMcpPrefixes = undefined;
-    let mainUserPrompt = '';
-    let subagentUserPrompt = '';
-    let subagentMcpAllowPrefixes = null;
-    let skipServers = null;
+    const effectiveAgent = {
+      ...agentRecord,
+      mcpServerIds: uniqueIds([
+        ...(Array.isArray(agentRecord.mcpServerIds) ? agentRecord.mcpServerIds : []),
+        ...derivedMcpServerIds,
+      ]),
+      promptIds: uniqueIds([
+        ...(Array.isArray(agentRecord.promptIds) ? agentRecord.promptIds : []),
+        ...derivedPromptIds,
+      ]),
+    };
+    const hasUiApps = Array.isArray(agentRecord?.uiApps) && agentRecord.uiApps.length > 0;
+    const mergedPrompts = Array.isArray(extraPrompts) && extraPrompts.length > 0 ? [...prompts, ...extraPrompts] : prompts;
+    const mergedMcpServers =
+      Array.isArray(extraMcpServers) && extraMcpServers.length > 0 ? [...mcpServers, ...extraMcpServers] : mcpServers;
+    const systemPrompt = buildSystemPrompt({
+      agent: effectiveAgent,
+      prompts: mergedPrompts,
+      subagents,
+      mcpServers: mergedMcpServers,
+      language: promptLanguage,
+      extraPromptNames: derivedPromptNames,
+      autoMcpPrompts: !hasUiApps,
+    });
 
-    if (landSelection) {
-      const mainPromptWithMcp = appendPromptBlock(landSelection.main?.promptText, landSelection.main?.mcpPromptText);
-      const subPromptWithMcp = appendPromptBlock(landSelection.sub?.promptText, landSelection.sub?.mcpPromptText);
-      const { merged: landMcpServers, selectedIds } = mergeLandMcpServers({
-        mcpServers,
-        selectedServers: landSelection.main?.selectedServers,
-      });
-      const selectedIdSet = new Set(selectedIds);
-      mergedMcpServers = landMcpServers.map((srv) => {
-        const id = normalizeId(srv?.id);
-        if (id && selectedIdSet.has(id)) {
-          return { ...srv, allowMain: true };
-        }
-        return srv;
-      });
-      effectiveAgent = {
-        ...agentRecord,
-        mcpServerIds: selectedIds,
-      };
-      systemPrompt = buildSystemPrompt({
-        agent: effectiveAgent,
-        prompts: mergedPrompts,
-        subagents,
-        mcpServers: mergedMcpServers,
-        language: promptLanguage,
-        extraPromptNames: [],
-        autoMcpPrompts: false,
-      });
-      systemPrompt = appendPromptBlock(systemPrompt, mainPromptWithMcp);
-      allowedMcpPrefixes = buildToolAllowPrefixes(landSelection.main?.selectedServerNames);
-      mainUserPrompt = mainPromptWithMcp;
-      subagentUserPrompt = subPromptWithMcp;
-      subagentMcpAllowPrefixes = buildToolAllowPrefixes(landSelection.sub?.selectedServerNames, { emptyToNone: true });
-      extraRuntimeServers = Array.isArray(landSelection.extraMcpServers) ? landSelection.extraMcpServers : [];
+    const extraRuntimeServers = Array.isArray(extraMcpRuntimeServers) ? extraMcpRuntimeServers : [];
+    const mainUserPrompt = '';
+    const subagentUserPrompt = '';
+    const subagentMcpAllowPrefixes = null;
 
-      const selectedServerKeys = new Set(
-        [...(landSelection.main?.selectedServers || []), ...(landSelection.sub?.selectedServers || [])]
-          .map((entry) => normalizeKey(entry?.server?.name))
-          .filter(Boolean)
-      );
-      try {
-        const mcpSummary = loadMcpConfig(resolveMcpConfigPath() || defaultPaths.models);
-        skipServers = Array.isArray(mcpSummary?.servers)
-          ? mcpSummary.servers
-              .filter((srv) => srv?.name && !selectedServerKeys.has(normalizeKey(srv.name)))
-              .map((srv) => srv.name)
-          : [];
-      } catch {
-        skipServers = [];
-      }
-    } else {
-      effectiveAgent = {
-        ...agentRecord,
-        mcpServerIds: uniqueIds([
-          ...(Array.isArray(agentRecord.mcpServerIds) ? agentRecord.mcpServerIds : []),
-          ...derivedMcpServerIds,
-        ]),
-        promptIds: uniqueIds([
-          ...(Array.isArray(agentRecord.promptIds) ? agentRecord.promptIds : []),
-          ...derivedPromptIds,
-        ]),
-      };
-      const hasUiApps = Array.isArray(agentRecord?.uiApps) && agentRecord.uiApps.length > 0;
-      mergedPrompts = Array.isArray(extraPrompts) && extraPrompts.length > 0 ? [...prompts, ...extraPrompts] : prompts;
-      mergedMcpServers =
-        Array.isArray(extraMcpServers) && extraMcpServers.length > 0 ? [...mcpServers, ...extraMcpServers] : mcpServers;
-      systemPrompt = buildSystemPrompt({
-        agent: effectiveAgent,
-        prompts: mergedPrompts,
-        subagents,
-        mcpServers: mergedMcpServers,
-        language: promptLanguage,
-        extraPromptNames: derivedPromptNames,
-        autoMcpPrompts: !hasUiApps,
-      });
-    }
-
-    if (landSelection) {
-      const warnList = (label, items) => {
-        const list = Array.isArray(items) ? items.filter(Boolean) : [];
-        if (list.length === 0) return;
-        sendEvent({
-          type: 'notice',
-          message: `${label}${list.slice(0, 6).join(', ')}${list.length > 6 ? ' ...' : ''}`,
-        });
-      };
-      warnList('[prompts] Missing MCP prompt(s) for main: ', landSelection.main?.missingMcpPromptNames);
-      warnList('[prompts] Missing MCP prompt(s) for sub: ', landSelection.sub?.missingMcpPromptNames);
-      warnList('[land_config] Missing app MCP servers (main): ', landSelection.main?.missingAppServers);
-      warnList('[land_config] Missing app MCP servers (sub): ', landSelection.sub?.missingAppServers);
-      warnList('[land_config] Missing prompts (main): ', landSelection.main?.missingPromptNames);
-      warnList('[land_config] Missing prompts (sub): ', landSelection.sub?.missingPromptNames);
-    }
-
-    const shouldInitMcp = landSelection
-      ? (landSelection.main?.selectedServers || []).length > 0 ||
-        (landSelection.sub?.selectedServers || []).length > 0 ||
-        (Array.isArray(extraRuntimeServers) && extraRuntimeServers.length > 0)
-      : Array.isArray(effectiveAgent.mcpServerIds) && effectiveAgent.mcpServerIds.length > 0;
+    const shouldInitMcp =
+      (Array.isArray(effectiveAgent.mcpServerIds) && effectiveAgent.mcpServerIds.length > 0) ||
+      (Array.isArray(extraRuntimeServers) && extraRuntimeServers.length > 0);
     if (shouldInitMcp) {
       await ensureMcp({
         workspaceRoot: effectiveWorkspaceRoot,
         extraServers: extraRuntimeServers,
-        skipServers: landSelection ? skipServers : undefined,
       });
     }
 
     const toolsOverride = resolveAllowedTools({
       agent: effectiveAgent,
       mcpServers: mergedMcpServers,
-      allowedMcpPrefixes,
     });
     const restrictedManager = subAgentManager
       ? createRestrictedSubAgentManager(subAgentManager, {

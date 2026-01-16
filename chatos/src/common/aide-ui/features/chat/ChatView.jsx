@@ -203,7 +203,6 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
           <ChatSidebar
             sessions={sessions}
             selectedSessionId={selectedSessionId}
-            streaming={Boolean(streamState)}
             onSelectSession={selectSession}
             onCreateSession={async () => {
               try {

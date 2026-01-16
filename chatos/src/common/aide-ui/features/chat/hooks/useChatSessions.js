@@ -17,10 +17,12 @@ export function useChatSessions() {
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [composerText, setComposerText] = useState('');
   const [composerAttachments, setComposerAttachments] = useState([]);
-  const [streamState, setStreamState] = useState(null);
+  const [streamStates, setStreamStates] = useState({});
+  const [streamBuffers, setStreamBuffers] = useState({});
 
   const selectedSessionIdRef = useRef('');
-  const streamStateRef = useRef(null);
+  const streamStatesRef = useRef({});
+  const streamBuffersRef = useRef({});
 
   const currentSession = useMemo(
     () => sessions.find((s) => normalizeId(s?.id) === normalizeId(selectedSessionId)) || null,
@@ -32,8 +34,72 @@ export function useChatSessions() {
   }, [selectedSessionId]);
 
   useEffect(() => {
-    streamStateRef.current = streamState;
-  }, [streamState]);
+    streamStatesRef.current = streamStates;
+  }, [streamStates]);
+
+  useEffect(() => {
+    streamBuffersRef.current = streamBuffers;
+  }, [streamBuffers]);
+
+  const currentStreamState = useMemo(() => {
+    const sid = normalizeId(selectedSessionId);
+    if (!sid) return null;
+    return streamStates[sid] || null;
+  }, [selectedSessionId, streamStates]);
+
+  const mergeStreamBuffer = (sessionId, list) => {
+    const sid = normalizeId(sessionId);
+    if (!sid) return Array.isArray(list) ? list : [];
+    const buffer = streamBuffersRef.current[sid];
+    if (!buffer || typeof buffer !== 'object') return Array.isArray(list) ? list : [];
+    const mid = normalizeId(buffer.messageId);
+    if (!mid) return Array.isArray(list) ? list : [];
+    const content = typeof buffer.content === 'string' ? buffer.content : '';
+    const reasoning = typeof buffer.reasoning === 'string' ? buffer.reasoning : '';
+    const messagesList = Array.isArray(list) ? list : [];
+    const idx = messagesList.findIndex((msg) => normalizeId(msg?.id) === mid);
+    if (idx < 0) {
+      return [
+        ...messagesList,
+        { id: mid, sessionId: sid, role: 'assistant', content, reasoning },
+      ];
+    }
+    const existing = messagesList[idx] || {};
+    const next = messagesList.slice();
+    const patch = { ...existing };
+    const existingContent = typeof existing?.content === 'string' ? existing.content : '';
+    const existingReasoning = typeof existing?.reasoning === 'string' ? existing.reasoning : '';
+    if (content && content.length >= existingContent.length) {
+      patch.content = content;
+    }
+    if (reasoning && reasoning.length >= existingReasoning.length) {
+      patch.reasoning = reasoning;
+    }
+    next[idx] = patch;
+    return next;
+  };
+
+  const updateStreamBuffer = (sessionId, messageId, updater) => {
+    const sid = normalizeId(sessionId);
+    if (!sid) return;
+    const mid = normalizeId(messageId);
+    if (!mid) return;
+    setStreamBuffers((prev) => {
+      const next = { ...(prev || {}) };
+      const current =
+        next[sid] && typeof next[sid] === 'object'
+          ? next[sid]
+          : { sessionId: sid, messageId: mid, content: '', reasoning: '' };
+      const reset = normalizeId(current.messageId) !== mid;
+      const base = reset
+        ? { sessionId: sid, messageId: mid, content: '', reasoning: '' }
+        : { ...current, sessionId: sid, messageId: mid };
+      const updated = typeof updater === 'function' ? updater(base) : base;
+      next[sid] = updated;
+      streamBuffersRef.current = next;
+      return next;
+    });
+  };
 
   const refreshSessions = async () => {
     const res = await api.invoke('chat:sessions:list');
@@ -53,7 +119,8 @@ export function useChatSessions() {
     const limit = Number.isFinite(options?.limit) ? options.limit : PAGE_SIZE;
     const res = await api.invoke('chat:messages:list', { sessionId: sid, limit });
     if (res?.ok === false) throw new Error(res?.message || '加载消息失败');
-    setMessages(Array.isArray(res?.messages) ? res.messages : []);
+    const list = Array.isArray(res?.messages) ? res.messages : [];
+    setMessages(mergeStreamBuffer(sid, list));
     setMessagesHasMore(Boolean(res?.hasMore));
   };
 
@@ -120,6 +187,12 @@ export function useChatSessions() {
         const mid = normalizeId(record?.id);
         const sid = normalizeId(record?.sessionId);
         if (!mid || !sid) return;
+        setStreamStates((prev) => ({ ...prev, [sid]: { sessionId: sid, messageId: mid } }));
+        updateStreamBuffer(sid, mid, (base) => ({
+          ...base,
+          content: typeof record?.content === 'string' ? record.content : '',
+          reasoning: typeof record?.reasoning === 'string' ? record.reasoning : '',
+        }));
         if (normalizeId(selectedSessionIdRef.current) === sid) {
           setMessages((prev) => {
             const list = Array.isArray(prev) ? prev : [];
@@ -127,18 +200,22 @@ export function useChatSessions() {
             return [...list, record];
           });
         }
-        setStreamState({ sessionId: sid, messageId: mid });
         return;
       }
       if (type === 'assistant_delta') {
         const mid = normalizeId(payload.messageId);
         const delta = typeof payload.delta === 'string' ? payload.delta : '';
-        if (!mid || !delta) return;
+        const sid = normalizeId(payload.sessionId);
+        if (!mid || !delta || !sid) return;
+        updateStreamBuffer(sid, mid, (base) => ({
+          ...base,
+          content: `${base.content || ''}${delta}`,
+        }));
+        if (normalizeId(selectedSessionIdRef.current) !== sid) return;
         setMessages((prev) => {
           const list = Array.isArray(prev) ? prev : [];
           const idx = list.findIndex((m) => normalizeId(m?.id) === mid);
           if (idx < 0) {
-            const sid = normalizeId(payload.sessionId) || normalizeId(selectedSessionIdRef.current);
             return [...list, { id: mid, sessionId: sid, role: 'assistant', content: delta }];
           }
           const next = list.slice();
@@ -151,12 +228,17 @@ export function useChatSessions() {
       if (type === 'assistant_reasoning_delta') {
         const mid = normalizeId(payload.messageId);
         const delta = typeof payload.delta === 'string' ? payload.delta : '';
-        if (!mid || !delta) return;
+        const sid = normalizeId(payload.sessionId);
+        if (!mid || !delta || !sid) return;
+        updateStreamBuffer(sid, mid, (base) => ({
+          ...base,
+          reasoning: `${base.reasoning || ''}${delta}`,
+        }));
+        if (normalizeId(selectedSessionIdRef.current) !== sid) return;
         setMessages((prev) => {
           const list = Array.isArray(prev) ? prev : [];
           const idx = list.findIndex((m) => normalizeId(m?.id) === mid);
           if (idx < 0) {
-            const sid = normalizeId(payload.sessionId) || normalizeId(selectedSessionIdRef.current);
             return [...list, { id: mid, sessionId: sid, role: 'assistant', content: '', reasoning: delta }];
           }
           const next = list.slice();
@@ -180,10 +262,26 @@ export function useChatSessions() {
       }
       if (type === 'assistant_done' || type === 'assistant_error' || type === 'assistant_aborted') {
         const mid = normalizeId(payload.messageId);
+        const sid = normalizeId(payload.sessionId);
+        if (sid) {
+          setStreamStates((prev) => {
+            if (!prev || !prev[sid]) return prev;
+            const next = { ...prev };
+            delete next[sid];
+            return next;
+          });
+          setStreamBuffers((prev) => {
+            if (!prev || !prev[sid]) return prev;
+            const next = { ...prev };
+            delete next[sid];
+            streamBuffersRef.current = next;
+            return next;
+          });
+        }
         if (type === 'assistant_error') {
           const errorMessage = typeof payload.message === 'string' ? payload.message.trim() : '';
           toast.error(errorMessage || '请求失败');
-          if (mid) {
+          if (mid && (!sid || normalizeId(selectedSessionIdRef.current) === sid)) {
             setMessages((prev) =>
               prev.map((m) => {
                 if (normalizeId(m?.id) !== mid) return m;
@@ -196,10 +294,6 @@ export function useChatSessions() {
         }
         if (type === 'assistant_aborted') {
           toast.info('已停止');
-        }
-        const currentStream = streamStateRef.current;
-        if (currentStream && normalizeId(currentStream.messageId) === mid) {
-          setStreamState(null);
         }
         void refreshSessions();
       }
@@ -240,7 +334,7 @@ export function useChatSessions() {
         const list = Array.isArray(prev) ? prev : [];
         const seen = new Set(list.map((m) => normalizeId(m?.id)).filter(Boolean));
         const prefix = nextBatch.filter((m) => !seen.has(normalizeId(m?.id)));
-        return [...prefix, ...list];
+        return mergeStreamBuffer(sid, [...prefix, ...list]);
       });
       setMessagesHasMore(Boolean(res?.hasMore));
     } catch (err) {
@@ -362,7 +456,8 @@ export function useChatSessions() {
   const sendMessage = async () => {
     const text = typeof composerText === 'string' ? composerText.trim() : '';
     const attachments = Array.isArray(composerAttachments) ? composerAttachments.filter(Boolean) : [];
-    if ((!text && attachments.length === 0) || streamStateRef.current) return;
+    const currentSid = normalizeId(selectedSessionIdRef.current);
+    if ((!text && attachments.length === 0) || (currentSid && streamStatesRef.current[currentSid])) return;
     const sid = normalizeId(selectedSessionIdRef.current);
     if (!sid) {
       toast.error('请先创建会话');
@@ -382,15 +477,20 @@ export function useChatSessions() {
         { id: userMessageId || `user_${now}`, sessionId: sid, role: 'user', content: text, attachments, createdAt: now, updatedAt: now },
         { id: assistantMessageId || `assistant_${now}`, sessionId: sid, role: 'assistant', content: '', createdAt: now, updatedAt: now },
       ]);
-      setStreamState({ sessionId: sid, messageId: assistantMessageId });
+      if (sid) {
+        setStreamStates((prev) => ({ ...prev, [sid]: { sessionId: sid, messageId: assistantMessageId } }));
+        if (assistantMessageId) {
+          updateStreamBuffer(sid, assistantMessageId, (base) => ({ ...base, content: '', reasoning: '' }));
+        }
+      }
     } catch (err) {
       toast.error(err?.message || '发送失败');
     }
   };
 
   const stopStreaming = async () => {
-    const currentStream = streamStateRef.current;
-    const sid = normalizeId(currentStream?.sessionId) || normalizeId(selectedSessionIdRef.current);
+    const sid = normalizeId(selectedSessionIdRef.current);
+    if (!sid || !streamStatesRef.current[sid]) return;
     if (!sid) return;
     try {
       await api.invoke('chat:abort', { sessionId: sid });
@@ -409,7 +509,7 @@ export function useChatSessions() {
     selectedAgentId,
     composerText,
     composerAttachments,
-    streamState,
+    streamState: currentStreamState,
     currentSession,
     setComposerText,
     setComposerAttachments,
