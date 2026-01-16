@@ -2,7 +2,9 @@ import React from 'react';
 
 import {
   LspServersManager,
+  McpServersManager,
   ModelsManager,
+  PromptsManager,
   SecretsManager,
   SubagentsManager,
 } from '../features/admin/AdminManagers.jsx';
@@ -18,8 +20,10 @@ export function AppContent({
   loading,
   modelActions,
   secretsActions,
+  mcpActions,
   subagentActions,
   onSetSubagentModel,
+  promptActions,
   developerMode = false,
   onNavigate,
 }) {
@@ -59,6 +63,20 @@ export function AppContent({
         />
       );
     }
+    if (currentMenu === 'admin/mcp') {
+      return (
+        <McpServersManager
+          data={admin?.mcpServers}
+          prompts={admin?.prompts}
+          onCreate={mcpActions?.create}
+          onUpdate={mcpActions?.update}
+          onDelete={mcpActions?.delete}
+          promptActions={promptActions}
+          loading={loading}
+          developerMode={developerMode}
+        />
+      );
+    }
     if (currentMenu === 'admin/subagents') {
       return (
         <SubagentsManager
@@ -70,6 +88,19 @@ export function AppContent({
           onInstallPlugin={subagentActions?.installPlugin}
           onUninstallPlugin={subagentActions?.uninstallPlugin}
           onSetModel={onSetSubagentModel}
+          loading={loading}
+          developerMode={developerMode}
+        />
+      );
+    }
+    if (currentMenu === 'admin/prompts') {
+      return (
+        <PromptsManager
+          data={admin?.prompts}
+          mcpServers={admin?.mcpServers}
+          onCreate={promptActions?.create}
+          onUpdate={promptActions?.update}
+          onDelete={promptActions?.delete}
           loading={loading}
           developerMode={developerMode}
         />

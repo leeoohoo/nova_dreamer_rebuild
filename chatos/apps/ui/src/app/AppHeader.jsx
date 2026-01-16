@@ -47,6 +47,8 @@ export function AppHeader({
     { key: 'admin/configs', label: '配置管理' },
     { type: 'divider' },
     { key: 'admin/models', label: '模型' },
+    { key: 'admin/mcp', label: 'MCP Servers' },
+    { key: 'admin/prompts', label: 'Prompts' },
     { key: 'admin/subagents', label: 'Subagents' },
     { type: 'divider' },
     { key: 'admin/secrets', label: 'API Keys' },
