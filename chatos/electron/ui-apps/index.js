@@ -620,37 +620,50 @@ class UiAppsManager {
   }
 
   #resolveEntry(pluginDir, entry) {
-    if (entry?.type === 'url') {
-      return { type: 'url', url: entry.url };
-    }
-    const entryType = entry?.type;
-    if (entryType !== 'iframe' && entryType !== 'module') {
-      throw new Error('Unknown entry type');
-    }
-    const relPath = typeof entry?.path === 'string' ? entry.path.trim() : '';
-    if (!relPath) throw new Error('entry.path is required');
-    const resolved = path.resolve(pluginDir, relPath);
-    const relative = path.relative(pluginDir, resolved);
-    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
-      throw new Error('entry.path must be within plugin directory');
-    }
-    if (!fs.existsSync(resolved)) {
-      throw new Error(`entry.path not found: ${relPath}`);
-    }
-
-    if (entryType === 'module') {
-      let stat = null;
-      try {
-        stat = fs.statSync(resolved);
-      } catch {
-        throw new Error(`entry.path not found: ${relPath}`);
+    const resolveEntryItem = (raw, label = 'entry') => {
+      const normalized = typeof raw === 'string' ? { type: 'iframe', path: raw } : raw;
+      if (normalized?.type === 'url') {
+        const url = typeof normalized?.url === 'string' ? normalized.url.trim() : '';
+        if (!url) throw new Error(`${label}.url is required`);
+        return { type: 'url', url };
       }
-      if (!stat.isFile()) {
-        throw new Error(`entry.path must be a file for module apps: ${relPath}`);
+      const entryType = normalized?.type;
+      if (entryType !== 'iframe' && entryType !== 'module') {
+        if (label === 'entry') throw new Error('Unknown entry type');
+        throw new Error(`Unknown ${label} type`);
       }
-    }
+      const relPath = typeof normalized?.path === 'string' ? normalized.path.trim() : '';
+      if (!relPath) throw new Error(`${label}.path is required`);
+      const resolved = path.resolve(pluginDir, relPath);
+      const relative = path.relative(pluginDir, resolved);
+      if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`${label}.path must be within plugin directory`);
+      }
+      if (!fs.existsSync(resolved)) {
+        throw new Error(`${label}.path not found: ${relPath}`);
+      }
 
-    return { type: entryType, url: pathToFileURL(resolved).toString() };
+      if (entryType === 'module') {
+        let stat = null;
+        try {
+          stat = fs.statSync(resolved);
+        } catch {
+          throw new Error(`${label}.path not found: ${relPath}`);
+        }
+        if (!stat.isFile()) {
+          throw new Error(`${label}.path must be a file for module apps: ${relPath}`);
+        }
+      }
+
+      return { type: entryType, url: pathToFileURL(resolved).toString() };
+    };
+
+    const resolved = resolveEntryItem(entry, 'entry');
+    const compact = entry && typeof entry === 'object' ? entry.compact : null;
+    if (compact) {
+      resolved.compact = resolveEntryItem(compact, 'entry.compact');
+    }
+    return resolved;
   }
 
   #buildInvokeContext(pluginId, plugin) {

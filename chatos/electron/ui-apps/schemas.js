@@ -17,8 +17,17 @@ const urlEntrySchema = z.object({
   url: z.string().trim().url('entry.url must be a valid url'),
 });
 
-const entrySchema = z
+const entryCompactSchema = z
   .union([iframeEntrySchema, moduleEntrySchema, urlEntrySchema, z.string().trim().min(1)])
+  .transform((value) => (typeof value === 'string' ? { type: 'iframe', path: value } : value));
+
+const entrySchema = z
+  .union([
+    iframeEntrySchema.extend({ compact: entryCompactSchema.optional() }),
+    moduleEntrySchema.extend({ compact: entryCompactSchema.optional() }),
+    urlEntrySchema.extend({ compact: entryCompactSchema.optional() }),
+    z.string().trim().min(1),
+  ])
   .transform((value) => (typeof value === 'string' ? { type: 'iframe', path: value } : value));
 
 const aiPromptSourceSchema = z

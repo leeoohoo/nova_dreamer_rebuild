@@ -90,6 +90,10 @@ function writePluginManifest() {
         entry: {
           type: 'module',
           path: 'cli/dist/index.mjs',
+          compact: {
+            type: 'module',
+            path: 'cli/dist/index.mjs',
+          },
         },
       },
     ],
