@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 import { getDefaultTtyPaths } from '../src/common/terminal/tty-paths.js';
 import { resolveAideRoot } from '../src/aide-paths.js';
+import { getSystemTerminalLauncher } from '../electron/terminal-manager/system-terminal/launcher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +20,6 @@ const importAide = async (relativePath) => {
 };
 
 const { getTerminalPlatform } = await importAide('src/terminal/platform/index.js');
-const { getSystemTerminalLauncher } = await importAide('electron/terminal-manager/system-terminal/launcher.js');
 function assertTerminalPlatform(platform, expected) {
   const impl = getTerminalPlatform(platform);
   assert.equal(typeof impl.ensureUtf8Console, 'function');

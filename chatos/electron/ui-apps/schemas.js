@@ -2,18 +2,24 @@ import { z } from 'zod';
 
 const manifestVersionSchema = z.number().int().min(1).max(1).optional().default(1);
 
+const iframeEntrySchema = z.object({
+  type: z.literal('iframe'),
+  path: z.string().trim().min(1, 'entry.path is required for iframe apps'),
+});
+
 const moduleEntrySchema = z.object({
   type: z.literal('module'),
   path: z.string().trim().min(1, 'entry.path is required for module apps'),
-  compact: z
-    .object({
-      type: z.literal('module').optional().default('module'),
-      path: z.string().trim().min(1, 'entry.compact.path is required for module apps'),
-    })
-    .optional(),
 });
 
-const entrySchema = moduleEntrySchema;
+const urlEntrySchema = z.object({
+  type: z.literal('url'),
+  url: z.string().trim().url('entry.url must be a valid url'),
+});
+
+const entrySchema = z
+  .union([iframeEntrySchema, moduleEntrySchema, urlEntrySchema, z.string().trim().min(1)])
+  .transform((value) => (typeof value === 'string' ? { type: 'iframe', path: value } : value));
 
 const aiPromptSourceSchema = z
   .object({
@@ -62,19 +68,20 @@ const aiMcpAuthSchema = z
   })
   .partial();
 
-const aiMcpServerSchema = z.object({
-  url: z.string().trim().min(1).optional(),
-  command: z.string().trim().min(1).optional(),
-  entry: z.string().trim().min(1).optional(),
-  args: z.array(z.string().trim()).optional().default([]),
-  callMeta: z.record(z.unknown()).optional(),
-  description: z.string().trim().optional().default(''),
-  tags: z.array(z.string().trim()).optional().default([]),
-  enabled: z.boolean().optional(),
-  allowMain: z.boolean().optional(),
-  allowSub: z.boolean().optional(),
-  auth: aiMcpAuthSchema.optional(),
-}).refine((value) => Boolean(value?.url || value?.entry), 'ai.mcp requires url or entry');
+const aiMcpServerSchema = z
+  .object({
+    url: z.string().trim().min(1).optional(),
+    command: z.string().trim().min(1).optional(),
+    entry: z.string().trim().min(1).optional(),
+    args: z.array(z.string().trim()).optional().default([]),
+    description: z.string().trim().optional().default(''),
+    tags: z.array(z.string().trim()).optional().default([]),
+    enabled: z.boolean().optional(),
+    allowMain: z.boolean().optional(),
+    allowSub: z.boolean().optional(),
+    auth: aiMcpAuthSchema.optional(),
+  })
+  .refine((value) => Boolean(value?.url || value?.entry), 'ai.mcp requires url or entry');
 
 const aiAgentTemplateSchema = z.object({
   name: z.string().trim().min(1, 'ai.agent.name is required'),
@@ -82,22 +89,11 @@ const aiAgentTemplateSchema = z.object({
   modelId: z.string().trim().optional().default(''),
 });
 
-const aiExposeMcpServersSchema = z.union([z.literal(true), z.literal(false), z.array(z.string().trim().min(1)).min(1)]);
-const aiExposePromptsSchema = z.union([z.literal(true), z.literal(false), z.array(z.string().trim().min(1)).min(1)]);
-
-export const uiAppAiConfigSchema = z.object({
+const uiAppAiSchema = z.object({
   mcp: aiMcpServerSchema.optional(),
   mcpPrompt: aiMcpPromptSchema.optional(),
   agent: aiAgentTemplateSchema.optional(),
-  mcpServers: aiExposeMcpServersSchema.optional(),
-  prompts: aiExposePromptsSchema.optional(),
 });
-
-const aiConfigPathSchema = z.string().trim().min(1, 'ai config path is required');
-
-const uiAppAiSchema = z
-  .union([uiAppAiConfigSchema.extend({ config: aiConfigPathSchema.optional() }), aiConfigPathSchema])
-  .transform((value) => (typeof value === 'string' ? { config: value } : value));
 
 export const uiAppSchema = z.object({
   id: z.string().trim().min(1, 'app.id is required'),
@@ -111,7 +107,6 @@ export const uiAppSchema = z.object({
 export const uiAppsPluginSchema = z.object({
   manifestVersion: manifestVersionSchema,
   id: z.string().trim().min(1, 'plugin.id is required'),
-  providerAppId: z.string().trim().optional().default(''),
   name: z.string().trim().min(1, 'plugin.name is required'),
   version: z.string().trim().optional().default('0.0.0'),
   description: z.string().trim().optional().default(''),

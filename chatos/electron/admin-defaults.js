@@ -7,7 +7,8 @@ import {
   parseMcpServers,
   parseModelsWithDefault,
   safeRead,
-} from '../src/common/admin-data/legacy.js';
+} from '../src/aide/shared/data/legacy.js';
+import { getHostApp } from '../src/common/host-app.js';
 
 export { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
 
@@ -62,50 +63,6 @@ export function createAdminDefaultsManager({ defaultPaths, adminDb, adminService
       throw new Error('No plugins matched selection');
     }
 
-    const copyDirRecursiveSync = (sourceDir, targetDir) => {
-      fs.mkdirSync(targetDir, { recursive: true });
-      const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
-      entries.forEach((entry) => {
-        const sourcePath = path.join(sourceDir, entry.name);
-        const targetPath = path.join(targetDir, entry.name);
-        if (entry.isDirectory()) {
-          copyDirRecursiveSync(sourcePath, targetPath);
-          return;
-        }
-        if (entry.isFile()) {
-          if (fs.existsSync(targetPath)) return;
-          fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-          fs.writeFileSync(targetPath, fs.readFileSync(sourcePath));
-          return;
-        }
-        if (entry.isSymbolicLink()) {
-          if (fs.existsSync(targetPath)) return;
-          try {
-            const link = fs.readlinkSync(sourcePath);
-            fs.symlinkSync(link, targetPath);
-          } catch {
-            fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-            fs.writeFileSync(targetPath, fs.readFileSync(sourcePath));
-          }
-          return;
-        }
-        try {
-          const stat = fs.statSync(sourcePath);
-          if (stat.isDirectory()) {
-            copyDirRecursiveSync(sourcePath, targetPath);
-            return;
-          }
-          if (stat.isFile()) {
-            if (fs.existsSync(targetPath)) return;
-            fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-            fs.writeFileSync(targetPath, fs.readFileSync(sourcePath));
-          }
-        } catch {
-          // ignore unknown entries
-        }
-      });
-    };
-
     const ensureUserCopy = (pluginId) => {
       if (!userPluginsRoot) return null;
       const userDir = path.join(userPluginsRoot, pluginId);
@@ -128,8 +85,16 @@ export function createAdminDefaultsManager({ defaultPaths, adminDb, adminService
         return null;
       }
 
+      try {
+        if (fs.existsSync(userDir)) {
+          return userDir;
+        }
+      } catch {
+        // ignore
+      }
+
       fs.mkdirSync(userPluginsRoot, { recursive: true });
-      copyDirRecursiveSync(builtinDir, userDir);
+      fs.cpSync(builtinDir, userDir, { recursive: true, errorOnExist: true });
       return userDir;
     };
 
@@ -137,17 +102,13 @@ export function createAdminDefaultsManager({ defaultPaths, adminDb, adminService
     pluginList.forEach((pluginId) => {
       try {
         const userDir = ensureUserCopy(pluginId);
-        const manifestRoot =
-          userDir ||
-          existingRoots
-            .map((root) => path.join(root, pluginId))
-            .find((dir) => {
-              try {
-                return fs.existsSync(path.join(dir, 'plugin.json'));
-              } catch {
-                return false;
-              }
-            });
+        const manifestRoot = userDir || existingRoots.map((root) => path.join(root, pluginId)).find((dir) => {
+          try {
+            return fs.existsSync(path.join(dir, 'plugin.json'));
+          } catch {
+            return false;
+          }
+        });
         if (!manifestRoot) {
           summary.skipped += 1;
           return;
@@ -233,12 +194,7 @@ export function createAdminDefaultsManager({ defaultPaths, adminDb, adminService
 
   function refreshBuiltinsFromDefaults() {
     const now = new Date().toISOString();
-    const hostApp =
-      String(process.env.MODEL_CLI_HOST_APP || 'chatos')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9_-]+/g, '_')
-        .replace(/^_+|_+$/g, '') || 'chatos';
+    const hostApp = getHostApp() || 'chatos';
 
     try {
       const existingMcp = adminServices.mcpServers.list();

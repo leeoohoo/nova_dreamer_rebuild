@@ -48,7 +48,6 @@ function buildMcpConfig(mcpServers = []) {
       description: s.description || '',
       auth: s.auth || undefined,
       tags: s.tags || [],
-      callMeta: s.callMeta || undefined,
     })),
   };
 }

@@ -12,7 +12,7 @@ import { resolveSessionRoot } from '../shared/session-root.js';
 import { ensureAppDbPath, resolveAppStateDir } from '../shared/state-paths.js';
 import { createDb } from '../shared/data/storage.js';
 import { SettingsService } from '../shared/data/services/settings-service.js';
-import { getSystemTerminalLauncher } from '../electron/terminal-manager/system-terminal/launcher.js';
+import { getSystemTerminalLauncher } from '../../../electron/terminal-manager/system-terminal/launcher.js';
 
 const MAX_WAIT_MS = 2_147_483_647; // ~24.8 days (max safe setTimeout)
 

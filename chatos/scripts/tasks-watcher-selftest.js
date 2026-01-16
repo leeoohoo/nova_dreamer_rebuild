@@ -4,11 +4,12 @@
 // - UI should still receive config:update without restarting
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
 
 import { createDb } from '../src/common/admin-data/storage.js';
 import { createAdminServices } from '../src/common/admin-data/services/index.js';
 import { resolveAideRoot } from '../src/aide-paths.js';
+import { createSessionApi } from '../electron/session-api.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,13 +18,6 @@ const cliRoot = resolveAideRoot({ projectRoot });
 if (!cliRoot) {
   throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
 }
-
-const importAide = async (relativePath) => {
-  const target = path.join(cliRoot, relativePath);
-  return await import(pathToFileURL(target).href);
-};
-
-const { createSessionApi } = await importAide('electron/session-api.js');
 
 const ROOT =
   process.env.ROOT ||

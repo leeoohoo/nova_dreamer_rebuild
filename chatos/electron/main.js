@@ -17,9 +17,21 @@ import { installUiAppsPlugins } from './ui-apps/plugin-installer.js';
 import { createConfigManager } from './config-manager/index.js';
 import { registerConfigIpcHandlers } from './config-manager/ipc-handlers.js';
 import { registerQuickSwitchHandlers } from './config-manager/quick-switch.js';
+import { createAdminDefaultsManager } from './admin-defaults.js';
+import { createWorkspaceOps } from './workspace.js';
+import { listSessions, killSession, killAllSessions, restartSession, stopSession, readSessionLog } from './sessions.js';
+import { createSessionApi } from './session-api.js';
+import { createCliShim } from './cli-shim.js';
+import { createTerminalManager } from './terminal-manager.js';
+import { registerChatApi } from './chat/index.js';
+import { ensureAllSubagentsInstalled, maybePurgeUiAppsSyncedAdminData, readLegacyState } from './main-helpers.js';
 import { resolveAideRoot } from '../src/aide-paths.js';
 import { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
 import { ensureAppStateDir } from '../src/common/state-core/state-paths.js';
+import { createDb } from '../src/common/admin-data/storage.js';
+import { createAdminServices } from '../src/common/admin-data/services/index.js';
+import { syncAdminToFiles } from '../src/common/admin-data/sync.js';
+import { buildAdminSeed, parseMcpServers, loadBuiltinPromptFiles } from '../src/common/admin-data/legacy.js';
 import { createLspInstaller } from './lsp-installer.js';
 import { ConfigApplier } from '../src/core/session/ConfigApplier.js';
 
@@ -38,18 +50,18 @@ const cliRoot = resolveAideRoot({ projectRoot });
 if (!cliRoot) {
   throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
 }
-
-const importAide = async (relativePath) => {
-  if (!cliRoot) {
-    throw new Error('AIDE engine is not installed.');
-  }
-  const normalized = typeof relativePath === 'string' ? relativePath.trim() : '';
-  if (!normalized) {
-    throw new Error('relativePath is required');
-  }
-  const target = path.join(cliRoot, normalized);
-  return await import(pathToFileURL(target).href);
+const resolveAideEngineModule = (relativePath) => {
+  const rel = typeof relativePath === 'string' ? relativePath.trim() : '';
+  if (!rel) throw new Error('AIDE module path is required');
+  const srcCandidate = path.join(cliRoot, 'src', rel);
+  if (fs.existsSync(srcCandidate)) return srcCandidate;
+  const distCandidate = path.join(cliRoot, 'dist', rel);
+  if (fs.existsSync(distCandidate)) return distCandidate;
+  throw new Error(`AIDE module not found: ${rel}`);
 };
+const { createSubAgentManager } = await import(
+  pathToFileURL(resolveAideEngineModule('subagents/index.js')).href
+);
 
 const appIconPath = resolveAppIconPath();
 const hostApp =
@@ -123,278 +135,6 @@ function resolveBoolEnv(name, fallback = false) {
   return fallback;
 }
 
-function maybePurgeUiAppsSyncedAdminData({ stateDir: stateDirArg, adminServices: adminServicesArg } = {}) {
-  const stateDirPath = typeof stateDirArg === 'string' ? stateDirArg : '';
-  const services = adminServicesArg;
-  if (!stateDirPath || !services?.mcpServers || !services?.prompts) return { removedServers: 0, removedPrompts: 0 };
-
-  const host =
-    String(process.env.MODEL_CLI_HOST_APP || 'chatos')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '_')
-      .replace(/^_+|_+$/g, '') || 'chatos';
-  if (host !== 'chatos') return { removedServers: 0, removedPrompts: 0 };
-
-  const markerPath = path.join(stateDirPath, '.uiapps-ai-sync-purged.json');
-
-  const normalizeTag = (value) => String(value || '').trim().toLowerCase();
-  const isUiAppTagged = (record) => {
-    const tags = Array.isArray(record?.tags) ? record.tags : [];
-    return tags.map(normalizeTag).filter(Boolean).some((tag) => tag === 'uiapp' || tag.startsWith('uiapp:'));
-  };
-  const normalizeMcpServerName = (value) =>
-    String(value || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-  const getPromptNamesForServer = (serverName) => {
-    const base = `mcp_${normalizeMcpServerName(serverName)}`;
-    return [base, `${base}__en`];
-  };
-
-  const collectPromptNamesForServer = (record, promptNames) => {
-    const keys = new Set();
-    const serverName = typeof record?.name === 'string' ? record.name.trim() : '';
-    if (serverName) keys.add(serverName);
-    const tags = Array.isArray(record?.tags) ? record.tags : [];
-    tags.forEach((tagRaw) => {
-      const tag = normalizeTag(tagRaw);
-      if (!tag.startsWith('uiapp:')) return;
-      const rest = tag.slice('uiapp:'.length).trim();
-      if (!rest) return;
-      if (rest.includes('.')) {
-        keys.add(rest);
-        return;
-      }
-      const parts = rest.split(':').map((p) => p.trim()).filter(Boolean);
-      if (parts.length >= 2) {
-        keys.add(`${parts[0]}.${parts[1]}`);
-      }
-    });
-    keys.forEach((key) => {
-      getPromptNamesForServer(key).forEach((name) => promptNames.add(String(name || '').trim().toLowerCase()));
-    });
-  };
-
-  let removedServers = 0;
-  let removedPrompts = 0;
-  const promptNames = new Set();
-
-  let servers = [];
-  try {
-    servers = services.mcpServers.list ? services.mcpServers.list() : [];
-  } catch {
-    servers = [];
-  }
-  const uiappServers = (Array.isArray(servers) ? servers : []).filter((srv) => srv?.id && isUiAppTagged(srv));
-  uiappServers.forEach((srv) => collectPromptNamesForServer(srv, promptNames));
-
-  uiappServers.forEach((srv) => {
-    try {
-      if (services.mcpServers.remove(srv.id)) {
-        removedServers += 1;
-      }
-    } catch {
-      // ignore
-    }
-  });
-
-  if (promptNames.size > 0) {
-    let prompts = [];
-    try {
-      prompts = services.prompts.list ? services.prompts.list() : [];
-    } catch {
-      prompts = [];
-    }
-    (Array.isArray(prompts) ? prompts : []).forEach((prompt) => {
-      const id = prompt?.id;
-      const key = String(prompt?.name || '').trim().toLowerCase();
-      if (!id || !key || !promptNames.has(key)) return;
-      try {
-        if (services.prompts.remove(id)) {
-          removedPrompts += 1;
-        }
-      } catch {
-        // ignore
-      }
-    });
-  }
-
-  if (removedServers > 0 || removedPrompts > 0) {
-    try {
-      fs.mkdirSync(stateDirPath, { recursive: true });
-      fs.writeFileSync(
-        markerPath,
-        JSON.stringify(
-          {
-            version: 1,
-            purgedAt: new Date().toISOString(),
-            removedServers,
-            removedPrompts,
-          },
-          null,
-          2
-        ),
-        'utf8'
-      );
-    } catch {
-      // ignore marker write errors
-    }
-  }
-
-  return { removedServers, removedPrompts };
-}
-
-function createLlmBridge({ adminServices, deps } = {}) {
-  const services = adminServices;
-  const safeDeps = deps && typeof deps === 'object' ? deps : {};
-  const applySecretsToProcessEnv = safeDeps.applySecretsToProcessEnv;
-  const createAppConfigFromModels = safeDeps.createAppConfigFromModels;
-  const ChatSession = safeDeps.ChatSession;
-  const ModelClient = safeDeps.ModelClient;
-  return {
-    complete: async (payload = {}) => {
-      if (!services) {
-        throw new Error('adminServices not available');
-      }
-      if (typeof applySecretsToProcessEnv !== 'function') {
-        throw new Error('LLM bridge unavailable: missing applySecretsToProcessEnv');
-      }
-      if (typeof createAppConfigFromModels !== 'function') {
-        throw new Error('LLM bridge unavailable: missing createAppConfigFromModels');
-      }
-      if (typeof ChatSession !== 'function') {
-        throw new Error('LLM bridge unavailable: missing ChatSession');
-      }
-      if (typeof ModelClient !== 'function') {
-        throw new Error('LLM bridge unavailable: missing ModelClient');
-      }
-      applySecretsToProcessEnv(services);
-      const models = services.models?.list ? services.models.list() : [];
-      const secrets = services.secrets?.list ? services.secrets.list() : [];
-      const config = createAppConfigFromModels(models, secrets);
-
-      const modelId = typeof payload?.modelId === 'string' ? payload.modelId.trim() : '';
-      const modelNameRaw = typeof payload?.modelName === 'string' ? payload.modelName.trim() : '';
-      let modelName = modelNameRaw;
-      if (modelId) {
-        const hit = models.find((m) => typeof m?.id === 'string' && m.id.trim() === modelId) || null;
-        if (!hit?.name) {
-          throw new Error(`modelId not found: ${modelId}`);
-        }
-        modelName = hit.name;
-      }
-      if (!modelName) {
-        modelName = config.defaultModel || Object.keys(config.models)[0] || '';
-      }
-      if (!modelName) {
-        throw new Error('No models configured');
-      }
-
-      const input =
-        typeof payload?.input === 'string'
-          ? payload.input
-          : typeof payload?.prompt === 'string'
-            ? payload.prompt
-            : '';
-      if (!String(input || '').trim()) {
-        throw new Error('input is required');
-      }
-      const systemPrompt = typeof payload?.systemPrompt === 'string' ? payload.systemPrompt : null;
-
-      const session = new ChatSession(systemPrompt || null);
-      session.addUser(input);
-      const client = new ModelClient(config);
-      const disableTools = payload?.disableTools !== false;
-      const content = await client.chat(modelName, session, {
-        stream: false,
-        disableTools,
-        caller: 'uiApps',
-      });
-      return { ok: true, model: modelName, content };
-    },
-  };
-}
-
-function ensureAllSubagentsInstalled({ installedSubagentsPath, pluginsDirList }) {
-  if (!installedSubagentsPath) return;
-  const roots = Array.isArray(pluginsDirList) ? pluginsDirList.filter(Boolean) : [];
-  if (roots.length === 0) return;
-
-  const allPluginIds = new Set();
-  roots.forEach((root) => {
-    try {
-      const entries = fs.readdirSync(root, { withFileTypes: true });
-      entries.forEach((entry) => {
-        if (!entry?.isDirectory?.()) return;
-        const id = String(entry.name || '').trim();
-        if (!id || id.startsWith('.')) return;
-        allPluginIds.add(id);
-      });
-    } catch {
-      // ignore missing roots
-    }
-  });
-  if (allPluginIds.size === 0) return;
-
-  const enabledById = new Map();
-  try {
-    if (fs.existsSync(installedSubagentsPath)) {
-      const raw = fs.readFileSync(installedSubagentsPath, 'utf8');
-      const parsed = JSON.parse(raw);
-      const list = Array.isArray(parsed?.plugins) ? parsed.plugins : Array.isArray(parsed) ? parsed : [];
-      list.forEach((item) => {
-        if (!item) return;
-        if (typeof item === 'string') {
-          enabledById.set(item, true);
-          return;
-        }
-        if (typeof item === 'object') {
-          const id = String(item.id || item.plugin || item.name || '').trim();
-          if (!id) return;
-          enabledById.set(id, item.enabled !== false);
-        }
-      });
-    }
-  } catch {
-    // ignore parse errors
-  }
-
-  const merged = [];
-  const sortedIds = Array.from(allPluginIds).sort((a, b) => a.localeCompare(b));
-  sortedIds.forEach((id) => {
-    const enabled = ENABLE_ALL_SUBAGENTS ? true : enabledById.get(id) !== false;
-    merged.push({ id, enabled });
-    enabledById.delete(id);
-  });
-  enabledById.forEach((enabled, id) => {
-    merged.push({ id, enabled: ENABLE_ALL_SUBAGENTS ? true : enabled !== false });
-  });
-
-  try {
-    fs.mkdirSync(path.dirname(installedSubagentsPath), { recursive: true });
-    fs.writeFileSync(installedSubagentsPath, JSON.stringify({ plugins: merged }, null, 2), 'utf8');
-  } catch {
-    // ignore write errors
-  }
-}
-
-function readLegacyState(filePath) {
-  if (!filePath) return null;
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      return parsed;
-    }
-  } catch {
-    // ignore legacy read errors
-  }
-  return null;
-}
 
 function patchProcessPath() {
   // GUI apps on macOS often do not inherit the user's shell PATH (e.g., Homebrew lives in /opt/homebrew/bin).
@@ -560,71 +300,48 @@ ipcMain.handle('lsp:install', async (_event, payload = {}) => {
   }
 });
 
-	  const { createAdminDefaultsManager } = await import('./admin-defaults.js');
-	  const { createDb } = await import('../src/common/admin-data/storage.js');
-	  const { createAdminServices } = await import('../src/common/admin-data/services/index.js');
-	  const { syncAdminToFiles } = await import('../src/common/admin-data/sync.js');
-	  const { buildAdminSeed, parseMcpServers, loadBuiltinPromptFiles } = await import('../src/common/admin-data/legacy.js');
-	  const { createWorkspaceOps } = await importAide('electron/workspace.js');
-	  const {
-	    listSessions,
-	    killSession,
-    killAllSessions,
-    restartSession,
-    stopSession,
-    readSessionLog,
-  } = await importAide('electron/sessions.js');
-  const { createSessionApi } = await importAide('electron/session-api.js');
-  const { createCliShim } = await importAide('electron/cli-shim.js');
-  const { createTerminalManager } = await importAide('electron/terminal-manager.js');
-	  const { createSubAgentManager } = await importAide('src/subagents/index.js');
-	  const { registerChatApi } = await importAide('electron/chat/index.js');
-	  const { ChatSession } = await importAide('src/session.js');
-	  const { ModelClient } = await importAide('src/client.js');
-	  const { createAppConfigFromModels } = await importAide('src/config.js');
-	  const { applySecretsToProcessEnv } = await import('../src/common/secrets-env.js');
+const defaultPaths = {
+  defaultsRoot: cliRoot,
+  models: path.join(authDir, 'models.yaml'),
+  systemPrompt: path.join(authDir, 'system-prompt.yaml'),
+  systemDefaultPrompt: path.join(authDir, 'system-default-prompt.yaml'),
+  systemUserPrompt: path.join(authDir, 'system-user-prompt.yaml'),
+  subagentSystemPrompt: path.join(authDir, 'subagent-system-prompt.yaml'),
+  subagentUserPrompt: path.join(authDir, 'subagent-user-prompt.yaml'),
+  mcpConfig: path.join(authDir, 'mcp.config.json'),
+  sessionReport: path.join(authDir, 'session-report.html'),
+  events: path.join(stateDir, 'events.jsonl'),
+  fileChanges: path.join(stateDir, 'file-changes.jsonl'),
+  uiPrompts: path.join(stateDir, 'ui-prompts.jsonl'),
+  runs: path.join(stateDir, 'runs.jsonl'),
+  marketplace: path.join(cliRoot, 'subagents', 'marketplace.json'),
+  marketplaceUser: path.join(stateDir, 'subagents', 'marketplace.json'),
+  pluginsDir: path.join(cliRoot, 'subagents', 'plugins'),
+  pluginsDirUser: path.join(stateDir, 'subagents', 'plugins'),
+  installedSubagents: path.join(stateDir, 'subagents.json'),
+  adminDb: path.join(stateDir, `${hostApp}.db.sqlite`),
+};
 
-  const defaultPaths = {
-    defaultsRoot: cliRoot,
-    models: path.join(authDir, 'models.yaml'),
-    systemPrompt: path.join(authDir, 'system-prompt.yaml'),
-    systemDefaultPrompt: path.join(authDir, 'system-default-prompt.yaml'),
-    systemUserPrompt: path.join(authDir, 'system-user-prompt.yaml'),
-    subagentSystemPrompt: path.join(authDir, 'subagent-system-prompt.yaml'),
-    subagentUserPrompt: path.join(authDir, 'subagent-user-prompt.yaml'),
-    mcpConfig: path.join(authDir, 'mcp.config.json'),
-    sessionReport: path.join(authDir, 'session-report.html'),
-    events: path.join(stateDir, 'events.jsonl'),
-    fileChanges: path.join(stateDir, 'file-changes.jsonl'),
-    uiPrompts: path.join(stateDir, 'ui-prompts.jsonl'),
-    runs: path.join(stateDir, 'runs.jsonl'),
-    marketplace: path.join(cliRoot, 'subagents', 'marketplace.json'),
-    marketplaceUser: path.join(stateDir, 'subagents', 'marketplace.json'),
-    pluginsDir: path.join(cliRoot, 'subagents', 'plugins'),
-    pluginsDirUser: path.join(stateDir, 'subagents', 'plugins'),
-    installedSubagents: path.join(stateDir, 'subagents.json'),
-    adminDb: path.join(stateDir, `${hostApp}.db.sqlite`),
-  };
-
-  const legacyAdminDb = path.join(stateDir, `${hostApp}.db.json`);
+const legacyAdminDb = path.join(stateDir, `${hostApp}.db.json`);
 if (ENABLE_ALL_SUBAGENTS) {
   ensureAllSubagentsInstalled({
     installedSubagentsPath: defaultPaths.installedSubagents,
     pluginsDirList: [defaultPaths.pluginsDir, defaultPaths.pluginsDirUser],
+    enableAllSubagents: ENABLE_ALL_SUBAGENTS,
   });
 }
-	const adminDb = createDb({
-	  dbPath: defaultPaths.adminDb,
-	  seed: readLegacyState(legacyAdminDb) || buildAdminSeed(defaultPaths),
-	});
-	const adminServices = createAdminServices(adminDb);
-	const configManager = createConfigManager(adminDb, { adminServices });
-	const registryCenter = initRegistryCenter({ db: adminDb });
-	const adminDefaults = createAdminDefaultsManager({ defaultPaths, adminDb, adminServices });
-	adminDefaults.maybeReseedModelsFromYaml();
-	adminDefaults.maybeReseedSubagentsFromPlugins();
-	if (ENABLE_ALL_SUBAGENTS) {
-	  try {
+const adminDb = createDb({
+  dbPath: defaultPaths.adminDb,
+  seed: readLegacyState(legacyAdminDb) || buildAdminSeed(defaultPaths),
+});
+const adminServices = createAdminServices(adminDb);
+const configManager = createConfigManager(adminDb, { adminServices });
+const registryCenter = initRegistryCenter({ db: adminDb });
+const adminDefaults = createAdminDefaultsManager({ defaultPaths, adminDb, adminServices });
+adminDefaults.maybeReseedModelsFromYaml();
+adminDefaults.maybeReseedSubagentsFromPlugins();
+if (ENABLE_ALL_SUBAGENTS) {
+  try {
     const current = adminServices.subagents.list() || [];
     current.forEach((record) => {
       if (!record?.id) return;
@@ -639,7 +356,7 @@ if (ENABLE_ALL_SUBAGENTS) {
 adminDefaults.refreshModelsFromDefaults();
 adminDefaults.refreshBuiltinsFromDefaults();
 if (!UIAPPS_SYNC_AI_CONTRIBUTES) {
-  maybePurgeUiAppsSyncedAdminData({ stateDir, adminServices });
+  maybePurgeUiAppsSyncedAdminData({ stateDir, adminServices, hostApp });
 }
 
 registerConfigIpcHandlers(ipcMain, configManager, { getWindow: () => mainWindow });
@@ -752,97 +469,91 @@ const configApplier = new ConfigApplier({
 });
 registerQuickSwitchHandlers(ipcMain, configApplier);
 
-const llm = createLlmBridge({
+uiAppsManager = registerUiAppsApi(ipcMain, {
+  projectRoot,
+  stateDir,
   adminServices,
-  deps: { applySecretsToProcessEnv, createAppConfigFromModels, ChatSession, ModelClient },
+  onAdminMutation: syncAdminAndBroadcast,
+  syncAiContributes: UIAPPS_SYNC_AI_CONTRIBUTES,
+  builtinPluginsDir: BUILTIN_UI_APPS_DIR,
 });
-	uiAppsManager = registerUiAppsApi(ipcMain, {
-	  projectRoot,
-	  stateDir,
-	  defaultsRoot: cliRoot,
-	  adminServices,
-	  llm,
-	  onAdminMutation: syncAdminAndBroadcast,
-	  syncAiContributes: UIAPPS_SYNC_AI_CONTRIBUTES,
-    builtinPluginsDir: BUILTIN_UI_APPS_DIR,
-	});
-	if (uiAppsManager && typeof uiAppsManager.listRegistry === 'function') {
-	  uiAppsManager.listRegistry().catch(() => {});
-	}
-	registerRegistryApi(ipcMain, { sessionRoot });
+if (uiAppsManager && typeof uiAppsManager.listRegistry === 'function') {
+  uiAppsManager.listRegistry().catch(() => {});
+}
+registerRegistryApi(ipcMain, { sessionRoot });
 
-	Promise.resolve()
-	  .then(async () => {
-	    try {
-	      syncRegistryFromServices({
-	        registry: registryCenter,
-	        providerAppId: hostApp,
-	        services: adminServices,
-	      });
-	    } catch {
-	      // ignore
-	    }
+Promise.resolve()
+  .then(async () => {
+    try {
+      syncRegistryFromServices({
+        registry: registryCenter,
+        providerAppId: hostApp,
+        services: adminServices,
+      });
+    } catch {
+      // ignore
+    }
 
-	    const otherApps = ['aide', 'git_app', 'wsl'].filter((appId) => appId !== hostApp);
-	    for (const appId of otherApps) {
-	      const { dbPath, dbExists } = resolveExistingAppDbPath({ sessionRoot, hostApp: appId });
-	      if (dbExists) {
-	        await syncRegistryFromAppDb({ registry: registryCenter, providerAppId: appId, dbPath });
-	        continue;
-	      }
+    const otherApps = ['aide', 'git_app', 'wsl'].filter((appId) => appId !== hostApp);
+    for (const appId of otherApps) {
+      const { dbPath, dbExists } = resolveExistingAppDbPath({ sessionRoot, hostApp: appId });
+      if (dbExists) {
+        await syncRegistryFromAppDb({ registry: registryCenter, providerAppId: appId, dbPath });
+        continue;
+      }
 
-	      if (appId === 'aide' && cliRoot) {
-	        try {
-	          const mcpDefaultsPath = path.join(cliRoot, 'shared', 'defaults', 'mcp.config.json');
-	          const raw = fs.existsSync(mcpDefaultsPath) ? fs.readFileSync(mcpDefaultsPath, 'utf8') : '';
-	          const defaults = parseMcpServers(raw);
-	          (Array.isArray(defaults) ? defaults : []).forEach((srv) => {
-	            const name = typeof srv?.name === 'string' ? srv.name.trim() : '';
-	            const url = typeof srv?.url === 'string' ? srv.url.trim() : '';
-	            if (!name || !url) return;
-	            registryCenter.registerMcpServer('aide', {
-	              id: name,
-	              name,
-	              url,
-	              description: typeof srv?.description === 'string' ? srv.description : '',
-	              tags: Array.isArray(srv?.tags) ? srv.tags : [],
-	              enabled: srv?.enabled !== false,
-	              allowMain: srv?.allowMain === true,
-	              allowSub: srv?.allowSub !== false,
-	              auth: srv?.auth || undefined,
-	            });
-	          });
-	        } catch {
-	          // ignore
-	        }
+      if (appId === 'aide' && cliRoot) {
+        try {
+          const mcpDefaultsPath = path.join(cliRoot, 'shared', 'defaults', 'mcp.config.json');
+          const raw = fs.existsSync(mcpDefaultsPath) ? fs.readFileSync(mcpDefaultsPath, 'utf8') : '';
+          const defaults = parseMcpServers(raw);
+          (Array.isArray(defaults) ? defaults : []).forEach((srv) => {
+            const name = typeof srv?.name === 'string' ? srv.name.trim() : '';
+            const url = typeof srv?.url === 'string' ? srv.url.trim() : '';
+            if (!name || !url) return;
+            registryCenter.registerMcpServer('aide', {
+              id: name,
+              name,
+              url,
+              description: typeof srv?.description === 'string' ? srv.description : '',
+              tags: Array.isArray(srv?.tags) ? srv.tags : [],
+              enabled: srv?.enabled !== false,
+              allowMain: srv?.allowMain === true,
+              allowSub: srv?.allowSub !== false,
+              auth: srv?.auth || undefined,
+            });
+          });
+        } catch {
+          // ignore
+        }
 
-	        try {
-	          const builtinPrompts = loadBuiltinPromptFiles({ defaultsRoot: cliRoot });
-	          (Array.isArray(builtinPrompts) ? builtinPrompts : []).forEach((prompt) => {
-	            const name = typeof prompt?.name === 'string' ? prompt.name.trim() : '';
-	            const content = typeof prompt?.content === 'string' ? prompt.content : '';
-	            if (!name || !content.trim()) return;
-	            registryCenter.registerPrompt('aide', {
-	              id: name,
-	              name,
-	              title: typeof prompt?.title === 'string' ? prompt.title : '',
-	              type: typeof prompt?.type === 'string' ? prompt.type : 'system',
-	              content,
-	              allowMain: prompt?.allowMain === true,
-	              allowSub: prompt?.allowSub === true,
-	            });
-	          });
-	        } catch {
-	          // ignore
-	        }
-	      }
-	    }
-	  })
-	  .catch(() => {});
+        try {
+          const builtinPrompts = loadBuiltinPromptFiles({ defaultsRoot: cliRoot });
+          (Array.isArray(builtinPrompts) ? builtinPrompts : []).forEach((prompt) => {
+            const name = typeof prompt?.name === 'string' ? prompt.name.trim() : '';
+            const content = typeof prompt?.content === 'string' ? prompt.content : '';
+            if (!name || !content.trim()) return;
+            registryCenter.registerPrompt('aide', {
+              id: name,
+              name,
+              title: typeof prompt?.title === 'string' ? prompt.title : '',
+              type: typeof prompt?.type === 'string' ? prompt.type : 'system',
+              content,
+              allowMain: prompt?.allowMain === true,
+              allowSub: prompt?.allowSub === true,
+            });
+          });
+        } catch {
+          // ignore
+        }
+      }
+    }
+  })
+  .catch(() => {});
 
-	chatApi = registerChatApi(ipcMain, {
-	  adminDb,
-	  adminServices,
+chatApi = registerChatApi(ipcMain, {
+  adminDb,
+  adminServices,
   defaultPaths,
   sessionRoot,
   workspaceRoot: process.cwd(),
@@ -977,14 +688,14 @@ ipcMain.handle('subagents:setModel', async (_event, payload = {}) => {
     subagentUserPromptPath: defaultPaths.subagentUserPrompt,
     tasksPath: null,
   });
-	  if (mainWindow) {
-	    mainWindow.webContents.send('admin:update', {
-	      data: sanitizeAdminForUi(adminServices.snapshot()),
-	      dbPath: adminServices.dbPath,
-	      uiFlags: UI_FLAGS,
-	    });
-	    mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
-	  }
+  if (mainWindow) {
+    mainWindow.webContents.send('admin:update', {
+      data: sanitizeAdminForUi(adminServices.snapshot()),
+      dbPath: adminServices.dbPath,
+      uiFlags: UI_FLAGS,
+    });
+    mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
+  }
   return result;
 });
 ipcMain.handle('subagents:marketplace:list', async () => {
@@ -1038,14 +749,14 @@ ipcMain.handle('subagents:plugins:install', async (_event, payload = {}) => {
       subagentUserPromptPath: defaultPaths.subagentUserPrompt,
       tasksPath: null,
     });
-	    if (mainWindow) {
-	      mainWindow.webContents.send('admin:update', {
-	        data: sanitizeAdminForUi(adminServices.snapshot()),
-	        dbPath: adminServices.dbPath,
-	        uiFlags: UI_FLAGS,
-	      });
-	      mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
-	    }
+    if (mainWindow) {
+      mainWindow.webContents.send('admin:update', {
+        data: sanitizeAdminForUi(adminServices.snapshot()),
+        dbPath: adminServices.dbPath,
+        uiFlags: UI_FLAGS,
+      });
+      mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
+    }
     return { ok: true, changed };
   } catch (err) {
     return { ok: false, message: err?.message || String(err) };
@@ -1073,14 +784,14 @@ ipcMain.handle('subagents:plugins:uninstall', async (_event, payload = {}) => {
       subagentUserPromptPath: defaultPaths.subagentUserPrompt,
       tasksPath: null,
     });
-	    if (mainWindow) {
-	      mainWindow.webContents.send('admin:update', {
-	        data: sanitizeAdminForUi(adminServices.snapshot()),
-	        dbPath: adminServices.dbPath,
-	        uiFlags: UI_FLAGS,
-	      });
-	      mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
-	    }
+    if (mainWindow) {
+      mainWindow.webContents.send('admin:update', {
+        data: sanitizeAdminForUi(adminServices.snapshot()),
+        dbPath: adminServices.dbPath,
+        uiFlags: UI_FLAGS,
+      });
+      mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
+    }
     return { ok: true, removed };
   } catch (err) {
     return { ok: false, message: err?.message || String(err) };
