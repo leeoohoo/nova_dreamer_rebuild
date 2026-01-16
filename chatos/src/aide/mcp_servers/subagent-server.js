@@ -27,8 +27,10 @@ function resolveEngineModule(relativePath) {
   const rel = typeof relativePath === 'string' ? relativePath.trim() : '';
   if (!rel) throw new Error('relativePath is required');
   const srcPath = path.join(ENGINE_ROOT, 'src', rel);
-  if (fs.existsSync(srcPath)) return srcPath;
-  return path.join(ENGINE_ROOT, 'dist', rel);
+  if (!fs.existsSync(srcPath)) {
+    throw new Error(`Engine source not found: ${srcPath}`);
+  }
+  return srcPath;
 }
 
 async function importEngine(relativePath) {

@@ -28,10 +28,10 @@
   "scripts": {
     "start": "node src/cli.js",
     "test": "node --test",
-    "ui:build": "node scripts/build-ui.js && node src/aide/scripts/build-cli-ui-plugin.js",
+    "ui:build": "node scripts/build-ui.js",
     "ui:build:release": "node scripts/build-ui.js --release && node src/aide/scripts/build-cli-ui-plugin.js --release",
     "build": "npm run ui:build",
-    "ui": "node scripts/build-ui.js --skip-if-present && node src/aide/scripts/build-cli-ui-plugin.js --skip-if-present && electron electron/main.js",
+    "ui": "node scripts/build-ui.js --skip-if-present && electron electron/main.js",
     "prepack": "node scripts/build-ui.js --release --skip-if-present && node src/aide/scripts/build-cli-ui-plugin.js --release --skip-if-present",
     "desktop:dist": "npm run ui:build:release && npx --yes electron-builder@24.13.3"
   },
