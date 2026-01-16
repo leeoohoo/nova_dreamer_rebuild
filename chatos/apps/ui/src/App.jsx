@@ -21,8 +21,6 @@ const EMPTY_ADMIN = {
   settings: [],
   landConfigs: [],
 };
-const MIGRATION_CONFIG_NAME = '默认配置（迁移）';
-
 export default function App({ themeMode = 'light', onToggleTheme }) {
   const [menu, setMenu] = useState('chat/session');
   const [admin, setAdmin] = useState(EMPTY_ADMIN);
@@ -30,9 +28,6 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(hasApi ? null : 'IPC bridge not available. Is preload loaded?');
   const autoRedirectRef = useRef(false);
-  const [configs, setConfigs] = useState([]);
-  const [activeConfigId, setActiveConfigId] = useState(null);
-  const [configLoading, setConfigLoading] = useState(false);
   const configSwitch = useConfigSwitch();
 
   const developerMode = Boolean(uiFlags?.developerMode);
@@ -87,42 +82,6 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!hasApi) return undefined;
-    let canceled = false;
-
-    const loadConfigs = async () => {
-      setConfigLoading(true);
-      try {
-        const [listRes, activeRes] = await Promise.all([api.invoke('configs:list'), api.invoke('configs:getActive')]);
-        if (canceled) return;
-        const filtered = Array.isArray(listRes?.data)
-          ? listRes.data.filter((config) => config?.name !== MIGRATION_CONFIG_NAME)
-          : [];
-        setConfigs(filtered);
-        const activeId = activeRes?.data?.id || null;
-        setActiveConfigId(filtered.some((config) => config.id === activeId) ? activeId : null);
-      } finally {
-        if (!canceled) setConfigLoading(false);
-      }
-    };
-
-    void loadConfigs();
-
-    const unsub = api.on('config:updated', () => {
-      void loadConfigs();
-    });
-
-    return () => {
-      canceled = true;
-      try {
-        unsub?.();
-      } catch {
-        // ignore
-      }
-    };
-  }, []);
-
   if (!hasApi) {
     return <Alert type="error" message="IPC bridge not available. Is preload loaded?" />;
   }
@@ -137,16 +96,6 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
         menu={menu}
         onMenuChange={setMenu}
         developerMode={developerMode}
-        configs={configs}
-        activeConfigId={activeConfigId}
-        configLoading={configLoading}
-        onSelectConfig={async (configId) => {
-          const ok = await configSwitch.switchConfig(configId);
-          if (ok) {
-            setActiveConfigId(configId);
-          }
-        }}
-        onManageConfigs={() => setMenu('admin/configs')}
       />
 
       <Content style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

@@ -8,7 +8,6 @@ import {
   SettingOutlined,
   SunOutlined,
 } from '@ant-design/icons';
-import { ConfigSelector } from '../components/ConfigSelector.jsx';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -19,11 +18,6 @@ export function AppHeader({
   menu,
   onMenuChange,
   developerMode: _developerMode = false,
-  configs = [],
-  activeConfigId = null,
-  onSelectConfig,
-  onManageConfigs,
-  configLoading = false,
 }) {
   const rawMenu = typeof menu === 'string' ? menu : '';
   const currentMenu = rawMenu;
@@ -44,7 +38,6 @@ export function AppHeader({
   const showCliConsoleShortcut = normalizedMenu.startsWith('admin/');
 
   const adminMenuItems = [
-    { key: 'admin/configs', label: '配置管理' },
     { key: 'admin/land_configs', label: 'land_configs' },
     { type: 'divider' },
     { key: 'admin/models', label: '模型' },
@@ -155,13 +148,6 @@ export function AppHeader({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ConfigSelector
-            configs={configs}
-            activeConfigId={activeConfigId}
-            onSelectConfig={onSelectConfig}
-            onManageConfigs={onManageConfigs}
-            loading={configLoading}
-          />
           <Button
             className="ds-icon-button"
             aria-label="切换主题"

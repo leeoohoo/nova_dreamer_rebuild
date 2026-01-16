@@ -12,7 +12,6 @@ import { ChatView } from '../features/chat/ChatView.jsx';
 import { ChatAgentsView } from '../features/chat/ChatAgentsView.jsx';
 import { AppsHubView } from '../features/apps/AppsHubView.jsx';
 import { AppsPluginView } from '../features/apps/AppsPluginView.jsx';
-import { ConfigManagerPage } from '../features/configs/ConfigManagerPage.jsx';
 import { LandConfigsManager } from '../features/land-configs/LandConfigsManager.jsx';
 
 export function AppContent({
@@ -109,9 +108,6 @@ export function AppContent({
     }
     if (currentMenu === 'admin/lsp') {
       return <LspServersManager />;
-    }
-    if (currentMenu === 'admin/configs') {
-      return <ConfigManagerPage admin={admin} />;
     }
     if (currentMenu === 'admin/land_configs') {
       return <LandConfigsManager admin={admin} />;
