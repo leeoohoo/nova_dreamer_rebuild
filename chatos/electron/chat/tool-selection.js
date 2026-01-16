@@ -25,7 +25,7 @@ function normalize(value) {
     .replace(/^_+|_+$/g, '');
 }
 
-export function resolveAllowedTools({ agent, mcpServers = [] } = {}) {
+export function resolveAllowedTools({ agent, mcpServers = [], allowedMcpPrefixes } = {}) {
   const agentRecord = agent && typeof agent === 'object' ? agent : {};
   const allowSubagents = Array.isArray(agentRecord.subagentIds) && agentRecord.subagentIds.length > 0;
 
@@ -41,6 +41,28 @@ export function resolveAllowedTools({ agent, mcpServers = [] } = {}) {
     return legacyAllowedServers.has(normalize(server?.name));
   };
 
+  const toolNames = listTools();
+  const out = new Set();
+  out.add('get_current_time');
+  if (allowSubagents) out.add('invoke_sub_agent');
+
+  const usePrefixAllowList = Array.isArray(allowedMcpPrefixes);
+  if (usePrefixAllowList) {
+    const prefixes = allowedMcpPrefixes.map((prefix) => String(prefix || '')).filter(Boolean);
+    if (prefixes.length > 0) {
+      for (const toolName of toolNames) {
+        if (!toolName.startsWith('mcp_')) continue;
+        for (const prefix of prefixes) {
+          if (toolName.startsWith(prefix)) {
+            out.add(toolName);
+            break;
+          }
+        }
+      }
+    }
+    return Array.from(out);
+  }
+
   const allowedMcpNames = new Set(
     (Array.isArray(agentRecord.mcpServerIds) ? agentRecord.mcpServerIds : [])
       .map((id) => mcpServers.find((srv) => srv?.id === id))
@@ -49,11 +71,6 @@ export function resolveAllowedTools({ agent, mcpServers = [] } = {}) {
       .filter(Boolean)
       .map((name) => normalize(name))
   );
-
-  const toolNames = listTools();
-  const out = new Set();
-  out.add('get_current_time');
-  if (allowSubagents) out.add('invoke_sub_agent');
 
   if (allowedMcpNames.size > 0) {
     for (const toolName of toolNames) {

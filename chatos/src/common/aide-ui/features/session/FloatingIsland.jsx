@@ -29,6 +29,7 @@ function FloatingIsland({
   onUiPromptRespond,
   runtimeSettings,
   onSaveSettings,
+  landConfigs,
   runFilter,
   runOptions,
   onRunFilterChange,
@@ -91,6 +92,17 @@ function FloatingIsland({
   const confirmMainTaskCreate = runtimeSettings?.confirmMainTaskCreate === true;
   const confirmSubTaskCreate = runtimeSettings?.confirmSubTaskCreate === true;
   const confirmFileChanges = runtimeSettings?.confirmFileChanges === true;
+  const landConfigId = typeof runtimeSettings?.landConfigId === 'string' ? runtimeSettings.landConfigId.trim() : '';
+  const landConfigOptions = useMemo(() => {
+    const list = Array.isArray(landConfigs) ? landConfigs : [];
+    const options = list
+      .filter((config) => config?.id)
+      .map((config) => ({
+        label: config?.name ? config.name : config?.id,
+        value: config?.id,
+      }));
+    return [{ label: '不使用 land_configs', value: '' }, ...options];
+  }, [landConfigs]);
   const uiTerminalMode = useMemo(() => {
     const raw = typeof runtimeSettings?.uiTerminalMode === 'string' ? runtimeSettings.uiTerminalMode.trim().toLowerCase() : '';
     if (raw === 'system' || raw === 'headless' || raw === 'auto') return raw;
@@ -197,6 +209,18 @@ function FloatingIsland({
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Space size={8} align="center" wrap style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Space size={8} align="center" wrap>
+                  <Select
+                    size="large"
+                    value={landConfigId || ''}
+                    onChange={(value) => applyRuntimeSettingsPatch({ landConfigId: value || '' })}
+                    options={landConfigOptions}
+                    style={{ minWidth: 220 }}
+                    dropdownStyle={{ zIndex: 1301 }}
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="选择 land_config"
+                    disabled={settingsSaving}
+                  />
                   <Select
                     size="large"
                     value={runFilter || RUN_FILTER_ALL}

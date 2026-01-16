@@ -61,6 +61,7 @@ export class SettingsService extends BaseService {
     return {
       maxToolPasses: toInt(base.maxToolPasses),
       promptLanguage: normalizeLanguage(base.promptLanguage),
+      landConfigId: typeof base.landConfigId === 'string' ? base.landConfigId.trim() : '',
       summaryTokenThreshold: toInt(base.summaryTokenThreshold),
       autoRoute: Boolean(base.autoRoute),
       logRequests: Boolean(base.logRequests),

@@ -7,6 +7,7 @@ import { ConfigForm } from './ConfigForm.jsx';
 import { ConfigDetail } from './ConfigDetail.jsx';
 
 const { Title, Paragraph } = Typography;
+const MIGRATION_CONFIG_NAME = '默认配置（迁移）';
 
 export function ConfigManagerPage({ admin }) {
   const [configs, setConfigs] = useState([]);
@@ -36,8 +37,17 @@ export function ConfigManagerPage({ admin }) {
         message.error(listRes?.message || '加载配置失败');
         return;
       }
-      setConfigs(Array.isArray(listRes.data) ? listRes.data : []);
-      setActiveConfigId(activeRes?.data?.id || null);
+      const filtered = Array.isArray(listRes.data)
+        ? listRes.data.filter((config) => config?.name !== MIGRATION_CONFIG_NAME)
+        : [];
+      setConfigs(filtered);
+      if (filtered.length === 0) {
+        setSelectedConfigId(null);
+      } else if (selectedConfigId && !filtered.some((config) => config.id === selectedConfigId)) {
+        setSelectedConfigId(filtered[0].id);
+      }
+      const activeId = activeRes?.data?.id || null;
+      setActiveConfigId(filtered.some((config) => config.id === activeId) ? activeId : null);
     } finally {
       setLoading(false);
     }

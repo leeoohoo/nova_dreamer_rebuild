@@ -21,6 +21,7 @@ const EMPTY_ADMIN = {
   settings: [],
   landConfigs: [],
 };
+const MIGRATION_CONFIG_NAME = '默认配置（迁移）';
 
 export default function App({ themeMode = 'light', onToggleTheme }) {
   const [menu, setMenu] = useState('chat/session');
@@ -95,8 +96,12 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
       try {
         const [listRes, activeRes] = await Promise.all([api.invoke('configs:list'), api.invoke('configs:getActive')]);
         if (canceled) return;
-        setConfigs(Array.isArray(listRes?.data) ? listRes.data : []);
-        setActiveConfigId(activeRes?.data?.id || null);
+        const filtered = Array.isArray(listRes?.data)
+          ? listRes.data.filter((config) => config?.name !== MIGRATION_CONFIG_NAME)
+          : [];
+        setConfigs(filtered);
+        const activeId = activeRes?.data?.id || null;
+        setActiveConfigId(filtered.some((config) => config.id === activeId) ? activeId : null);
       } finally {
         if (!canceled) setConfigLoading(false);
       }

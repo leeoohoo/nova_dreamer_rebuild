@@ -79,6 +79,7 @@ function CliAppBody({ host, mountContainer }) {
     subagents: [],
     prompts: [],
     settings: [],
+    landConfigs: [],
   });
   const [adminDbPath, setAdminDbPath] = useState('');
   const [loading, setLoading] = useState(true);
@@ -939,6 +940,7 @@ function CliAppBody({ host, mountContainer }) {
         onUiPromptRespond={respondUiPrompt}
         runtimeSettings={runtimeSettings}
         onSaveSettings={saveSettings}
+        landConfigs={admin?.landConfigs}
         runFilter={runFilter}
         runOptions={visibleRunSummary?.options}
         onRunFilterChange={handleRunFilterChange}

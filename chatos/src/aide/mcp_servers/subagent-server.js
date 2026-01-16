@@ -49,6 +49,7 @@ const [
   { buildMcpPromptBundles },
   { listTools },
   { loadSystemPromptFromDb, buildUserPromptMessages },
+  { buildLandConfigSelection, resolveLandConfig },
   { createEventLogger },
 ] = await Promise.all([
   importEngine('subagents/index.js'),
@@ -61,6 +62,7 @@ const [
   importEngine('mcp/prompt-binding.js'),
   importEngine('tools/index.js'),
   importEngine('prompts.js'),
+  importEngine('land-config.js'),
   importEngine('event-log.js'),
 ]);
 
@@ -72,22 +74,78 @@ const server = new McpServer({
 });
 const CURRENT_FILE = fileURLToPath(import.meta.url);
 
+function readRegistrySnapshot(services) {
+  const db = services?.mcpServers?.db || services?.prompts?.db || null;
+  if (!db || typeof db.list !== 'function') {
+    return { mcpServers: [], prompts: [] };
+  }
+  try {
+    return {
+      mcpServers: db.list('registryMcpServers') || [],
+      prompts: db.list('registryPrompts') || [],
+    };
+  } catch {
+    return { mcpServers: [], prompts: [] };
+  }
+}
+
 const { services: adminServices, defaultPaths } = getAdminServices();
-const systemPromptConfig = loadSystemPromptFromDb(adminServices.prompts.list());
+const runtimeConfig = adminServices.settings?.getRuntimeConfig ? adminServices.settings.getRuntimeConfig() : null;
+const promptLanguage = runtimeConfig?.promptLanguage || null;
+const landConfigId = typeof runtimeConfig?.landConfigId === 'string' ? runtimeConfig.landConfigId.trim() : '';
+const landConfigRecords = adminServices.landConfigs?.list ? adminServices.landConfigs.list() : [];
+const selectedLandConfig = resolveLandConfig({ landConfigs: landConfigRecords, landConfigId });
+const registrySnapshot = readRegistrySnapshot(adminServices);
+const promptRecords = adminServices.prompts.list();
+const mcpServerRecords = adminServices.mcpServers.list();
+const landSelection = selectedLandConfig
+  ? buildLandConfigSelection({
+      landConfig: selectedLandConfig,
+      prompts: promptRecords,
+      mcpServers: mcpServerRecords,
+      registryMcpServers: registrySnapshot.mcpServers,
+      registryPrompts: registrySnapshot.prompts,
+      promptLanguage,
+    })
+  : null;
+let systemPromptConfig = loadSystemPromptFromDb(promptRecords, { language: promptLanguage });
+if (landSelection) {
+  systemPromptConfig = {
+    ...systemPromptConfig,
+    subagentUserPrompt: landSelection.sub.promptText || '',
+  };
+}
 const manager = createSubAgentManager({
   internalSystemPrompt: systemPromptConfig.subagentInternal,
   systemPromptPath: systemPromptConfig.path,
 });
-const mcpPromptBundles = buildMcpPromptBundles({
-  prompts: adminServices.prompts.list(),
-  mcpServers: adminServices.mcpServers.list(),
-});
-const combinedSubagentPrompt = [systemPromptConfig.subagentUserPrompt, mcpPromptBundles.subagent.text]
+const mcpPromptBundles = landSelection
+  ? null
+  : buildMcpPromptBundles({
+      prompts: promptRecords,
+      mcpServers: mcpServerRecords,
+      language: promptLanguage,
+    });
+const subagentMcpText = landSelection ? landSelection.sub.mcpPromptText : mcpPromptBundles.subagent.text;
+const combinedSubagentPrompt = [systemPromptConfig.subagentUserPrompt, subagentMcpText]
   .map((value) => (typeof value === 'string' ? value.trim() : ''))
   .filter(Boolean)
   .join('\n\n');
 const userPromptMessages = buildUserPromptMessages(combinedSubagentPrompt, 'subagent_user_prompt');
-if (mcpPromptBundles.subagent.missingPromptNames.length > 0) {
+if (landSelection) {
+  if ((landSelection.sub?.missingMcpPromptNames || []).length > 0) {
+    console.error(
+      `[prompts] Missing MCP prompt(s) for subagent_router subagent sessions: ${landSelection.sub.missingMcpPromptNames.join(
+        ', '
+      )}`
+    );
+  }
+  if ((landSelection.sub?.missingAppServers || []).length > 0) {
+    console.error(
+      `[land_config] Missing app MCP servers (subagent_router): ${landSelection.sub.missingAppServers.join(', ')}`
+    );
+  }
+} else if (mcpPromptBundles.subagent.missingPromptNames.length > 0) {
   console.error(
     `[prompts] Missing MCP prompt(s) for subagent_router subagent sessions: ${mcpPromptBundles.subagent.missingPromptNames.join(
       ', '
@@ -106,7 +164,7 @@ const SESSION_ROOT = process.env.MODEL_CLI_SESSION_ROOT || process.cwd();
 const WORKSPACE_ROOT = process.env.MODEL_CLI_WORKSPACE_ROOT || process.env.MODEL_CLI_SESSION_ROOT || process.cwd();
 const RUN_ID = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
 const TOOL_ALLOW_LIST = ['invoke_sub_agent', 'get_current_time', 'echo_text'];
-const TOOL_ALLOW_PREFIXES = ['mcp_task_manager_', 'mcp_project_files_'];
+let TOOL_ALLOW_PREFIXES = null;
 const TOOL_DENY_PREFIXES = ['mcp_subagent_router_']; // block recursive routing; allow all other MCP tools
 const eventLogPath =
   process.env.MODEL_CLI_EVENT_LOG ||
@@ -116,6 +174,13 @@ const eventLogger = createEventLogger(eventLogPath);
 const HEARTBEAT_INTERVAL_MS = 10000;
 const HEARTBEAT_STALE_MS = 120000;
 const DEFAULT_MODEL_NAME = 'deepseek_chat';
+
+if (landSelection) {
+  const prefixes = Array.from(
+    new Set((landSelection.sub?.selectedServerNames || []).map((name) => `mcp_${name}_`))
+  );
+  TOOL_ALLOW_PREFIXES = prefixes.length > 0 ? prefixes : ['__none__'];
+}
 
 appendRunPid({ pid: process.pid, kind: isWorkerMode ? 'subagent_worker' : 'mcp', name: 'subagent_router' });
 registerProcessShutdownHooks();
@@ -426,18 +491,33 @@ async function ensureMcpRuntime() {
       const skip = new Set(['subagent_router']); // Prevent recursive self-connection.
       try {
         const servers = adminServices?.mcpServers?.list?.() || [];
-        servers.forEach((srv) => {
-          if (!srv?.name) return;
-          if (srv.allowSub === false) {
-            skip.add(srv.name);
-          }
-        });
+        if (landSelection) {
+          const allowed = new Set(
+            (landSelection.sub?.selectedServers || [])
+              .map((entry) => String(entry?.server?.name || '').toLowerCase())
+              .filter(Boolean)
+          );
+          servers.forEach((srv) => {
+            if (!srv?.name) return;
+            if (!allowed.has(String(srv.name || '').toLowerCase())) {
+              skip.add(srv.name);
+            }
+          });
+        } else {
+          servers.forEach((srv) => {
+            if (!srv?.name) return;
+            if (srv.allowSub === false) {
+              skip.add(srv.name);
+            }
+          });
+        }
       } catch {
         // ignore admin snapshot errors
       }
       return await initializeMcpRuntime(mcpConfigPath, SESSION_ROOT, WORKSPACE_ROOT, {
         caller: 'subagent',
         skipServers: Array.from(skip),
+        extraServers: landSelection?.extraMcpServers || [],
       });
     } catch (err) {
       console.error('[subagent_router] MCP init failed:', err.message);
@@ -474,6 +554,12 @@ function isToolAllowed(name) {
   // Explicit deny list to prevent sub-agents from calling the subagent router tools.
   if (TOOL_DENY_PREFIXES.some((prefix) => value.startsWith(prefix))) {
     return false;
+  }
+  const allowMcpPrefixes = Array.isArray(TOOL_ALLOW_PREFIXES) ? TOOL_ALLOW_PREFIXES : null;
+  if (value.startsWith('mcp_') && allowMcpPrefixes && allowMcpPrefixes.length > 0) {
+    if (!allowMcpPrefixes.some((prefix) => value.startsWith(prefix))) {
+      return false;
+    }
   }
   // Otherwise allow all registered tools (including shell/code writer/etc.).
   return true;
