@@ -139,6 +139,19 @@ export const TABLE_SCHEMAS = {
       { name: 'updatedAt', type: 'datetime', required: true },
     ],
   },
+  landConfigs: {
+    name: 'landConfigs',
+    description: 'Land 配置',
+    columns: [
+      { name: 'id', type: 'string', required: true },
+      { name: 'name', type: 'string', required: true },
+      { name: 'description', type: 'string', required: false },
+      { name: 'main', type: 'object', required: false, note: '主流程关联配置' },
+      { name: 'sub', type: 'object', required: false, note: '子流程关联配置' },
+      { name: 'createdAt', type: 'datetime', required: true },
+      { name: 'updatedAt', type: 'datetime', required: true },
+    ],
+  },
 };
 
 export const modelSchema = z.object({
@@ -267,6 +280,37 @@ export const runtimeSettingsSchema = z.object({
   uiTerminalMode: z.enum(['auto', 'system', 'headless']).optional().default('auto'),
 });
 
+const landConfigPromptSchema = z.object({
+  key: z.string().trim().min(1, 'prompt key is required'),
+  lang: z.enum(['zh', 'en']).optional().default('zh'),
+});
+
+const landConfigMcpServerSchema = z.object({
+  id: z.string().trim().min(1, 'mcp server id is required'),
+  name: z.string().trim().optional().default(''),
+  promptLang: z.enum(['zh', 'en']).optional().default('zh'),
+});
+
+const landConfigAppSchema = z.object({
+  pluginId: z.string().trim().min(1, 'pluginId is required'),
+  appId: z.string().trim().min(1, 'appId is required'),
+  name: z.string().trim().optional().default(''),
+});
+
+const landConfigFlowSchema = z.object({
+  mcpServers: z.array(landConfigMcpServerSchema).optional().default([]),
+  apps: z.array(landConfigAppSchema).optional().default([]),
+  prompts: z.array(landConfigPromptSchema).optional().default([]),
+});
+
+export const landConfigSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1, 'name is required'),
+  description: z.string().trim().optional().default(''),
+  main: landConfigFlowSchema.optional().default({ mcpServers: [], apps: [], prompts: [] }),
+  sub: landConfigFlowSchema.optional().default({ mcpServers: [], apps: [], prompts: [] }),
+});
+
 export const DEFAULT_RUNTIME_SETTINGS = {
   id: 'runtime',
   maxToolPasses: 240,
@@ -294,4 +338,5 @@ export const DEFAULT_EMPTY_STATE = {
   events: [],
   tasks: [],
   settings: [],
+  landConfigs: [],
 };

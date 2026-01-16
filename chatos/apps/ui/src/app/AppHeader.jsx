@@ -45,6 +45,7 @@ export function AppHeader({
 
   const adminMenuItems = [
     { key: 'admin/configs', label: '配置管理' },
+    { key: 'admin/land_configs', label: 'land_configs' },
     { type: 'divider' },
     { key: 'admin/models', label: '模型' },
     { key: 'admin/mcp', label: 'MCP Servers' },

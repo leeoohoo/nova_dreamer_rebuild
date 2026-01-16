@@ -93,6 +93,7 @@ export function registerAdminApi(ipcMain, services, getWindow, options = {}) {
     });
   }
   registerCrud(ipcMain, 'prompts', services.prompts, wrapMutation);
+  registerCrud(ipcMain, 'landConfigs', services.landConfigs, wrapMutation);
   ipcMain.handle(
     'admin:settings:save',
     wrapMutation(async (_event, payload = {}) => services.settings.saveRuntime(payload))

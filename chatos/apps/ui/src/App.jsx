@@ -19,6 +19,7 @@ const EMPTY_ADMIN = {
   subagents: [],
   prompts: [],
   settings: [],
+  landConfigs: [],
 };
 
 export default function App({ themeMode = 'light', onToggleTheme }) {

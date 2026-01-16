@@ -7,6 +7,7 @@ import { PromptService } from './prompt-service.js';
 import { EventService } from './event-service.js';
 import { TaskService } from './task-service.js';
 import { SettingsService } from './settings-service.js';
+import { LandConfigService } from './land-config-service.js';
 
 function migratePromptAllowFlags(db) {
   const prompts = db.list('prompts') || [];
@@ -53,6 +54,7 @@ export function createAdminServices(db) {
   const events = new EventService(db);
   const tasks = new TaskService(db);
   const settings = new SettingsService(db);
+  const landConfigs = new LandConfigService(db);
   settings.ensureRuntime();
 
   const snapshot = () => ({
@@ -64,6 +66,7 @@ export function createAdminServices(db) {
     events: events.list(),
     tasks: tasks.list(),
     settings: settings.list(),
+    landConfigs: landConfigs.list(),
   });
 
   return {
@@ -75,6 +78,7 @@ export function createAdminServices(db) {
     events,
     tasks,
     settings,
+    landConfigs,
     snapshot,
     schema: () => TABLE_SCHEMAS,
     dbPath: db.path,
