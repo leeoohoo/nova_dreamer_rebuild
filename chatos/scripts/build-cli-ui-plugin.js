@@ -11,10 +11,12 @@ const sharedUiSrc = path.resolve(root, 'src', 'common', 'aide-ui');
 
 const pluginSrcRoot = path.join(root, 'src', 'aide', 'cli-ui');
 const entry = path.join(pluginSrcRoot, 'src', 'index.jsx');
+const compactEntry = path.join(pluginSrcRoot, 'src', 'compact.mjs');
 
 const pluginRoot = path.join(root, 'ui_apps', 'plugins', 'aide-builtin');
 const pluginDistRoot = path.join(pluginRoot, 'cli', 'dist');
 const outfile = path.join(pluginDistRoot, 'index.mjs');
+const compactOutfile = path.join(pluginDistRoot, 'compact.mjs');
 
 const skipIfPresent = process.argv.includes('--skip-if-present');
 const release = process.argv.includes('--release');
@@ -58,14 +60,21 @@ function getLatestMtimeMs(filePaths = []) {
 }
 
 function buildIsFresh() {
-  if (!fs.existsSync(outfile)) return false;
-  if (release && fs.existsSync(`${outfile}.map`)) return false;
-  let outMs = 0;
-  try {
-    const stat = fs.statSync(outfile);
-    outMs = typeof stat.mtimeMs === 'number' ? stat.mtimeMs : 0;
-  } catch {
-    outMs = 0;
+  const outputs = [outfile, compactOutfile];
+  for (const outputPath of outputs) {
+    if (!fs.existsSync(outputPath)) return false;
+    if (release && fs.existsSync(`${outputPath}.map`)) return false;
+  }
+  let outMs = null;
+  for (const outputPath of outputs) {
+    try {
+      const stat = fs.statSync(outputPath);
+      const ms = typeof stat.mtimeMs === 'number' ? stat.mtimeMs : 0;
+      if (!ms) return false;
+      outMs = outMs === null ? ms : Math.min(outMs, ms);
+    } catch {
+      return false;
+    }
   }
   if (!outMs) return false;
 
@@ -90,10 +99,7 @@ function writePluginManifest() {
         entry: {
           type: 'module',
           path: 'cli/dist/index.mjs',
-          compact: {
-            type: 'module',
-            path: 'cli/dist/index.mjs',
-          },
+          compact: { type: 'module', path: 'cli/dist/compact.mjs' },
         },
       },
     ],
@@ -130,9 +136,7 @@ async function main() {
       // ignore
     }
   }
-  await build({
-    entryPoints: [entry],
-    outfile,
+  const buildOptions = {
     bundle: true,
     format: 'esm',
     sourcemap: !release,
@@ -147,7 +151,27 @@ async function main() {
       path.resolve(root, 'src', 'node_modules'),
       path.resolve(root, 'src', 'aide', 'node_modules'),
     ],
+  };
+
+  await build({
+    entryPoints: [entry],
+    outfile,
+    ...buildOptions,
   });
+  if (fs.existsSync(compactEntry)) {
+    if (release) {
+      try {
+        fs.rmSync(`${compactOutfile}.map`, { force: true });
+      } catch {
+        // ignore
+      }
+    }
+    await build({
+      entryPoints: [compactEntry],
+      outfile: compactOutfile,
+      ...buildOptions,
+    });
+  }
   console.log(`CLI UI plugin built to ${outfile}`);
 }
 
