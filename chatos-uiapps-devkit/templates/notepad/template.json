@@ -1,0 +1,8 @@
+{
+  "description": "完整示例：Markdown 记事本（文件夹/标签/搜索/后端持久化）",
+  "defaults": {
+    "appId": "manager",
+    "pluginName": "记事本",
+    "withBackend": true
+  }
+}

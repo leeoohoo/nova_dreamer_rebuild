@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "id": "__PLUGIN_ID__",
+  "name": "__PLUGIN_NAME__",
+  "version": "__VERSION__",
+  "description": "A ChatOS UI Apps example: Markdown notepad with folders & tags.",
+  "backend": { "entry": "backend/index.mjs" },
+  "apps": [
+    {
+      "id": "__APP_ID__",
+      "name": "__PLUGIN_NAME__",
+      "description": "Markdown 编辑/预览，文件夹分类，标签管理与快速检索。",
+      "entry": { "type": "module", "path": "apps/__APP_ID__/index.mjs" },
+      "ai": {
+        "mcpPrompt": {
+          "title": "__PLUGIN_NAME__ · MCP Prompt",
+          "zh": "apps/__APP_ID__/mcp-prompt.zh.md",
+          "en": "apps/__APP_ID__/mcp-prompt.en.md"
+        }
+      }
+    }
+  ]
+}

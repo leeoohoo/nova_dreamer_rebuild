@@ -1,0 +1,148 @@
+name: desktop-build-macos-mas
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (macos-mas-universal)
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build UI
+        run: npm run ui:build
+
+      - name: Set MAS bundle version
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+
+          const runNumber = process.env.GITHUB_RUN_NUMBER;
+          const runAttempt = process.env.GITHUB_RUN_ATTEMPT;
+          if (!runNumber || !runAttempt) {
+            console.error("Missing GITHUB_RUN_NUMBER/GITHUB_RUN_ATTEMPT");
+            process.exit(1);
+          }
+
+          const bundleVersion = `${runNumber}.${runAttempt}`;
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          pkg.build = pkg.build || {};
+          pkg.build.buildVersion = bundleVersion;
+          pkg.build.mas = pkg.build.mas || {};
+          pkg.build.mas.extendInfo = pkg.build.mas.extendInfo || {};
+          pkg.build.mas.extendInfo.CFBundleVersion = bundleVersion;
+
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          console.log(`Using CFBundleVersion=${bundleVersion}`);
+          NODE
+
+      - name: Prepare MAS signing assets
+        shell: bash
+        env:
+          MAS_PROVISIONPROFILE_BASE64: ${{ secrets.MAS_PROVISIONPROFILE_BASE64 }}
+          MAS_APP_CERT_P12_BASE64: ${{ secrets.MAS_APP_CERT_P12_BASE64 }}
+          MAS_APP_CERT_PASSWORD: ${{ secrets.MAS_APP_CERT_PASSWORD }}
+          MAS_INSTALLER_CERT_P12_BASE64: ${{ secrets.MAS_INSTALLER_CERT_P12_BASE64 }}
+          MAS_INSTALLER_CERT_PASSWORD: ${{ secrets.MAS_INSTALLER_CERT_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          mkdir -p build_resources
+          python3 - <<'PY'
+          import base64, os, pathlib, sys
+          def b64decode_env(name: str) -> bytes:
+              raw = (os.environ.get(name) or "").strip()
+              raw = "".join(raw.split())
+              return base64.b64decode(raw)
+
+          required = [
+              "MAS_PROVISIONPROFILE_BASE64",
+              "MAS_APP_CERT_P12_BASE64",
+              "MAS_APP_CERT_PASSWORD",
+              "MAS_INSTALLER_CERT_P12_BASE64",
+              "MAS_INSTALLER_CERT_PASSWORD",
+              "APPLE_TEAM_ID",
+          ]
+          missing = [k for k in required if not (os.environ.get(k) or "").strip()]
+          if missing:
+              print("Missing required secrets: " + ", ".join(missing), file=sys.stderr)
+              sys.exit(1)
+          pathlib.Path("build_resources").mkdir(parents=True, exist_ok=True)
+          pathlib.Path("build_resources/embedded.provisionprofile").write_bytes(
+              b64decode_env("MAS_PROVISIONPROFILE_BASE64")
+          )
+          pathlib.Path("build_resources/mas-app-cert.p12").write_bytes(
+              b64decode_env("MAS_APP_CERT_P12_BASE64")
+          )
+          pathlib.Path("build_resources/mas-installer-cert.p12").write_bytes(
+              b64decode_env("MAS_INSTALLER_CERT_P12_BASE64")
+          )
+          PY
+
+      - name: Package desktop app (Mac App Store)
+        env:
+          CSC_LINK: build_resources/mas-app-cert.p12
+          CSC_KEY_PASSWORD: ${{ secrets.MAS_APP_CERT_PASSWORD }}
+          CSC_INSTALLER_LINK: build_resources/mas-installer-cert.p12
+          CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.MAS_INSTALLER_CERT_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx --yes electron-builder@24.13.3 --mac mas --universal --publish never
+
+      - name: Print MAS app version info
+        shell: bash
+        run: |
+          APP_PATH="$(find dist_desktop -maxdepth 4 -name '*.app' -type d -print -quit)"
+          if [ -z "${APP_PATH:-}" ]; then
+            echo "No .app found under dist_desktop/"
+            find dist_desktop -maxdepth 4 -type d -name '*.app' -print || true
+            exit 1
+          fi
+          echo "App: ${APP_PATH}"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP_PATH}/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "${APP_PATH}/Contents/Info.plist"
+
+      - name: Upload to App Store Connect (Apple ID)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          ASC_APPLE_ID: ${{ secrets.ASC_APPLE_ID }}
+          ASC_APP_SPECIFIC_PASSWORD: ${{ secrets.ASC_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "${ASC_APPLE_ID:-}" ] || [ -z "${ASC_APP_SPECIFIC_PASSWORD:-}" ]; then
+            echo "Missing required secrets: ASC_APPLE_ID, ASC_APP_SPECIFIC_PASSWORD"
+            exit 1
+          fi
+          PKG_PATH="$(find dist_desktop -maxdepth 3 -name '*.pkg' -type f | head -n 1)"
+          if [ -z "${PKG_PATH:-}" ]; then
+            echo "No .pkg found under dist_desktop/"
+            ls -la dist_desktop || true
+            exit 1
+          fi
+          echo "Uploading: ${PKG_PATH}"
+          xcrun altool --validate-app -f "${PKG_PATH}" -t macos -u "${ASC_APPLE_ID}" -p @env:ASC_APP_SPECIFIC_PASSWORD --team-id "${APPLE_TEAM_ID}" --output-format json
+          xcrun altool --upload-app -f "${PKG_PATH}" -t macos -u "${ASC_APPLE_ID}" -p @env:ASC_APP_SPECIFIC_PASSWORD --team-id "${APPLE_TEAM_ID}" --output-format json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos-mas-universal
+          if-no-files-found: error
+          path: |
+            dist_desktop/**/*.dmg
+            dist_desktop/**/*.zip
+            dist_desktop/**/*.pkg
+            dist_desktop/**/*.exe
+            dist_desktop/**/*.yml
+            dist_desktop/**/*.blockmap

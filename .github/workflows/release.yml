@@ -1,0 +1,54 @@
+name: Release (npm publish)
+
+on:
+  push:
+    tags:
+      - "aide-v*"
+      - "chatos-v*"
+      - "common-v*"
+      - "ui-apps-devkit-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --omit=optional
+      - name: Resolve workspace from tag
+        id: meta
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          case "$TAG" in
+            aide-v*) echo "workspace=aide" >> "$GITHUB_OUTPUT" ;;
+            chatos-v*) echo "workspace=deepseek_cli" >> "$GITHUB_OUTPUT" ;;
+            common-v*) echo "workspace=common" >> "$GITHUB_OUTPUT" ;;
+            ui-apps-devkit-v*) echo "workspace=chatos-uiapps-devkit" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unsupported tag: $TAG" >&2; exit 1 ;;
+          esac
+          VERSION="${TAG#*-v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Verify package version matches tag
+        shell: bash
+        env:
+          WORKSPACE: ${{ steps.meta.outputs.workspace }}
+          EXPECTED_VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          ACTUAL_VERSION="$(node -p "require('./' + process.env.WORKSPACE + '/package.json').version")"
+          if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "Version mismatch: tag=$EXPECTED_VERSION package.json=$ACTUAL_VERSION" >&2
+            exit 1
+          fi
+      - name: Publish
+        run: npm publish -w ${{ steps.meta.outputs.workspace }} --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

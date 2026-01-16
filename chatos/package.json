@@ -1,0 +1,141 @@
+{
+  "name": "@leeoohoo/chatos",
+  "version": "0.1.1",
+  "description": "Terminal chat client for multiple AI models (Node.js implementation).",
+  "license": "MIT",
+  "bin": {
+    "chatos": "src/cli.js",
+    "chatosui": "bin/chatosui.js"
+  },
+  "type": "module",
+  "files": [
+    "bin/**/*",
+    "src/**/*",
+    "build_resources/**/*",
+    "electron/**/*",
+    "apps/ui/dist/**/*",
+    "ui_apps/plugins/**/*",
+    "apps/ui/icon.png",
+    "apps/ui/index.html",
+    "apps/ui/src/**/*",
+    "scripts/**/*",
+    "mcp_config_restore.json",
+    "mcp_config_update.json",
+    "README.md",
+    "README.en.md",
+    "README.zh.md"
+  ],
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test",
+    "ui:build": "node scripts/build-ui.js",
+    "ui:build:release": "node scripts/build-ui.js --release",
+    "build": "npm run ui:build",
+    "ui": "node scripts/build-ui.js --skip-if-present && electron electron/main.js",
+    "prepack": "node scripts/build-ui.js --release --skip-if-present",
+    "desktop:dist": "npm run ui:build:release && npx --yes electron-builder@24.13.3"
+  },
+  "build": {
+    "appId": "com.leeoohoo.chatos",
+    "productName": "chatos",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "executableName": "chatosui",
+    "electronVersion": "38.0.0-beta.6",
+    "directories": {
+      "buildResources": "build_resources",
+      "output": "dist_desktop"
+    },
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "afterSign": "scripts/notarize.cjs",
+    "extraResources": [
+      {
+        "from": "src/common/ui",
+        "to": "src/common/ui"
+      }
+    ],
+    "files": [
+      "package.json",
+      "electron/**/*",
+      "src/**/*",
+      "apps/ui/dist/**/*",
+      "ui_apps/plugins/**/*",
+      "mcp_config_restore.json",
+      "mcp_config_update.json",
+      "!**/*.map",
+      "!src/aide/**/node_modules/**",
+      "!src/aide/**/.git/**",
+      "!src/aide/**/src/**",
+      "!**/node_modules/electron/**"
+    ],
+    "asarUnpack": [
+      "node_modules/**"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build_resources/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": false,
+      "entitlements": "build_resources/entitlements.mac.plist",
+      "entitlementsInherit": "build_resources/entitlements.mac.inherit.plist",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "mas": {
+      "type": "distribution",
+      "entitlements": "build_resources/entitlements.mas.plist",
+      "entitlementsInherit": "build_resources/entitlements.mas.inherit.plist",
+      "provisioningProfile": "build_resources/embedded.provisionprofile",
+      "extendInfo": {
+        "CFBundleVersion": "${env.GITHUB_RUN_NUMBER}.${env.GITHUB_RUN_ATTEMPT}"
+      }
+    },
+    "win": {
+      "icon": "build_resources/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "antd": "^5.21.2",
+    "esbuild": "0.25.0",
+    "highlight.js": "^11.11.1",
+    "ink": "^5.0.1",
+    "ink-big-text": "^2.0.0",
+    "ink-gradient": "^3.0.0",
+    "ink-select-input": "^6.2.0",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
+    "mermaid": "^10.9.1",
+    "openai": "^6.16.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sql.js": "^1.12.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.25.76"
+  },
+  "optionalDependencies": {
+    "chrome-devtools-mcp": "^0.12.1",
+    "electron": "38.0.0-beta.6"
+  },
+  "devDependencies": {
+    "electron-rebuild": "^3.2.9"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

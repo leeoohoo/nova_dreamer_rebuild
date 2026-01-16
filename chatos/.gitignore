@@ -1,0 +1,24 @@
+.DS_Store
+node_modules/
+dist/
+dist_desktop/
+build/
+aide/
+.npm-cache/
+.npm-cache-local/
+.tmp_home/
+.tmp_friendly_patch/
+.tmp/
+.tmux_tmp/
+.deepseek_cli/
+build_resources/embedded.provisionprofile
+build_resources/*.p12
+.idea/
+.env
+.env.*
+*.log
+tmp/
+ui_apps/plugins/aide-builtin/
+
+# Allow committing Node metadata even if globally ignored.
+!package.json

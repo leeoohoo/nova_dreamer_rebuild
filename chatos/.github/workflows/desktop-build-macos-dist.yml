@@ -1,0 +1,116 @@
+name: desktop-build-macos-dist
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-x64
+            os: macos-14
+            platform: mac
+            arch: x64
+          - name: macos-arm64
+            os: macos-14
+            platform: mac
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build UI
+        run: npm run ui:build
+
+      - name: Prepare Developer ID signing assets
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          DEV_ID_APP_CERT_P12_BASE64: ${{ secrets.DEV_ID_APP_CERT_P12_BASE64 }}
+          DEV_ID_APP_CERT_PASSWORD: ${{ secrets.DEV_ID_APP_CERT_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_APPLE_ID: ${{ secrets.ASC_APPLE_ID }}
+          ASC_APP_SPECIFIC_PASSWORD: ${{ secrets.ASC_APP_SPECIFIC_PASSWORD }}
+        run: |
+          mkdir -p build_resources
+          python3 - <<'PY'
+          import base64, os, pathlib, sys
+          def b64decode_env(name: str) -> bytes:
+              raw = (os.environ.get(name) or "").strip()
+              raw = "".join(raw.split())
+              return base64.b64decode(raw)
+
+          required = [
+              "DEV_ID_APP_CERT_P12_BASE64",
+              "DEV_ID_APP_CERT_PASSWORD",
+              "APPLE_TEAM_ID",
+              "ASC_APPLE_ID",
+              "ASC_APP_SPECIFIC_PASSWORD",
+          ]
+          missing = [k for k in required if not (os.environ.get(k) or "").strip()]
+          if missing:
+              print("Missing required secrets: " + ", ".join(missing), file=sys.stderr)
+              sys.exit(1)
+
+          pathlib.Path("build_resources").mkdir(parents=True, exist_ok=True)
+          pathlib.Path("build_resources/dev-id-app-cert.p12").write_bytes(
+              b64decode_env("DEV_ID_APP_CERT_P12_BASE64")
+          )
+          PY
+
+      - name: Package desktop app (macOS signed + notarized)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          CSC_LINK: build_resources/dev-id-app-cert.p12
+          CSC_KEY_PASSWORD: ${{ secrets.DEV_ID_APP_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.ASC_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.ASC_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx --yes electron-builder@24.13.3 --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+
+      - name: Verify macOS signature (Gatekeeper)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          APP_PATH="$(find dist_desktop -maxdepth 4 -name '*.app' -type d -print -quit)"
+          if [ -z "${APP_PATH:-}" ]; then
+            echo "No .app found under dist_desktop/"
+            find dist_desktop -maxdepth 4 -type d -name '*.app' -print || true
+            exit 1
+          fi
+          echo "App: ${APP_PATH}"
+          codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
+          spctl -a -vv "${APP_PATH}"
+
+      - name: Package desktop app (unsigned)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx --yes electron-builder@24.13.3 --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            dist_desktop/**/*.dmg
+            dist_desktop/**/*.zip
+            dist_desktop/**/*.pkg
+            dist_desktop/**/*.exe
+            dist_desktop/**/*.yml
+            dist_desktop/**/*.blockmap

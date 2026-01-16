@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+aide/bin
+deepseek_cli/bin
+chatos-uiapps-devkit/bin
+# IDE
+.idea/
+/doc
+# Build output
+dist/
+dist_desktop/
+dist_engine/
+build/
+dist_desktop*/
+dist_desktop_*/
+deepseek_cli/dist*/
+deepseek_cli/dist_*/
+*.exe
+*.zip
+*.msi
+*.dmg
+*.deb
+*.rpm
+*.dll
+*.so
+*.dylib
+/win-unpacked/
+/linux-unpacked/
+/mac-unpacked/
+/release-builds/
+# Temporary files
+tmp/
+.tmp/
+.tmp_home/
+.tmp_friendly_patch/
+.tmux_tmp/
+tmp*.js
+tmp_installed_asar/
+*.log
+test-delete.txt
+
+# DeepSeek CLI internal
+.deepseek_cli/
+
+# NPM cache
+.npm-cache/
+.npm-cache-local/
+.npm-cache*/
+
+# OS files
+.DS_Store
+
+# Environment & secrets
+.env
+.env.*
+
+# Signing & certificates
+build_resources/embedded.provisionprofile
+build_resources/*.p12
+
+# Archive files
+*.tgz
+
+# Sub-specific excludes
+ui_apps/plugins/aide-builtin/
+deepseek_cli/ui_apps/plugins/com.leeoohoo.*/
+
+# Allow committing Node metadata even if globally ignored
+!package.json
+/aide/bin
+/aide/bin

@@ -1,0 +1,31 @@
+{
+  "manifestVersion": 1,
+  "id": "com.example.aideui.template",
+  "name": "AIDE UI Apps Template",
+  "version": "0.1.0",
+  "description": "插件模板（复制到 ui_apps/plugins 或 ~/.deepseek_cli/ui_apps/plugins 后即可在「应用」中看到）",
+  "backend": { "entry": "backend/index.mjs" },
+  "apps": [
+    {
+      "id": "hello-module",
+      "name": "Hello App（Module）",
+      "description": "Module 入口示例（直接挂载到宿主 UI）",
+      "entry": { "type": "module", "path": "hello-module/index.mjs" },
+      "ai": {
+        "mcp": {
+          "entry": "hello-module/mcp-server.mjs",
+          "command": "node",
+          "allowMain": true,
+          "allowSub": true,
+          "enabled": true,
+          "description": "Template MCP server (hello-module)"
+        },
+        "mcpPrompt": {
+          "title": "Hello Module · MCP Prompt",
+          "zh": "hello-module/mcp-prompt.zh.md",
+          "en": "hello-module/mcp-prompt.en.md"
+        }
+      }
+    }
+  ]
+}
