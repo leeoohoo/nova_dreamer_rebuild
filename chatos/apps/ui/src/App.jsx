@@ -165,9 +165,9 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
               <Spin />
             </div>
           ) : (
-              <AppContent
-                menu={menu}
-                admin={admin}
+            <AppContent
+              menu={menu}
+              admin={admin}
               loading={loading}
               modelActions={actions?.modelActions}
               secretsActions={actions?.secretsActions}
