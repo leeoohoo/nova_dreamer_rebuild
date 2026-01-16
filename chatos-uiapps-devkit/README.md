@@ -53,6 +53,12 @@ npm run pack
 npm run install:chatos
 ```
 
+## MCP 依赖（必读）
+
+- ChatOS 导入插件时会排除 `node_modules/`，MCP server 运行时无法读取随包依赖。
+- MCP server 只要引入第三方依赖（如 `@modelcontextprotocol/sdk`、`zod`），就必须在 build 阶段 **bundle 成单文件**，并在 `plugin.json` 的 `ai.mcp.entry` 指向 bundle 产物。
+- 或者完全使用 Node 内置模块，或把依赖源码 vendoring 到插件目录内。
+
 ## 生成项目结构（约定）
 
 生成的工程里，**可安装产物**固定在 `plugin/` 目录：

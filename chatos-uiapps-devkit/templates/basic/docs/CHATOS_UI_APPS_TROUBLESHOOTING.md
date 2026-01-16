@@ -41,5 +41,5 @@
 ## 7. MCP 不生效
 
 - 现象: MCP tools / prompts 未出现.
-- 原因: 未在 `plugin.json` 启用 `ai.mcp` 或未 bundle 依赖.
-- 处理: bundle 成单文件, 并检查 `ai.mcp.entry` / `ai.mcpPrompt` 配置.
+- 原因: 未在 `plugin.json` 启用 `ai.mcp`, 或 MCP 依赖未 bundle（ChatOS 导入会剔除 `node_modules`）.
+- 处理: 将 MCP server bundle 成单文件（或 vendor 依赖）, 并检查 `ai.mcp.entry` / `ai.mcpPrompt` 配置.

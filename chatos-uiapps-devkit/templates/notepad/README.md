@@ -33,7 +33,7 @@ npm run dev
 - 主题：用 `host.theme.*` 与 `--ds-*` tokens；避免硬编码颜色。
 - 宿主能力：先判断 `host.bridge.enabled`，非宿主环境要可降级运行。
 - Node 能力：前端不直接用 Node API，需要时走 `host.backend.invoke()`。
-- 打包：依赖需 bundle 成单文件；不要指望 `node_modules` 随包生效。
+- 打包：依赖需 bundle 成单文件；ChatOS 导入会排除 `node_modules`，MCP server 不能直接 import 第三方依赖。
 - 提交前：`npm run validate`，必要时再 `pack/install`。
 
 ## 协议文档
@@ -52,7 +52,9 @@ npm run dev
 
 模板内包含 `plugin/apps/__APP_ID__/mcp-server.mjs` 与 `mcp-prompt.*.md`，但默认 **未在** `plugin/plugin.json` 启用 `ai.mcp`（避免打包时遗漏依赖导致运行失败）。
 
+⚠️ ChatOS 导入插件时会排除 `node_modules/`。因此 MCP server 只要用了第三方依赖（如 `@modelcontextprotocol/sdk`、`zod`），就必须先 bundle 成单文件，或把依赖源码放进插件目录。
+
 如需启用 MCP：
 
-1) 实现并 **bundle 成单文件**（建议 esbuild/rollup，把 `@modelcontextprotocol/sdk` 等依赖打进去）  
+1) 实现并 **bundle 成单文件**（必须；用 esbuild/rollup，把 `@modelcontextprotocol/sdk` 等依赖打进去）  
 2) 在 `plugin/plugin.json` 的 `apps[i].ai.mcp` 写入 `entry/command/args/...` 并指向 bundle 产物  

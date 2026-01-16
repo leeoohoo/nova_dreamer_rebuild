@@ -1,3 +1,10 @@
+/**
+ * MCP server entry.
+ *
+ * Note: ChatOS import excludes `node_modules/`, so if you import third-party
+ * deps (e.g. @modelcontextprotocol/sdk, zod), you must bundle this file into
+ * a single output (or vendor deps into the plugin directory).
+ */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
