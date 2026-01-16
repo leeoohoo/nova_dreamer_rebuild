@@ -1,0 +1,118 @@
+{
+  "id": "cicd-automation",
+  "name": "Cicd Automation",
+  "description": "CI/CD pipeline configuration",
+  "category": "Infrastructure",
+  "agents": [
+    {
+      "id": "cloud-architect",
+      "name": "Cloud Architect",
+      "description": "Expert cloud architect specializing in AWS/Azure/GCP multi-cloud infrastructure design, advanced IaC (Terraform/OpenTofu/CDK), FinOps cost optimization, and modern architectural patterns. Masters serverless, microservices, security, compliance, and disaster recovery. Use PROACTIVELY for cloud architecture, cost optimization, migration planning, or multi-cloud strategies.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/cloud-architect.md",
+      "defaultSkills": [
+        "deployment-pipeline-design",
+        "github-actions-templates",
+        "gitlab-ci-patterns",
+        "secrets-management"
+      ],
+      "defaultCommand": "workflow-automate"
+    },
+    {
+      "id": "deployment-engineer",
+      "name": "Deployment Engineer",
+      "description": "Expert deployment engineer specializing in modern CI/CD pipelines, GitOps workflows, and advanced deployment automation. Masters GitHub Actions, ArgoCD/Flux, progressive delivery, container security, and platform engineering. Handles zero-downtime deployments, security scanning, and developer experience optimization. Use PROACTIVELY for CI/CD design, GitOps implementation, or deployment automation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/deployment-engineer.md",
+      "defaultSkills": [
+        "deployment-pipeline-design",
+        "github-actions-templates",
+        "gitlab-ci-patterns",
+        "secrets-management"
+      ],
+      "defaultCommand": "workflow-automate"
+    },
+    {
+      "id": "devops-troubleshooter",
+      "name": "Devops Troubleshooter",
+      "description": "Expert DevOps troubleshooter specializing in rapid incident response, advanced debugging, and modern observability. Masters log analysis, distributed tracing, Kubernetes debugging, performance optimization, and root cause analysis. Handles production outages, system reliability, and preventive monitoring. Use PROACTIVELY for debugging, incident response, or system troubleshooting.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/devops-troubleshooter.md",
+      "defaultSkills": [
+        "deployment-pipeline-design",
+        "github-actions-templates",
+        "gitlab-ci-patterns",
+        "secrets-management"
+      ],
+      "defaultCommand": "workflow-automate"
+    },
+    {
+      "id": "kubernetes-architect",
+      "name": "Kubernetes Architect",
+      "description": "Expert Kubernetes architect specializing in cloud-native infrastructure, advanced GitOps workflows (ArgoCD/Flux), and enterprise container orchestration. Masters EKS/AKS/GKE, service mesh (Istio/Linkerd), progressive delivery, multi-tenancy, and platform engineering. Handles security, observability, cost optimization, and developer experience. Use PROACTIVELY for K8s architecture, GitOps implementation, or cloud-native platform design.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/kubernetes-architect.md",
+      "defaultSkills": [
+        "deployment-pipeline-design",
+        "github-actions-templates",
+        "gitlab-ci-patterns",
+        "secrets-management"
+      ],
+      "defaultCommand": "workflow-automate"
+    },
+    {
+      "id": "terraform-specialist",
+      "name": "Terraform Specialist",
+      "description": "Expert Terraform/OpenTofu specialist mastering advanced IaC automation, state management, and enterprise infrastructure patterns. Handles complex module design, multi-cloud deployments, GitOps workflows, policy as code, and CI/CD integration. Covers migration strategies, security best practices, and modern IaC ecosystems. Use PROACTIVELY for advanced IaC, state management, or infrastructure automation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/terraform-specialist.md",
+      "defaultSkills": [
+        "deployment-pipeline-design",
+        "github-actions-templates",
+        "gitlab-ci-patterns",
+        "secrets-management"
+      ],
+      "defaultCommand": "workflow-automate"
+    }
+  ],
+  "skills": [
+    {
+      "id": "deployment-pipeline-design",
+      "name": "Deployment Pipeline Design",
+      "description": "Design multi-stage CI/CD pipelines with approval gates, security checks, and deployment orchestration. Use when architecting deployment workflows, setting up continuous delivery, or implementing GitOps practices.",
+      "instructionsPath": "skills/deployment-pipeline-design.md"
+    },
+    {
+      "id": "github-actions-templates",
+      "name": "Github Actions Templates",
+      "description": "Create production-ready GitHub Actions workflows for automated testing, building, and deploying applications. Use when setting up CI/CD with GitHub Actions, automating development workflows, or creating reusable workflow templates.",
+      "instructionsPath": "skills/github-actions-templates.md"
+    },
+    {
+      "id": "gitlab-ci-patterns",
+      "name": "Gitlab Ci Patterns",
+      "description": "Build GitLab CI/CD pipelines with multi-stage workflows, caching, and distributed runners for scalable automation. Use when implementing GitLab CI/CD, optimizing pipeline performance, or setting up automated testing and deployment.",
+      "instructionsPath": "skills/gitlab-ci-patterns.md"
+    },
+    {
+      "id": "secrets-management",
+      "name": "Secrets Management",
+      "description": "Implement secure secrets management for CI/CD pipelines using Vault, AWS Secrets Manager, or native platform solutions. Use when handling sensitive credentials, rotating secrets, or securing CI/CD environments.",
+      "instructionsPath": "skills/secrets-management.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "workflow-automate",
+      "name": "Workflow Automation",
+      "description": "You are a workflow automation expert specializing in creating efficient CI/CD pipelines, GitHub Actions workflows, and automated development processes. Design and implement automation that reduces manual work, improves consistency, and accelerates delivery while maintaining quality and security.",
+      "instructionsPath": "commands/workflow-automate.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

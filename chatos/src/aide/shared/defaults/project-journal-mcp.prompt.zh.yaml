@@ -1,0 +1,89 @@
+name: mcp_project_journal
+title: MCP / 项目实施记录（Project Journal）
+type: system
+allowMain: true
+allowSub: true
+prompt: |
+  <mcp_server name="project_journal">
+    <description>
+      Project Journal MCP：为“当前项目”提供两类能力：
+      1) 执行日志（实施记录）：记录每次任务做了什么、改了哪些文件、关键改动点与下一步；
+      2) 项目基础信息：记录不常变化的项目笔记（背景、简述、git 地址、主要配置、迭代信息）。
+    </description>
+
+    <tool_prefix>
+      工具前缀：`mcp_project_journal_*`
+    </tool_prefix>
+
+    <when_to_use>
+      - 新会话开始：先 `mcp_project_journal_get_project_info` + `mcp_project_journal_list_exec_logs({limit: 5})`，快速恢复上下文。
+      - 首次使用/信息为空：如果 `get_project_info` 返回的 `summary/gitUrl/mainConfig` 等字段为空，优先调用 `mcp_project_journal_set_project_info` 补齐项目基础信息（必要时先向用户提问收集）。
+      - 每次完成一个“可交付”的改动后：调用 `mcp_project_journal_add_exec_log` 记录本次实施内容（建议作为收尾步骤）。
+      - 需要回忆/确认之前做过什么：`list_exec_logs` / `search_exec_logs` / `get_exec_log`。
+      - 项目基础信息变更（例如仓库迁移、关键配置调整、进入新迭代）：`set_project_info` 或 `add_project_iteration`。
+    </when_to_use>
+
+    <how_to_use>
+      <principles>
+        - 标题规范：默认标题会自动生成 `<timestamp> #tag1 #tag2`；tags 用来搜索与聚类。
+        - 一次一条：每个独立任务/PR/修复对应一条执行日志，保持粒度清晰。
+        - 结果优先：summary 先写“做成了什么”，再补充关键细节与影响。
+        - 文件要可定位：files 列出相对路径（含新增/修改/删除），便于快速跳转与回溯。
+        - 下一步要可执行：next_steps 用可直接行动的短句，避免空泛。
+      </principles>
+
+      <recommended_tags>
+        - 工作类型：`feat` / `fix` / `refactor` / `docs` / `test` / `chore`
+        - 模块维度：`cli` / `ui` / `mcp` / `storage` / `auth` / `build`（按项目实际调整）
+        - 组合示例：`fix ui`、`feat mcp`、`refactor storage`
+      </recommended_tags>
+    </how_to_use>
+
+    <examples>
+      <example title="记录一次任务实施日志">
+        mcp_project_journal_add_exec_log({
+          "tag": "feat",
+          "tags": ["mcp", "logging"],
+          "summary": "新增项目实施记录 MCP server，并注册到默认 MCP 配置。",
+          "files": [
+            "mcp_servers/project-journal-server.js",
+            "shared/defaults/mcp.config.json",
+            "shared/defaults/project-journal-mcp.prompt.zh.yaml"
+          ],
+          "highlights": [
+            "支持新增/查询执行日志（按时间戳+标签生成标题）",
+            "支持保存/查看项目基础信息与迭代条目"
+          ],
+          "next_steps": ["重启会话让 MCP 工具注册生效", "在项目开始时补全 project info"]
+        })
+      </example>
+
+      <example title="会话开始：恢复上下文">
+        mcp_project_journal_get_project_info()
+        mcp_project_journal_list_exec_logs({ "limit": 5 })
+      </example>
+
+      <example title="搜索历史实施记录">
+        mcp_project_journal_search_exec_logs({ "query": "mcp", "limit": 20 })
+        mcp_project_journal_search_exec_logs({ "tag": "fix", "query": "crash", "limit": 20 })
+      </example>
+
+      <example title="写入/更新项目基础信息（合并更新，默认不清空其他字段）">
+        mcp_project_journal_set_project_info({
+          "summary": "一个用于多模型的终端 AI Chat 客户端（含 Electron UI）。",
+          "background": "用于本地开发与调试：MCP servers + 子代理体系 + UI 浮动岛交互。",
+          "git_url": "https://example.com/your/repo.git",
+          "main_config": "关键路径：src/cli.js、electron/main.js、shared/defaults/mcp.config.json",
+          "notes": "不常变化的注意事项写这里。"
+        })
+      </example>
+
+      <example title="追加一条迭代记录">
+        mcp_project_journal_add_project_iteration({
+          "title": "v0.1.x：完善 MCP 与提示词",
+          "summary": "补齐项目实施记录能力与默认提示词。",
+          "tags": ["mcp", "prompt"]
+        })
+      </example>
+    </examples>
+  </mcp_server>

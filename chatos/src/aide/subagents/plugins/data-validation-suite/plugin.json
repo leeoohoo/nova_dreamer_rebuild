@@ -1,0 +1,19 @@
+{
+  "id": "data-validation-suite",
+  "name": "Data Validation Suite",
+  "description": "Schema validation and data quality",
+  "category": "Data",
+  "agents": [
+    {
+      "id": "backend-security-coder",
+      "name": "Backend Security Coder",
+      "description": "Expert in secure backend coding practices specializing in input validation, authentication, and API security. Use PROACTIVELY for backend security implementations or security code reviews.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/backend-security-coder.md",
+      "defaultSkills": []
+    }
+  ],
+  "skills": [],
+  "commands": []
+}

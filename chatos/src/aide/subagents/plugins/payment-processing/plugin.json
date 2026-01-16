@@ -1,0 +1,49 @@
+{
+  "id": "payment-processing",
+  "name": "Payment Processing",
+  "description": "Stripe/PayPal integration and billing",
+  "category": "Payments",
+  "agents": [
+    {
+      "id": "payment-integration",
+      "name": "Payment Integration",
+      "description": "Integrate Stripe, PayPal, and payment processors. Handles checkout flows, subscriptions, webhooks, and PCI compliance. Use PROACTIVELY when implementing payments, billing, or subscription features.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/payment-integration.md",
+      "defaultSkills": [
+        "billing-automation",
+        "paypal-integration",
+        "pci-compliance",
+        "stripe-integration"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "billing-automation",
+      "name": "Billing Automation",
+      "description": "Build automated billing systems for recurring payments, invoicing, subscription lifecycle, and dunning management. Use when implementing subscription billing, automating invoicing, or managing recurring payment systems.",
+      "instructionsPath": "skills/billing-automation.md"
+    },
+    {
+      "id": "paypal-integration",
+      "name": "Paypal Integration",
+      "description": "Integrate PayPal payment processing with support for express checkout, subscriptions, and refund management. Use when implementing PayPal payments, processing online transactions, or building e-commerce checkout flows.",
+      "instructionsPath": "skills/paypal-integration.md"
+    },
+    {
+      "id": "pci-compliance",
+      "name": "Pci Compliance",
+      "description": "Implement PCI DSS compliance requirements for secure handling of payment card data and payment systems. Use when securing payment processing, achieving PCI compliance, or implementing payment card security measures.",
+      "instructionsPath": "skills/pci-compliance.md"
+    },
+    {
+      "id": "stripe-integration",
+      "name": "Stripe Integration",
+      "description": "Implement Stripe payment processing for robust, PCI-compliant payment flows including checkout, subscriptions, and webhooks. Use when integrating Stripe payments, building subscription systems, or implementing secure checkout flows.",
+      "instructionsPath": "skills/stripe-integration.md"
+    }
+  ],
+  "commands": []
+}

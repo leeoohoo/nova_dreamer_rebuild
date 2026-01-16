@@ -1,0 +1,55 @@
+{
+  "id": "comprehensive-review",
+  "name": "Comprehensive Review",
+  "description": "Multi-perspective code analysis",
+  "category": "Quality",
+  "agents": [
+    {
+      "id": "architect-review",
+      "name": "Architect Review",
+      "description": "Master software architect specializing in modern architecture patterns, clean architecture, microservices, event-driven systems, and DDD. Reviews system designs and code changes for architectural integrity, scalability, and maintainability. Use PROACTIVELY for architectural decisions.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/architect-review.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-review"
+    },
+    {
+      "id": "code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Elite code review expert specializing in modern AI-powered code analysis, security vulnerabilities, performance optimization, and production reliability. Masters static analysis tools, security scanning, and configuration review with 2024/2025 best practices. Use PROACTIVELY for code quality assurance.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/code-reviewer.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-review"
+    },
+    {
+      "id": "security-auditor",
+      "name": "Security Auditor",
+      "description": "Expert security auditor specializing in DevSecOps, comprehensive cybersecurity, and compliance frameworks. Masters vulnerability assessment, threat modeling, secure authentication (OAuth2/OIDC), OWASP standards, cloud security, and security automation. Handles DevSecOps integration, compliance (GDPR/HIPAA/SOC2), and incident response. Use PROACTIVELY for security audits, DevSecOps, or compliance implementation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/security-auditor.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-review"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "full-review",
+      "name": "Full Review",
+      "description": "Orchestrate comprehensive multi-dimensional code review using specialized review agents",
+      "instructionsPath": "commands/full-review.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "pr-enhance",
+      "name": "Pull Request Enhancement",
+      "description": "You are a PR optimization expert specializing in creating high-quality pull requests that facilitate efficient code reviews. Generate comprehensive PR descriptions, automate review processes, and ensure PRs follow best practices for clarity, size, and reviewability.",
+      "instructionsPath": "commands/pr-enhance.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "id": "accessibility-compliance",
+  "name": "Accessibility Compliance",
+  "description": "WCAG auditing and inclusive design",
+  "category": "Accessibility",
+  "agents": [
+    {
+      "id": "ui-visual-validator",
+      "name": "Ui Visual Validator",
+      "description": "Rigorous visual validation expert specializing in UI testing, design system compliance, and accessibility verification. Masters screenshot analysis, visual regression testing, and component validation. Use PROACTIVELY to verify UI modifications have achieved their intended goals through comprehensive visual analysis.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/ui-visual-validator.md",
+      "defaultSkills": [],
+      "defaultCommand": "accessibility-audit"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "accessibility-audit",
+      "name": "Accessibility Audit and Testing",
+      "description": "You are an accessibility expert specializing in WCAG compliance, inclusive design, and assistive technology compatibility. Conduct comprehensive audits, identify barriers, provide remediation guidance, and ensure digital products are accessible to all users.",
+      "instructionsPath": "commands/accessibility-audit.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

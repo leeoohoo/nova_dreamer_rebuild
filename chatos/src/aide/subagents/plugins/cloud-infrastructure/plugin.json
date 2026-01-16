@@ -1,0 +1,119 @@
+{
+  "id": "cloud-infrastructure",
+  "name": "Cloud Infrastructure",
+  "description": "AWS/Azure/GCP cloud architecture",
+  "category": "Infrastructure",
+  "agents": [
+    {
+      "id": "cloud-architect",
+      "name": "Cloud Architect",
+      "description": "Expert cloud architect specializing in AWS/Azure/GCP multi-cloud infrastructure design, advanced IaC (Terraform/OpenTofu/CDK), FinOps cost optimization, and modern architectural patterns. Masters serverless, microservices, security, compliance, and disaster recovery. Use PROACTIVELY for cloud architecture, cost optimization, migration planning, or multi-cloud strategies.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/cloud-architect.md",
+      "defaultSkills": [
+        "cost-optimization",
+        "hybrid-cloud-networking",
+        "multi-cloud-architecture",
+        "terraform-module-library"
+      ]
+    },
+    {
+      "id": "deployment-engineer",
+      "name": "Deployment Engineer",
+      "description": "Expert deployment engineer specializing in modern CI/CD pipelines, GitOps workflows, and advanced deployment automation. Masters GitHub Actions, ArgoCD/Flux, progressive delivery, container security, and platform engineering. Handles zero-downtime deployments, security scanning, and developer experience optimization. Use PROACTIVELY for CI/CD design, GitOps implementation, or deployment automation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/deployment-engineer.md",
+      "defaultSkills": [
+        "cost-optimization",
+        "hybrid-cloud-networking",
+        "multi-cloud-architecture",
+        "terraform-module-library"
+      ]
+    },
+    {
+      "id": "hybrid-cloud-architect",
+      "name": "Hybrid Cloud Architect",
+      "description": "Expert hybrid cloud architect specializing in complex multi-cloud solutions across AWS/Azure/GCP and private clouds (OpenStack/VMware). Masters hybrid connectivity, workload placement optimization, edge computing, and cross-cloud automation. Handles compliance, cost optimization, disaster recovery, and migration strategies. Use PROACTIVELY for hybrid architecture, multi-cloud strategy, or complex infrastructure integration.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/hybrid-cloud-architect.md",
+      "defaultSkills": [
+        "cost-optimization",
+        "hybrid-cloud-networking",
+        "multi-cloud-architecture",
+        "terraform-module-library"
+      ]
+    },
+    {
+      "id": "kubernetes-architect",
+      "name": "Kubernetes Architect",
+      "description": "Expert Kubernetes architect specializing in cloud-native infrastructure, advanced GitOps workflows (ArgoCD/Flux), and enterprise container orchestration. Masters EKS/AKS/GKE, service mesh (Istio/Linkerd), progressive delivery, multi-tenancy, and platform engineering. Handles security, observability, cost optimization, and developer experience. Use PROACTIVELY for K8s architecture, GitOps implementation, or cloud-native platform design.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/kubernetes-architect.md",
+      "defaultSkills": [
+        "cost-optimization",
+        "hybrid-cloud-networking",
+        "multi-cloud-architecture",
+        "terraform-module-library"
+      ]
+    },
+    {
+      "id": "network-engineer",
+      "name": "Network Engineer",
+      "description": "Expert network engineer specializing in modern cloud networking, security architectures, and performance optimization. Masters multi-cloud connectivity, service mesh, zero-trust networking, SSL/TLS, global load balancing, and advanced troubleshooting. Handles CDN optimization, network automation, and compliance. Use PROACTIVELY for network design, connectivity issues, or performance optimization.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/network-engineer.md",
+      "defaultSkills": [
+        "cost-optimization",
+        "hybrid-cloud-networking",
+        "multi-cloud-architecture",
+        "terraform-module-library"
+      ]
+    },
+    {
+      "id": "terraform-specialist",
+      "name": "Terraform Specialist",
+      "description": "Expert Terraform/OpenTofu specialist mastering advanced IaC automation, state management, and enterprise infrastructure patterns. Handles complex module design, multi-cloud deployments, GitOps workflows, policy as code, and CI/CD integration. Covers migration strategies, security best practices, and modern IaC ecosystems. Use PROACTIVELY for advanced IaC, state management, or infrastructure automation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/terraform-specialist.md",
+      "defaultSkills": [
+        "cost-optimization",
+        "hybrid-cloud-networking",
+        "multi-cloud-architecture",
+        "terraform-module-library"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "cost-optimization",
+      "name": "Cost Optimization",
+      "description": "Optimize cloud costs through resource rightsizing, tagging strategies, reserved instances, and spending analysis. Use when reducing cloud expenses, analyzing infrastructure costs, or implementing cost governance policies.",
+      "instructionsPath": "skills/cost-optimization.md"
+    },
+    {
+      "id": "hybrid-cloud-networking",
+      "name": "Hybrid Cloud Networking",
+      "description": "Configure secure, high-performance connectivity between on-premises infrastructure and cloud platforms using VPN and dedicated connections. Use when building hybrid cloud architectures, connecting data centers to cloud, or implementing secure cross-premises networking.",
+      "instructionsPath": "skills/hybrid-cloud-networking.md"
+    },
+    {
+      "id": "multi-cloud-architecture",
+      "name": "Multi Cloud Architecture",
+      "description": "Design multi-cloud architectures using a decision framework to select and integrate services across AWS, Azure, and GCP. Use when building multi-cloud systems, avoiding vendor lock-in, or leveraging best-of-breed services from multiple providers.",
+      "instructionsPath": "skills/multi-cloud-architecture.md"
+    },
+    {
+      "id": "terraform-module-library",
+      "name": "Terraform Module Library",
+      "description": "Build reusable Terraform modules for AWS, Azure, and GCP infrastructure following infrastructure-as-code best practices. Use when creating infrastructure modules, standardizing cloud provisioning, or implementing reusable IaC components.",
+      "instructionsPath": "skills/terraform-module-library.md"
+    }
+  ],
+  "commands": []
+}

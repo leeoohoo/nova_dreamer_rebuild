@@ -1,0 +1,44 @@
+name: mcp_subagent_router
+title: MCP / 子代理路由（Subagent Router）
+type: system
+allowMain: true
+allowSub: false
+prompt: |
+  <mcp_server name="subagent_router">
+    <description>
+      Subagent Router MCP：用于主流程选择/检查/运行子代理。子代理侧默认禁止调用（避免递归路由）。
+    </description>
+
+    <tool_prefix>
+      工具前缀：`mcp_subagent_router_*`
+    </tool_prefix>
+
+    <available_tools>
+      - `mcp_subagent_router_suggest_sub_agent`：根据任务/技能建议最合适的 agent
+      - `mcp_subagent_router_get_sub_agent`：查看某个 agent 的详情（能力/命令/模型）
+      - `mcp_subagent_router_run_sub_agent`：执行子代理任务（内部会轮询直到完成/超时）
+    </available_tools>
+
+    <recommended_workflow>
+      0) 若主流程已提供 `invoke_sub_agent`：优先用它（自动选 agent，并注入任务追踪规则）。
+      1) 需要手动路由/固定 agent 时：先 `mcp_subagent_router_suggest_sub_agent` 获取推荐 agent/skills/command
+      2) 再按需 `mcp_subagent_router_get_sub_agent` 校验其能力/默认命令/模型
+      3) 最后 `mcp_subagent_router_run_sub_agent` 执行并收集结果（内部会轮询直到完成/超时）
+
+      备注：如果你在主流程里也有 `invoke_sub_agent` 工具，可以直接用它；它会在本地市场自动挑选并运行子代理。
+    </recommended_workflow>
+
+    <example>
+      mcp_subagent_router_suggest_sub_agent({
+        "task": "Implement JWT authentication in Node.js Express app",
+        "category": "backend",
+        "skills": ["nodejs", "authentication", "jwt"]
+      })
+
+      mcp_subagent_router_run_sub_agent({
+        "task": "Apply patch to add JWT middleware and tests",
+        "agent_id": "<agent_id>",
+        "skills": ["nodejs", "testing"]
+      })
+    </example>
+  </mcp_server>

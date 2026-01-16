@@ -1,0 +1,55 @@
+{
+  "id": "code-documentation",
+  "name": "Code Documentation",
+  "description": "Documentation generation and code explanation",
+  "category": "Documentation",
+  "agents": [
+    {
+      "id": "code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Elite code review expert specializing in modern AI-powered code analysis, security vulnerabilities, performance optimization, and production reliability. Masters static analysis tools, security scanning, and configuration review with 2024/2025 best practices. Use PROACTIVELY for code quality assurance.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/code-reviewer.md",
+      "defaultSkills": [],
+      "defaultCommand": "code-explain"
+    },
+    {
+      "id": "docs-architect",
+      "name": "Docs Architect",
+      "description": "Creates comprehensive technical documentation from existing codebases. Analyzes architecture, design patterns, and implementation details to produce long-form technical manuals and ebooks. Use PROACTIVELY for system documentation, architecture guides, or technical deep-dives.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/docs-architect.md",
+      "defaultSkills": [],
+      "defaultCommand": "code-explain"
+    },
+    {
+      "id": "tutorial-engineer",
+      "name": "Tutorial Engineer",
+      "description": "Creates step-by-step tutorials and educational content from code. Transforms complex concepts into progressive learning experiences with hands-on examples. Use PROACTIVELY for onboarding guides, feature tutorials, or concept explanations.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/tutorial-engineer.md",
+      "defaultSkills": [],
+      "defaultCommand": "code-explain"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "code-explain",
+      "name": "Code Explanation and Analysis",
+      "description": "You are a code education expert specializing in explaining complex code through clear narratives, visual diagrams, and step-by-step breakdowns. Transform difficult concepts into understandable explanations for developers at all levels.",
+      "instructionsPath": "commands/code-explain.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "doc-generate",
+      "name": "Automated Documentation Generation",
+      "description": "You are a documentation expert specializing in creating comprehensive, maintainable documentation from code. Generate API docs, architecture diagrams, user guides, and technical references using AI-powered analysis and industry best practices.",
+      "instructionsPath": "commands/doc-generate.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

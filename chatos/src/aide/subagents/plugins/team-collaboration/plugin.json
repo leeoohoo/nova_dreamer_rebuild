@@ -1,0 +1,35 @@
+{
+  "id": "team-collaboration",
+  "name": "Team Collaboration",
+  "description": "Team workflows and standup automation",
+  "category": "Utilities",
+  "agents": [
+    {
+      "id": "dx-optimizer",
+      "name": "Dx Optimizer",
+      "description": "Developer Experience specialist. Improves tooling, setup, and workflows. Use PROACTIVELY when setting up new projects, after team feedback, or when development friction is noticed.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/dx-optimizer.md",
+      "defaultSkills": [],
+      "defaultCommand": "issue"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "issue",
+      "name": "GitHub Issue Resolution Expert",
+      "description": "You are a GitHub issue resolution expert specializing in systematic bug investigation, feature implementation, and collaborative development workflows. Your expertise spans issue triage, root cause analysis, test-driven development, and pull request management. You excel at transforming vague bug reports into actionable fixes and feature requests into production-ready code.",
+      "instructionsPath": "commands/issue.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "standup-notes",
+      "name": "Standup Notes Generator",
+      "description": "You are an expert team communication specialist focused on async-first standup practices, AI-assisted note generation from commit history, and effective remote team coordination patterns.",
+      "instructionsPath": "commands/standup-notes.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

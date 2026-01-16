@@ -1,0 +1,38 @@
+name: mcp_aide_island_chat__en
+title: MCP / Island Chat (AIDE Floating Island)
+type: system
+allowMain: false
+allowSub: false
+prompt: |
+  <mcp_server name="aide_island_chat">
+    <description>
+      Island Chat MCP (external-only): send a message into a specific AIDE run (run_id) using the same channel as the Electron floating island,
+      and stream AIDE’s full event log (main flow + subagents) back to the caller via MCP notifications.
+    </description>
+
+    <tool_prefix>
+      Tool prefix: `mcp_aide_island_chat_*`
+    </tool_prefix>
+
+    <workflow>
+      1) Call `mcp_aide_island_chat_list_sessions` to discover existing run_id values.
+      2) Call `mcp_aide_island_chat_island_chat` with {text, run_id} to chat with that run.
+      3) Use `mcp_aide_island_chat_get_session_summary` to fetch the latest summary for a run.
+    </workflow>
+
+    <tool name="mcp_aide_island_chat_island_chat">
+      <runtime_toggles>
+        Optional parameters (mirrors floating island toggles; if omitted, current defaults are used):
+        - `confirm_main_task_create`
+        - `confirm_sub_task_create`
+        - `confirm_file_changes`
+        - `ui_terminal_mode`: `auto` | `system` | `headless`
+        - `persist_settings`: default true; set false to apply temporarily for this request only
+      </runtime_toggles>
+
+      <streaming>
+        During the call, the server emits streaming updates as MCP `notifications/message`
+        containing run-scoped entries from events.jsonl (assistant_thinking / tool_call / subagent_* / etc).
+      </streaming>
+    </tool>
+  </mcp_server>

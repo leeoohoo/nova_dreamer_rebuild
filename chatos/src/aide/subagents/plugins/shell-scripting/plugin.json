@@ -1,0 +1,55 @@
+{
+  "id": "shell-scripting",
+  "name": "Shell Scripting",
+  "description": "Imported from doc/agents.",
+  "category": "general",
+  "agents": [
+    {
+      "id": "bash-pro",
+      "name": "Bash Pro",
+      "description": "Master of defensive Bash scripting for production automation, CI/CD pipelines, and system utilities. Expert in safe, portable, and testable shell scripts.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/bash-pro.md",
+      "defaultSkills": [
+        "bash-defensive-patterns",
+        "bats-testing-patterns",
+        "shellcheck-configuration"
+      ]
+    },
+    {
+      "id": "posix-shell-pro",
+      "name": "Posix Shell Pro",
+      "description": "Expert in strict POSIX sh scripting for maximum portability across Unix-like systems. Specializes in shell scripts that run on any POSIX-compliant shell (dash, ash, sh, bash --posix).",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/posix-shell-pro.md",
+      "defaultSkills": [
+        "bash-defensive-patterns",
+        "bats-testing-patterns",
+        "shellcheck-configuration"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "bash-defensive-patterns",
+      "name": "Bash Defensive Patterns",
+      "description": "Master defensive Bash programming techniques for production-grade scripts. Use when writing robust shell scripts, CI/CD pipelines, or system utilities requiring fault tolerance and safety.",
+      "instructionsPath": "skills/bash-defensive-patterns.md"
+    },
+    {
+      "id": "bats-testing-patterns",
+      "name": "Bats Testing Patterns",
+      "description": "Master Bash Automated Testing System (Bats) for comprehensive shell script testing. Use when writing tests for shell scripts, CI/CD pipelines, or requiring test-driven development of shell utilities.",
+      "instructionsPath": "skills/bats-testing-patterns.md"
+    },
+    {
+      "id": "shellcheck-configuration",
+      "name": "Shellcheck Configuration",
+      "description": "Master ShellCheck static analysis configuration and usage for shell script quality. Use when setting up linting infrastructure, fixing code issues, or ensuring script portability.",
+      "instructionsPath": "skills/shellcheck-configuration.md"
+    }
+  ],
+  "commands": []
+}

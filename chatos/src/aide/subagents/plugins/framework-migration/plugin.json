@@ -1,0 +1,87 @@
+{
+  "id": "framework-migration",
+  "name": "Framework Migration",
+  "description": "Framework upgrades and migration planning",
+  "category": "Modernization",
+  "agents": [
+    {
+      "id": "architect-review",
+      "name": "Architect Review",
+      "description": "Master software architect specializing in modern architecture patterns, clean architecture, microservices, event-driven systems, and DDD. Reviews system designs and code changes for architectural integrity, scalability, and maintainability. Use PROACTIVELY for architectural decisions.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/architect-review.md",
+      "defaultSkills": [
+        "angular-migration",
+        "database-migration",
+        "dependency-upgrade",
+        "react-modernization"
+      ],
+      "defaultCommand": "code-migrate"
+    },
+    {
+      "id": "legacy-modernizer",
+      "name": "Legacy Modernizer",
+      "description": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization. Handles technical debt, dependency updates, and backward compatibility. Use PROACTIVELY for legacy system updates, framework migrations, or technical debt reduction.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/legacy-modernizer.md",
+      "defaultSkills": [
+        "angular-migration",
+        "database-migration",
+        "dependency-upgrade",
+        "react-modernization"
+      ],
+      "defaultCommand": "code-migrate"
+    }
+  ],
+  "skills": [
+    {
+      "id": "angular-migration",
+      "name": "Angular Migration",
+      "description": "Migrate from AngularJS to Angular using hybrid mode, incremental component rewriting, and dependency injection updates. Use when upgrading AngularJS applications, planning framework migrations, or modernizing legacy Angular code.",
+      "instructionsPath": "skills/angular-migration.md"
+    },
+    {
+      "id": "database-migration",
+      "name": "Database Migration",
+      "description": "Execute database migrations across ORMs and platforms with zero-downtime strategies, data transformation, and rollback procedures. Use when migrating databases, changing schemas, performing data transformations, or implementing zero-downtime deployment strategies.",
+      "instructionsPath": "skills/database-migration.md"
+    },
+    {
+      "id": "dependency-upgrade",
+      "name": "Dependency Upgrade",
+      "description": "Manage major dependency version upgrades with compatibility analysis, staged rollout, and comprehensive testing. Use when upgrading framework versions, updating major dependencies, or managing breaking changes in libraries.",
+      "instructionsPath": "skills/dependency-upgrade.md"
+    },
+    {
+      "id": "react-modernization",
+      "name": "React Modernization",
+      "description": "Upgrade React applications to latest versions, migrate from class components to hooks, and adopt concurrent features. Use when modernizing React codebases, migrating to React Hooks, or upgrading to latest React versions.",
+      "instructionsPath": "skills/react-modernization.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "code-migrate",
+      "name": "Code Migration Assistant",
+      "description": "You are a code migration expert specializing in transitioning codebases between frameworks, languages, versions, and platforms. Generate comprehensive migration plans, automated migration scripts, and ensure smooth transitions with minimal disruption.",
+      "instructionsPath": "commands/code-migrate.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "deps-upgrade",
+      "name": "Dependency Upgrade Strategy",
+      "description": "You are a dependency management expert specializing in safe, incremental upgrades of project dependencies. Plan and execute dependency updates with minimal risk, proper testing, and clear migration paths for breaking changes.",
+      "instructionsPath": "commands/deps-upgrade.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "legacy-modernize",
+      "name": "Legacy Code Modernization Workflow",
+      "description": "Orchestrate a comprehensive legacy system modernization using the strangler fig pattern, enabling gradual replacement of outdated components while maintaining continuous business operations through expert agent coordination.",
+      "instructionsPath": "commands/legacy-modernize.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

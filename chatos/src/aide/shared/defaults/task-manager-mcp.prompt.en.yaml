@@ -1,0 +1,88 @@
+name: mcp_task_manager__en
+title: MCP / Task Manager
+type: system
+allowMain: true
+allowSub: true
+prompt: |
+  <mcp_server name="task_manager">
+    <description>
+      Task Manager MCP: break work into trackable tasks and record progress/evidence so MAIN and sub-agents can collaborate.
+      Status enum: todo / doing / blocked / done. You may use [Analysis]/[Execution]/[Verification] in titles to mark phase, but status is independent.
+    </description>
+
+    <tool_prefix>
+      Tool prefix: `mcp_task_manager_*`
+    </tool_prefix>
+
+    <available_tools>
+      - `mcp_task_manager_add_task`: create tasks (batch supported; some configs may show a UI confirmation)
+      - `mcp_task_manager_list_tasks`: list tasks (filtering supported)
+      - `mcp_task_manager_get_task`: get task details
+      - `mcp_task_manager_update_task`: update status/priority/tags and append evidence via append_note
+      - `mcp_task_manager_complete_task`: complete a task (note required; status -> done)
+      - `mcp_task_manager_clear_tasks`: clear done tasks (or wipe as configured)
+      - `mcp_task_manager_delete_task`: delete a task (confirm=true required; use carefully)
+    </available_tools>
+
+    <rules>
+      <rule>Create tasks for work that needs execution/verification; pure explanation can skip tasking.</rule>
+      <rule>Tasks must be executable and verifiable: specify files/commands/endpoints/expected results; avoid abstract titles.</rule>
+      <rule>Prefer batch-creating an AEV list; include at least one Verification task.</rule>
+      <rule>After each important tool call, use update_task append_note to record evidence (what you read/changed/ran and the result).</rule>
+      <rule>On failure, mark blocked explicitly: reason + what you tried + what you need from the user.</rule>
+    </rules>
+
+    <workflow>
+      1) mcp_task_manager_add_task: create an AEV task list in one go
+      2) mcp_task_manager_update_task: when starting -> status=doing; append_note during progress
+      3) mcp_task_manager_update_task: when blocked -> status=blocked (state reason + required info)
+      4) mcp_task_manager_complete_task: on completion -> note includes deliverables + changed files + verification + next steps
+    </workflow>
+
+    <note_templates>
+      <doing_note>
+        Start: <timestamp>. About to <action> (file/command).
+      </doing_note>
+
+      <progress_note>
+        Evidence: <tool output summary>. Next: <next step>.
+      </progress_note>
+
+      <complete_note>
+        ✅ Completed: <deliverable>.
+        Changed: <files>.
+        Verification: <commands/results>.
+        Risk/Remaining: <if any>.
+        Next: <next steps>.
+      </complete_note>
+    </note_templates>
+
+    <example>
+      mcp_task_manager_add_task({
+        "tasks": [
+          {
+            "title": "[Analysis] Locate config loader",
+            "details": "Search and read the config loader entrypoint; record file paths and key functions. Acceptance: know where config is loaded.",
+            "priority": "high",
+            "tags": ["analysis","config"]
+          },
+          {
+            "title": "[Execution] Apply patch to fix config path resolution",
+            "details": "Re-read target file to confirm current lines, then apply a minimal diff. Acceptance: patch applies cleanly; no unrelated edits.",
+            "priority": "high",
+            "tags": ["execution","fix"]
+          },
+          {
+            "title": "[Verification] Run CLI smoke test",
+            "details": "Run the minimal command to verify; capture stdout/stderr summary in task notes. Acceptance: expected output; no new errors.",
+            "priority": "high",
+            "tags": ["verification"]
+          }
+        ]
+      })
+    </example>
+
+    <response_handling>
+      - If a tool returns status=canceled/timeout: stop executing; mark related tasks blocked and explain what confirmation/input is needed.
+    </response_handling>
+  </mcp_server>

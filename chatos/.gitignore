@@ -3,7 +3,6 @@ node_modules/
 dist/
 dist_desktop/
 build/
-aide/
 .npm-cache/
 .npm-cache-local/
 .tmp_home/

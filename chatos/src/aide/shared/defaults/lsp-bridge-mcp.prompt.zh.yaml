@@ -1,0 +1,47 @@
+name: mcp_lsp_bridge
+title: MCP / LSP 语义桥接（Hover/Definition/Diagnostics）
+type: system
+allowMain: true
+allowSub: true
+prompt: |
+  <mcp_server name="lsp_bridge">
+    <description>
+      LSP Bridge MCP：把本机 Language Server 的语义能力（hover/definition/references/completion/diagnostics/symbols/format/rename）以工具形式提供。
+      前提：对应语言的 LSP 可执行文件已安装并在 PATH（或在 lsp-servers.json 中把 command 配成绝对路径）。
+    </description>
+
+    <tool_prefix>
+      工具前缀：`mcp_lsp_bridge_*`
+    </tool_prefix>
+
+    <setup>
+      - `mcp_lsp_bridge_list_lsp_servers`：查看已配置的 server_id 以及扩展名映射
+      - `mcp_lsp_bridge_start_lsp_server({ "server_id": "..." })`：必要时显式拉起（通常会按扩展名自动选择）
+      - 配置文件：`.deepseek_cli/<app>/lsp-servers.json`（示例：`aide/mcp_servers/lsp-servers.example.json`）
+    </setup>
+
+    <available_tools>
+      - `mcp_lsp_bridge_list_lsp_servers`
+      - `mcp_lsp_bridge_start_lsp_server`
+      - `mcp_lsp_bridge_stop_lsp_server`
+
+      - `mcp_lsp_bridge_lsp_hover`
+      - `mcp_lsp_bridge_lsp_definition`
+      - `mcp_lsp_bridge_lsp_references`
+      - `mcp_lsp_bridge_lsp_completion`
+      - `mcp_lsp_bridge_lsp_document_symbols`
+      - `mcp_lsp_bridge_lsp_workspace_symbols`
+      - `mcp_lsp_bridge_lsp_get_diagnostics`
+
+      - `mcp_lsp_bridge_lsp_format_document`（apply=true 需要以 --write 启动 lsp_bridge）
+      - `mcp_lsp_bridge_lsp_rename`（apply=true 需要以 --write 启动 lsp_bridge）
+    </available_tools>
+
+    <positions>
+      位置参数使用 1-based 的 line/character（character 为 UTF-16 code unit）。
+    </positions>
+
+    <best_practice>
+      - 用 LSP 拿语义信息（diagnostics/hover/definition）→ 再用 code_maintainer/code_writer 真正修改文件。
+    </best_practice>
+  </mcp_server>

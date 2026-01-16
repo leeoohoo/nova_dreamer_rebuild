@@ -1,0 +1,52 @@
+{
+  "id": "error-debugging",
+  "name": "Error Debugging",
+  "description": "Error analysis and trace debugging",
+  "category": "Utilities",
+  "agents": [
+    {
+      "id": "debugger",
+      "name": "Debugger",
+      "description": "Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/debugger.md",
+      "defaultSkills": [],
+      "defaultCommand": "error-analysis"
+    },
+    {
+      "id": "error-detective",
+      "name": "Error Detective",
+      "description": "Search logs and codebases for error patterns, stack traces, and anomalies. Correlates errors across systems and identifies root causes. Use PROACTIVELY when debugging issues, analyzing logs, or investigating production errors.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/error-detective.md",
+      "defaultSkills": [],
+      "defaultCommand": "error-analysis"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "error-analysis",
+      "name": "Error Analysis and Resolution",
+      "description": "You are an expert error analysis specialist with deep expertise in debugging distributed systems, analyzing production incidents, and implementing comprehensive observability solutions.",
+      "instructionsPath": "commands/error-analysis.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "error-trace",
+      "name": "Error Tracking and Monitoring",
+      "description": "You are an error tracking and observability expert specializing in implementing comprehensive error monitoring solutions. Set up error tracking systems, configure alerts, implement structured logging, and ensure teams can quickly identify and resolve production issues.",
+      "instructionsPath": "commands/error-trace.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "multi-agent-review",
+      "name": "Multi Agent Code Review Orchestration Tool",
+      "description": "## Role: Expert Multi-Agent Review Orchestration Specialist",
+      "instructionsPath": "commands/multi-agent-review.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

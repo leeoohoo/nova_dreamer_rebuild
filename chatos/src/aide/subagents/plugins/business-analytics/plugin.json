@@ -1,0 +1,19 @@
+{
+  "id": "business-analytics",
+  "name": "Business Analytics",
+  "description": "KPI tracking and financial reporting",
+  "category": "Business",
+  "agents": [
+    {
+      "id": "business-analyst",
+      "name": "Business Analyst",
+      "description": "Master modern business analysis with AI-powered analytics, real-time dashboards, and data-driven insights. Build comprehensive KPI frameworks, predictive models, and strategic recommendations. Use PROACTIVELY for business intelligence or strategic analysis.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/business-analyst.md",
+      "defaultSkills": []
+    }
+  ],
+  "skills": [],
+  "commands": []
+}

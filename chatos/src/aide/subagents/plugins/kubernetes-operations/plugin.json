@@ -1,0 +1,49 @@
+{
+  "id": "kubernetes-operations",
+  "name": "Kubernetes Operations",
+  "description": "K8s manifests and GitOps workflows",
+  "category": "Infrastructure",
+  "agents": [
+    {
+      "id": "kubernetes-architect",
+      "name": "Kubernetes Architect",
+      "description": "Expert Kubernetes architect specializing in cloud-native infrastructure, advanced GitOps workflows (ArgoCD/Flux), and enterprise container orchestration. Masters EKS/AKS/GKE, service mesh (Istio/Linkerd), progressive delivery, multi-tenancy, and platform engineering. Handles security, observability, cost optimization, and developer experience. Use PROACTIVELY for K8s architecture, GitOps implementation, or cloud-native platform design.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/kubernetes-architect.md",
+      "defaultSkills": [
+        "gitops-workflow",
+        "helm-chart-scaffolding",
+        "k8s-manifest-generator",
+        "k8s-security-policies"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "gitops-workflow",
+      "name": "Gitops Workflow",
+      "description": "Implement GitOps workflows with ArgoCD and Flux for automated, declarative Kubernetes deployments with continuous reconciliation. Use when implementing GitOps practices, automating Kubernetes deployments, or setting up declarative infrastructure management.",
+      "instructionsPath": "skills/gitops-workflow.md"
+    },
+    {
+      "id": "helm-chart-scaffolding",
+      "name": "Helm Chart Scaffolding",
+      "description": "Design, organize, and manage Helm charts for templating and packaging Kubernetes applications with reusable configurations. Use when creating Helm charts, packaging Kubernetes applications, or implementing templated deployments.",
+      "instructionsPath": "skills/helm-chart-scaffolding.md"
+    },
+    {
+      "id": "k8s-manifest-generator",
+      "name": "K8s Manifest Generator",
+      "description": "Create production-ready Kubernetes manifests for Deployments, Services, ConfigMaps, and Secrets following best practices and security standards. Use when generating Kubernetes YAML manifests, creating K8s resources, or implementing production-grade Kubernetes configurations.",
+      "instructionsPath": "skills/k8s-manifest-generator.md"
+    },
+    {
+      "id": "k8s-security-policies",
+      "name": "K8s Security Policies",
+      "description": "Implement Kubernetes security policies including NetworkPolicy, PodSecurityPolicy, and RBAC for production-grade security. Use when securing Kubernetes clusters, implementing network isolation, or enforcing pod security standards.",
+      "instructionsPath": "skills/k8s-security-policies.md"
+    }
+  ],
+  "commands": []
+}

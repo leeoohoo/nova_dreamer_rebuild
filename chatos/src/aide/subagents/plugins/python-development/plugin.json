@@ -1,0 +1,97 @@
+{
+  "id": "python-development",
+  "name": "Python Development",
+  "description": "Python 3.12+ with Django/FastAPI",
+  "category": "Languages",
+  "agents": [
+    {
+      "id": "django-pro",
+      "name": "Django Pro",
+      "description": "Master Django 5.x with async views, DRF, Celery, and Django Channels. Build scalable web applications with proper architecture, testing, and deployment. Use PROACTIVELY for Django development, ORM optimization, or complex Django patterns.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/django-pro.md",
+      "defaultSkills": [
+        "async-python-patterns",
+        "python-packaging",
+        "python-performance-optimization",
+        "python-testing-patterns",
+        "uv-package-manager"
+      ],
+      "defaultCommand": "python-scaffold"
+    },
+    {
+      "id": "fastapi-pro",
+      "name": "Fastapi Pro",
+      "description": "Build high-performance async APIs with FastAPI, SQLAlchemy 2.0, and Pydantic V2. Master microservices, WebSockets, and modern Python async patterns. Use PROACTIVELY for FastAPI development, async optimization, or API architecture.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/fastapi-pro.md",
+      "defaultSkills": [
+        "async-python-patterns",
+        "python-packaging",
+        "python-performance-optimization",
+        "python-testing-patterns",
+        "uv-package-manager"
+      ],
+      "defaultCommand": "python-scaffold"
+    },
+    {
+      "id": "python-pro",
+      "name": "Python Pro",
+      "description": "Master Python 3.12+ with modern features, async programming, performance optimization, and production-ready practices. Expert in the latest Python ecosystem including uv, ruff, pydantic, and FastAPI. Use PROACTIVELY for Python development, optimization, or advanced Python patterns.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/python-pro.md",
+      "defaultSkills": [
+        "async-python-patterns",
+        "python-packaging",
+        "python-performance-optimization",
+        "python-testing-patterns",
+        "uv-package-manager"
+      ],
+      "defaultCommand": "python-scaffold"
+    }
+  ],
+  "skills": [
+    {
+      "id": "async-python-patterns",
+      "name": "Async Python Patterns",
+      "description": "Master Python asyncio, concurrent programming, and async/await patterns for high-performance applications. Use when building async APIs, concurrent systems, or I/O-bound applications requiring non-blocking operations.",
+      "instructionsPath": "skills/async-python-patterns.md"
+    },
+    {
+      "id": "python-packaging",
+      "name": "Python Packaging",
+      "description": "Create distributable Python packages with proper project structure, setup.py/pyproject.toml, and publishing to PyPI. Use when packaging Python libraries, creating CLI tools, or distributing Python code.",
+      "instructionsPath": "skills/python-packaging.md"
+    },
+    {
+      "id": "python-performance-optimization",
+      "name": "Python Performance Optimization",
+      "description": "Profile and optimize Python code using cProfile, memory profilers, and performance best practices. Use when debugging slow Python code, optimizing bottlenecks, or improving application performance.",
+      "instructionsPath": "skills/python-performance-optimization.md"
+    },
+    {
+      "id": "python-testing-patterns",
+      "name": "Python Testing Patterns",
+      "description": "Implement comprehensive testing strategies with pytest, fixtures, mocking, and test-driven development. Use when writing Python tests, setting up test suites, or implementing testing best practices.",
+      "instructionsPath": "skills/python-testing-patterns.md"
+    },
+    {
+      "id": "uv-package-manager",
+      "name": "Uv Package Manager",
+      "description": "Master the uv package manager for fast Python dependency management, virtual environments, and modern Python project workflows. Use when setting up Python projects, managing dependencies, or optimizing Python development workflows with uv.",
+      "instructionsPath": "skills/uv-package-manager.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "python-scaffold",
+      "name": "Python Project Scaffolding",
+      "description": "You are a Python project architecture expert specializing in scaffolding production-ready Python applications. Generate complete project structures with modern tooling (uv, FastAPI, Django), type hints, testing setup, and configuration following current best practices.",
+      "instructionsPath": "commands/python-scaffold.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "id": "security-compliance",
+  "name": "Security Compliance",
+  "description": "SOC2/HIPAA/GDPR compliance",
+  "category": "Security",
+  "agents": [
+    {
+      "id": "security-auditor",
+      "name": "Security Auditor",
+      "description": "Expert security auditor specializing in DevSecOps, comprehensive cybersecurity, and compliance frameworks. Masters vulnerability assessment, threat modeling, secure authentication (OAuth2/OIDC), OWASP standards, cloud security, and security automation. Handles DevSecOps integration, compliance (GDPR/HIPAA/SOC2), and incident response. Use PROACTIVELY for security audits, DevSecOps, or compliance implementation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/security-auditor.md",
+      "defaultSkills": [],
+      "defaultCommand": "compliance-check"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "compliance-check",
+      "name": "Regulatory Compliance Check",
+      "description": "You are a compliance expert specializing in regulatory requirements for software systems including GDPR, HIPAA, SOC2, PCI-DSS, and other industry standards. Perform comprehensive compliance audits and provide implementation guidance for achieving and maintaining compliance.",
+      "instructionsPath": "commands/compliance-check.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

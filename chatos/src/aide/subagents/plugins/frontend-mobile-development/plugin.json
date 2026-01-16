@@ -1,0 +1,38 @@
+{
+  "id": "frontend-mobile-development",
+  "name": "Frontend Mobile Development",
+  "description": "Frontend UI and mobile development",
+  "category": "Development",
+  "agents": [
+    {
+      "id": "frontend-developer",
+      "name": "Frontend Developer",
+      "description": "Build React components, implement responsive layouts, and handle client-side state management. Masters React 19, Next.js 15, and modern frontend architecture. Optimizes performance and ensures accessibility. Use PROACTIVELY when creating UI components or fixing frontend issues.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/frontend-developer.md",
+      "defaultSkills": [],
+      "defaultCommand": "component-scaffold"
+    },
+    {
+      "id": "mobile-developer",
+      "name": "Mobile Developer",
+      "description": "Develop React Native, Flutter, or native mobile apps with modern architecture patterns. Masters cross-platform development, native integrations, offline sync, and app store optimization. Use PROACTIVELY for mobile features, cross-platform code, or app optimization.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/mobile-developer.md",
+      "defaultSkills": [],
+      "defaultCommand": "component-scaffold"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "component-scaffold",
+      "name": "React/React Native Component Scaffolding",
+      "description": "You are a React component architecture expert specializing in scaffolding production-ready, accessible, and performant components. Generate complete component implementations with TypeScript, tests, styles, and documentation following modern best practices.",
+      "instructionsPath": "commands/component-scaffold.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

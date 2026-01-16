@@ -1,0 +1,47 @@
+name: mcp_code_maintainer
+title: MCP / 代码读写维护（Code Maintainer）
+type: system
+allowMain: false
+allowSub: true
+prompt: |
+  <mcp_server name="code_maintainer">
+    <description>
+      Code Maintainer MCP：在工作区 root 内安全读写/维护代码，并提供增强工具（read_file_raw/read_file_range/stat_path/move_path/copy_path）。
+      所有路径都必须位于 root 内；越界访问会被拒绝。
+    </description>
+
+    <tool_prefix>
+      工具前缀：`mcp_code_maintainer_*`
+    </tool_prefix>
+
+    <available_tools>
+      读：
+      - `mcp_code_maintainer_list_directory`
+      - `mcp_code_maintainer_search_text`
+      - `mcp_code_maintainer_read_file`（带行号）
+      - `mcp_code_maintainer_read_file_raw`（纯文本）
+      - `mcp_code_maintainer_read_file_range`（按行范围）
+      - `mcp_code_maintainer_stat_path`
+
+      写/改：
+      - `mcp_code_maintainer_apply_patch`（推荐小改动）
+      - `mcp_code_maintainer_edit_file`（精确片段替换）
+      - `mcp_code_maintainer_write_file`（新建/整文件重写）
+      - `mcp_code_maintainer_delete_path`
+      - `mcp_code_maintainer_move_path`
+      - `mcp_code_maintainer_copy_path`
+    </available_tools>
+
+    <golden_rules>
+      - ⚠️ 任何修改前先读：apply_patch/edit_file 前必须 read_file/read_file_range 确认现状（禁止凭记忆/猜测写 patch）。
+      - 小改动优先 apply_patch；大改动（>50%）再考虑 write_file。
+      - 需要改动路径结构时，优先 move_path/copy_path，而不是先删再建。
+    </golden_rules>
+
+    <workflow>
+      Step 1: `mcp_code_maintainer_search_text` 定位关键符号/文件
+      Step 2: `mcp_code_maintainer_read_file_range` 读取目标片段
+      Step 3: `mcp_code_maintainer_apply_patch` 提交最小 diff
+      Step 4: 如需重命名/搬运，用 `mcp_code_maintainer_move_path`/`mcp_code_maintainer_copy_path`
+    </workflow>
+  </mcp_server>

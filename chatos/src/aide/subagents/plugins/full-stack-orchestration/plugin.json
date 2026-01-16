@@ -1,0 +1,58 @@
+{
+  "id": "full-stack-orchestration",
+  "name": "Full Stack Orchestration",
+  "description": "End-to-end feature orchestration",
+  "category": "Workflows",
+  "agents": [
+    {
+      "id": "deployment-engineer",
+      "name": "Deployment Engineer",
+      "description": "Expert deployment engineer specializing in modern CI/CD pipelines, GitOps workflows, and advanced deployment automation. Masters GitHub Actions, ArgoCD/Flux, progressive delivery, container security, and platform engineering. Handles zero-downtime deployments, security scanning, and developer experience optimization. Use PROACTIVELY for CI/CD design, GitOps implementation, or deployment automation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/deployment-engineer.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-stack-feature"
+    },
+    {
+      "id": "performance-engineer",
+      "name": "Performance Engineer",
+      "description": "Expert performance engineer specializing in modern observability, application optimization, and scalable system performance. Masters OpenTelemetry, distributed tracing, load testing, multi-tier caching, Core Web Vitals, and performance monitoring. Handles end-to-end optimization, real user monitoring, and scalability patterns. Use PROACTIVELY for performance optimization, observability, or scalability challenges.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/performance-engineer.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-stack-feature"
+    },
+    {
+      "id": "security-auditor",
+      "name": "Security Auditor",
+      "description": "Expert security auditor specializing in DevSecOps, comprehensive cybersecurity, and compliance frameworks. Masters vulnerability assessment, threat modeling, secure authentication (OAuth2/OIDC), OWASP standards, cloud security, and security automation. Handles DevSecOps integration, compliance (GDPR/HIPAA/SOC2), and incident response. Use PROACTIVELY for security audits, DevSecOps, or compliance implementation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/security-auditor.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-stack-feature"
+    },
+    {
+      "id": "test-automator",
+      "name": "Test Automator",
+      "description": "Master AI-powered test automation with modern frameworks, self-healing tests, and comprehensive quality engineering. Build scalable testing strategies with advanced CI/CD integration. Use PROACTIVELY for testing automation or quality assurance.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/test-automator.md",
+      "defaultSkills": [],
+      "defaultCommand": "full-stack-feature"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "full-stack-feature",
+      "name": "Full Stack Feature",
+      "description": "Orchestrate full-stack feature development across backend, frontend, and infrastructure layers with modern API-first approach:",
+      "instructionsPath": "commands/full-stack-feature.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+default_model: deepseek_chat
+models:
+  deepseek_chat:
+    provider: openai
+    model: deepseek-chat
+    base_url: https://api.deepseek.com
+    api_key_env: DEEPSEEK_API_KEY
+  deepseek_reasoner:
+    provider: openai
+    model: deepseek-reasoner
+    base_url: https://api.deepseek.com
+    api_key_env: DEEPSEEK_API_KEY

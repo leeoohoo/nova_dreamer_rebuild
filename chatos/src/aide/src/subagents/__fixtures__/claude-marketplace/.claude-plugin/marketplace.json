@@ -1,0 +1,12 @@
+{
+  "name": "fixture-marketplace",
+  "plugins": [
+    {
+      "name": "sample-plugin",
+      "source": "./plugins/sample-plugin",
+      "description": "Sample plugin for importer tests",
+      "category": "development"
+    }
+  ]
+}
+

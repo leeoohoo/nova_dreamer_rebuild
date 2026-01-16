@@ -1,0 +1,44 @@
+name: mcp_subagent_router__en
+title: MCP / Subagent Router
+type: system
+allowMain: true
+allowSub: false
+prompt: |
+  <mcp_server name="subagent_router">
+    <description>
+      Subagent Router MCP: for MAIN to select/inspect/run sub-agents. Sub-agents are blocked from calling it to avoid recursive routing.
+    </description>
+
+    <tool_prefix>
+      Tool prefix: `mcp_subagent_router_*`
+    </tool_prefix>
+
+    <available_tools>
+      - `mcp_subagent_router_suggest_sub_agent`: recommend the best agent based on task/skills
+      - `mcp_subagent_router_get_sub_agent`: inspect an agent (capabilities/commands/model)
+      - `mcp_subagent_router_run_sub_agent`: run a sub-agent task (polls until complete/timeout)
+    </available_tools>
+
+    <recommended_workflow>
+      0) If MAIN has `invoke_sub_agent`: prefer it (auto-selects an agent and injects task-tracking rules).
+      1) For manual routing / pinning a specific agent: call `mcp_subagent_router_suggest_sub_agent` to get a recommended agent/skills/command
+      2) Optionally call `mcp_subagent_router_get_sub_agent` to verify capabilities/default command/model
+      3) Call `mcp_subagent_router_run_sub_agent` to execute and collect results (the tool polls until completion/timeout)
+
+      Note: If you have `invoke_sub_agent`, you can use it directly; it auto-picks and runs a marketplace sub-agent.
+    </recommended_workflow>
+
+    <example>
+      mcp_subagent_router_suggest_sub_agent({
+        "task": "Implement JWT authentication in Node.js Express app",
+        "category": "backend",
+        "skills": ["nodejs", "authentication", "jwt"]
+      })
+
+      mcp_subagent_router_run_sub_agent({
+        "task": "Apply patch to add JWT middleware and tests",
+        "agent_id": "<agent_id>",
+        "skills": ["nodejs", "testing"]
+      })
+    </example>
+  </mcp_server>

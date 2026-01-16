@@ -1,0 +1,68 @@
+{
+  "id": "documentation-generation",
+  "name": "Documentation Generation",
+  "description": "OpenAPI specs, Mermaid diagrams, tutorials",
+  "category": "Documentation",
+  "agents": [
+    {
+      "id": "api-documenter",
+      "name": "Api Documenter",
+      "description": "Master API documentation with OpenAPI 3.1, AI-powered tools, and modern developer experience practices. Create interactive docs, generate SDKs, and build comprehensive developer portals. Use PROACTIVELY for API documentation or developer portal creation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/api-documenter.md",
+      "defaultSkills": [],
+      "defaultCommand": "doc-generate"
+    },
+    {
+      "id": "docs-architect",
+      "name": "Docs Architect",
+      "description": "Creates comprehensive technical documentation from existing codebases. Analyzes architecture, design patterns, and implementation details to produce long-form technical manuals and ebooks. Use PROACTIVELY for system documentation, architecture guides, or technical deep-dives.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/docs-architect.md",
+      "defaultSkills": [],
+      "defaultCommand": "doc-generate"
+    },
+    {
+      "id": "mermaid-expert",
+      "name": "Mermaid Expert",
+      "description": "Create Mermaid diagrams for flowcharts, sequences, ERDs, and architectures. Masters syntax for all diagram types and styling. Use PROACTIVELY for visual documentation, system diagrams, or process flows.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/mermaid-expert.md",
+      "defaultSkills": [],
+      "defaultCommand": "doc-generate"
+    },
+    {
+      "id": "reference-builder",
+      "name": "Reference Builder",
+      "description": "Creates exhaustive technical references and API documentation. Generates comprehensive parameter listings, configuration guides, and searchable reference materials. Use PROACTIVELY for API docs, configuration references, or complete technical specifications.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/reference-builder.md",
+      "defaultSkills": [],
+      "defaultCommand": "doc-generate"
+    },
+    {
+      "id": "tutorial-engineer",
+      "name": "Tutorial Engineer",
+      "description": "Creates step-by-step tutorials and educational content from code. Transforms complex concepts into progressive learning experiences with hands-on examples. Use PROACTIVELY for onboarding guides, feature tutorials, or concept explanations.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/tutorial-engineer.md",
+      "defaultSkills": [],
+      "defaultCommand": "doc-generate"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "doc-generate",
+      "name": "Automated Documentation Generation",
+      "description": "You are a documentation expert specializing in creating comprehensive, maintainable documentation from code. Generate API docs, architecture diagrams, user guides, and technical references using AI-powered analysis and industry best practices.",
+      "instructionsPath": "commands/doc-generate.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

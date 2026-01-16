@@ -1,0 +1,61 @@
+{
+  "id": "api-scaffolding",
+  "name": "Api Scaffolding",
+  "description": "REST/GraphQL API generation",
+  "category": "API",
+  "agents": [
+    {
+      "id": "backend-architect",
+      "name": "Backend Architect",
+      "description": "Expert backend architect specializing in scalable API design, microservices architecture, and distributed systems. Masters REST/GraphQL/gRPC APIs, event-driven architectures, service mesh patterns, and modern backend frameworks. Handles service boundary definition, inter-service communication, resilience patterns, and observability. Use PROACTIVELY when creating new backend services or APIs.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/backend-architect.md",
+      "defaultSkills": [
+        "fastapi-templates"
+      ]
+    },
+    {
+      "id": "django-pro",
+      "name": "Django Pro",
+      "description": "Master Django 5.x with async views, DRF, Celery, and Django Channels. Build scalable web applications with proper architecture, testing, and deployment. Use PROACTIVELY for Django development, ORM optimization, or complex Django patterns.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/django-pro.md",
+      "defaultSkills": [
+        "fastapi-templates"
+      ]
+    },
+    {
+      "id": "fastapi-pro",
+      "name": "Fastapi Pro",
+      "description": "Build high-performance async APIs with FastAPI, SQLAlchemy 2.0, and Pydantic V2. Master microservices, WebSockets, and modern Python async patterns. Use PROACTIVELY for FastAPI development, async optimization, or API architecture.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/fastapi-pro.md",
+      "defaultSkills": [
+        "fastapi-templates"
+      ]
+    },
+    {
+      "id": "graphql-architect",
+      "name": "Graphql Architect",
+      "description": "Master modern GraphQL with federation, performance optimization, and enterprise security. Build scalable schemas, implement advanced caching, and design real-time systems. Use PROACTIVELY for GraphQL architecture or performance optimization.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/graphql-architect.md",
+      "defaultSkills": [
+        "fastapi-templates"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "fastapi-templates",
+      "name": "Fastapi Templates",
+      "description": "Create production-ready FastAPI projects with async patterns, dependency injection, and comprehensive error handling. Use when building new FastAPI applications or setting up backend API projects.",
+      "instructionsPath": "skills/fastapi-templates.md"
+    }
+  ],
+  "commands": []
+}

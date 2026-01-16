@@ -1,0 +1,48 @@
+{
+  "id": "frontend-mobile-security",
+  "name": "Frontend Mobile Security",
+  "description": "XSS/CSRF prevention and mobile security",
+  "category": "Security",
+  "agents": [
+    {
+      "id": "frontend-developer",
+      "name": "Frontend Developer",
+      "description": "Build React components, implement responsive layouts, and handle client-side state management. Masters React 19, Next.js 15, and modern frontend architecture. Optimizes performance and ensures accessibility. Use PROACTIVELY when creating UI components or fixing frontend issues.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/frontend-developer.md",
+      "defaultSkills": [],
+      "defaultCommand": "xss-scan"
+    },
+    {
+      "id": "frontend-security-coder",
+      "name": "Frontend Security Coder",
+      "description": "Expert in secure frontend coding practices specializing in XSS prevention, output sanitization, and client-side security patterns. Use PROACTIVELY for frontend security implementations or client-side security code reviews.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/frontend-security-coder.md",
+      "defaultSkills": [],
+      "defaultCommand": "xss-scan"
+    },
+    {
+      "id": "mobile-security-coder",
+      "name": "Mobile Security Coder",
+      "description": "Expert in secure mobile coding practices specializing in input validation, WebView security, and mobile-specific security patterns. Use PROACTIVELY for mobile security implementations or mobile security code reviews.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/mobile-security-coder.md",
+      "defaultSkills": [],
+      "defaultCommand": "xss-scan"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "xss-scan",
+      "name": "XSS Vulnerability Scanner for Frontend Code",
+      "description": "You are a frontend security specialist focusing on Cross-Site Scripting (XSS) vulnerability detection and prevention. Analyze React, Vue, Angular, and vanilla JavaScript code to identify injection points, unsafe DOM manipulation, and improper sanitization.",
+      "instructionsPath": "commands/xss-scan.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

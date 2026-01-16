@@ -1,0 +1,35 @@
+{
+  "id": "context-management",
+  "name": "Context Management",
+  "description": "Context persistence and restoration",
+  "category": "AI & ML",
+  "agents": [
+    {
+      "id": "context-manager",
+      "name": "Context Manager",
+      "description": "Elite AI context engineering specialist mastering dynamic context management, vector databases, knowledge graphs, and intelligent memory systems. Orchestrates context across multi-agent workflows, enterprise AI systems, and long-running projects with 2024/2025 best practices. Use PROACTIVELY for complex AI orchestration.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/context-manager.md",
+      "defaultSkills": [],
+      "defaultCommand": "context-restore"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "context-restore",
+      "name": "Context Restoration: Advanced Semantic Memory Rehydration",
+      "description": "## Role Statement",
+      "instructionsPath": "commands/context-restore.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "context-save",
+      "name": "Context Save Tool: Intelligent Context Management Specialist",
+      "description": "## Role and Purpose",
+      "instructionsPath": "commands/context-save.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

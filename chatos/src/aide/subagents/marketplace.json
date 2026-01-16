@@ -1,0 +1,398 @@
+[
+  {
+    "id": "accessibility-compliance",
+    "name": "Accessibility Compliance",
+    "category": "Accessibility",
+    "description": "WCAG auditing and inclusive design"
+  },
+  {
+    "id": "agent-orchestration",
+    "name": "Agent Orchestration",
+    "category": "AI & ML",
+    "description": "Multi-agent system optimization"
+  },
+  {
+    "id": "api-scaffolding",
+    "name": "Api Scaffolding",
+    "category": "API",
+    "description": "REST/GraphQL API generation"
+  },
+  {
+    "id": "api-testing-observability",
+    "name": "Api Testing Observability",
+    "category": "API",
+    "description": "API testing and monitoring"
+  },
+  {
+    "id": "application-performance",
+    "name": "Application Performance",
+    "category": "Performance",
+    "description": "Application profiling and optimization"
+  },
+  {
+    "id": "arm-cortex-microcontrollers",
+    "name": "Arm Cortex Microcontrollers",
+    "category": "Languages",
+    "description": "ARM Cortex-M firmware and drivers"
+  },
+  {
+    "id": "backend-api-security",
+    "name": "Backend Api Security",
+    "category": "Security",
+    "description": "API security and authentication"
+  },
+  {
+    "id": "backend-development",
+    "name": "Backend Development",
+    "category": "Development",
+    "description": "Backend API design with GraphQL and TDD"
+  },
+  {
+    "id": "blockchain-web3",
+    "name": "Blockchain Web3",
+    "category": "Blockchain",
+    "description": "Smart contracts and DeFi protocols"
+  },
+  {
+    "id": "business-analytics",
+    "name": "Business Analytics",
+    "category": "Business",
+    "description": "KPI tracking and financial reporting"
+  },
+  {
+    "id": "cicd-automation",
+    "name": "Cicd Automation",
+    "category": "Infrastructure",
+    "description": "CI/CD pipeline configuration"
+  },
+  {
+    "id": "cloud-infrastructure",
+    "name": "Cloud Infrastructure",
+    "category": "Infrastructure",
+    "description": "AWS/Azure/GCP cloud architecture"
+  },
+  {
+    "id": "code-documentation",
+    "name": "Code Documentation",
+    "category": "Documentation",
+    "description": "Documentation generation and code explanation"
+  },
+  {
+    "id": "code-refactoring",
+    "name": "Code Refactoring",
+    "category": "Utilities",
+    "description": "Code cleanup and technical debt management"
+  },
+  {
+    "id": "code-review-ai",
+    "name": "Code Review Ai",
+    "category": "Quality",
+    "description": "AI-powered architectural review"
+  },
+  {
+    "id": "codebase-cleanup",
+    "name": "Codebase Cleanup",
+    "category": "Modernization",
+    "description": "Technical debt reduction and cleanup"
+  },
+  {
+    "id": "comprehensive-review",
+    "name": "Comprehensive Review",
+    "category": "Quality",
+    "description": "Multi-perspective code analysis"
+  },
+  {
+    "id": "content-marketing",
+    "name": "Content Marketing",
+    "category": "Marketing",
+    "description": "Content strategy and web research"
+  },
+  {
+    "id": "context-management",
+    "name": "Context Management",
+    "category": "AI & ML",
+    "description": "Context persistence and restoration"
+  },
+  {
+    "id": "customer-sales-automation",
+    "name": "Customer Sales Automation",
+    "category": "Business",
+    "description": "Support and sales automation"
+  },
+  {
+    "id": "data-engineering",
+    "name": "Data Engineering",
+    "category": "Data",
+    "description": "ETL pipelines and data warehouses"
+  },
+  {
+    "id": "data-validation-suite",
+    "name": "Data Validation Suite",
+    "category": "Data",
+    "description": "Schema validation and data quality"
+  },
+  {
+    "id": "database-cloud-optimization",
+    "name": "Database Cloud Optimization",
+    "category": "Performance",
+    "description": "Database query and cloud cost optimization"
+  },
+  {
+    "id": "database-design",
+    "name": "Database Design",
+    "category": "Database",
+    "description": "Database architecture and schema design"
+  },
+  {
+    "id": "database-migrations",
+    "name": "Database Migrations",
+    "category": "Database",
+    "description": "Database migration automation"
+  },
+  {
+    "id": "debugging-toolkit",
+    "name": "Debugging Toolkit",
+    "category": "Development",
+    "description": "Interactive debugging and DX optimization"
+  },
+  {
+    "id": "dependency-management",
+    "name": "Dependency Management",
+    "category": "Utilities",
+    "description": "Dependency auditing and version management"
+  },
+  {
+    "id": "deployment-strategies",
+    "name": "Deployment Strategies",
+    "category": "Infrastructure",
+    "description": "Deployment patterns and rollback automation"
+  },
+  {
+    "id": "deployment-validation",
+    "name": "Deployment Validation",
+    "category": "Infrastructure",
+    "description": "Pre-deployment checks and validation"
+  },
+  {
+    "id": "developer-essentials",
+    "name": "Developer Essentials",
+    "category": "general",
+    "description": "Imported from doc/agents."
+  },
+  {
+    "id": "distributed-debugging",
+    "name": "Distributed Debugging",
+    "category": "Operations",
+    "description": "Distributed system tracing"
+  },
+  {
+    "id": "documentation-generation",
+    "name": "Documentation Generation",
+    "category": "Documentation",
+    "description": "OpenAPI specs, Mermaid diagrams, tutorials"
+  },
+  {
+    "id": "error-debugging",
+    "name": "Error Debugging",
+    "category": "Utilities",
+    "description": "Error analysis and trace debugging"
+  },
+  {
+    "id": "error-diagnostics",
+    "name": "Error Diagnostics",
+    "category": "Operations",
+    "description": "Error tracing and root cause analysis"
+  },
+  {
+    "id": "framework-migration",
+    "name": "Framework Migration",
+    "category": "Modernization",
+    "description": "Framework upgrades and migration planning"
+  },
+  {
+    "id": "frontend-mobile-development",
+    "name": "Frontend Mobile Development",
+    "category": "Development",
+    "description": "Frontend UI and mobile development"
+  },
+  {
+    "id": "frontend-mobile-security",
+    "name": "Frontend Mobile Security",
+    "category": "Security",
+    "description": "XSS/CSRF prevention and mobile security"
+  },
+  {
+    "id": "full-stack-orchestration",
+    "name": "Full Stack Orchestration",
+    "category": "Workflows",
+    "description": "End-to-end feature orchestration"
+  },
+  {
+    "id": "functional-programming",
+    "name": "Functional Programming",
+    "category": "Languages",
+    "description": "Elixir with OTP and Phoenix"
+  },
+  {
+    "id": "game-development",
+    "name": "Game Development",
+    "category": "Gaming",
+    "description": "Unity and Minecraft plugin development"
+  },
+  {
+    "id": "git-pr-workflows",
+    "name": "Git Pr Workflows",
+    "category": "Workflows",
+    "description": "Git automation and PR enhancement"
+  },
+  {
+    "id": "hr-legal-compliance",
+    "name": "Hr Legal Compliance",
+    "category": "Business",
+    "description": "HR policies and legal templates"
+  },
+  {
+    "id": "incident-response",
+    "name": "Incident Response",
+    "category": "Operations",
+    "description": "Production incident management"
+  },
+  {
+    "id": "javascript-typescript",
+    "name": "Javascript Typescript",
+    "category": "Languages",
+    "description": "JavaScript/TypeScript with Node.js"
+  },
+  {
+    "id": "julia-development",
+    "name": "Julia Development",
+    "category": "general",
+    "description": "Imported from doc/agents."
+  },
+  {
+    "id": "jvm-languages",
+    "name": "Jvm Languages",
+    "category": "Languages",
+    "description": "Java, Scala, C# with enterprise patterns"
+  },
+  {
+    "id": "kubernetes-operations",
+    "name": "Kubernetes Operations",
+    "category": "Infrastructure",
+    "description": "K8s manifests and GitOps workflows"
+  },
+  {
+    "id": "llm-application-dev",
+    "name": "Llm Application Dev",
+    "category": "AI & ML",
+    "description": "LLM apps and prompt engineering"
+  },
+  {
+    "id": "machine-learning-ops",
+    "name": "Machine Learning Ops",
+    "category": "AI & ML",
+    "description": "ML training pipelines and MLOps"
+  },
+  {
+    "id": "multi-platform-apps",
+    "name": "Multi Platform Apps",
+    "category": "Development",
+    "description": "Cross-platform app coordination (web/iOS/Android)"
+  },
+  {
+    "id": "observability-monitoring",
+    "name": "Observability Monitoring",
+    "category": "Operations",
+    "description": "Metrics, logging, tracing, and SLO"
+  },
+  {
+    "id": "payment-processing",
+    "name": "Payment Processing",
+    "category": "Payments",
+    "description": "Stripe/PayPal integration and billing"
+  },
+  {
+    "id": "performance-testing-review",
+    "name": "Performance Testing Review",
+    "category": "Quality",
+    "description": "Performance analysis and test coverage review"
+  },
+  {
+    "id": "python-development",
+    "name": "Python Development",
+    "category": "Languages",
+    "description": "Python 3.12+ with Django/FastAPI"
+  },
+  {
+    "id": "quantitative-trading",
+    "name": "Quantitative Trading",
+    "category": "Finance",
+    "description": "Algorithmic trading and risk management"
+  },
+  {
+    "id": "security-compliance",
+    "name": "Security Compliance",
+    "category": "Security",
+    "description": "SOC2/HIPAA/GDPR compliance"
+  },
+  {
+    "id": "security-scanning",
+    "name": "Security Scanning",
+    "category": "Security",
+    "description": "SAST analysis and vulnerability scanning"
+  },
+  {
+    "id": "seo-analysis-monitoring",
+    "name": "Seo Analysis Monitoring",
+    "category": "Marketing",
+    "description": "Content analysis and authority building"
+  },
+  {
+    "id": "seo-content-creation",
+    "name": "Seo Content Creation",
+    "category": "Marketing",
+    "description": "SEO content writing and planning"
+  },
+  {
+    "id": "seo-technical-optimization",
+    "name": "Seo Technical Optimization",
+    "category": "Marketing",
+    "description": "Meta tags, keywords, and schema markup"
+  },
+  {
+    "id": "shell-scripting",
+    "name": "Shell Scripting",
+    "category": "general",
+    "description": "Imported from doc/agents."
+  },
+  {
+    "id": "systems-programming",
+    "name": "Systems Programming",
+    "category": "Languages",
+    "description": "Rust, Go, C, C++ for systems development"
+  },
+  {
+    "id": "tdd-workflows",
+    "name": "Tdd Workflows",
+    "category": "Testing",
+    "description": "Test-driven development methodology"
+  },
+  {
+    "id": "team-collaboration",
+    "name": "Team Collaboration",
+    "category": "Utilities",
+    "description": "Team workflows and standup automation"
+  },
+  {
+    "id": "unit-testing",
+    "name": "Unit Testing",
+    "category": "Testing",
+    "description": "Automated unit test generation (Python/JavaScript)"
+  },
+  {
+    "id": "web-scripting",
+    "name": "Web Scripting",
+    "category": "Languages",
+    "description": "PHP and Ruby for web applications"
+  }
+]

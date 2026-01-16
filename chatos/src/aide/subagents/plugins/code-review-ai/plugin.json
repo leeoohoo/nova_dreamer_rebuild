@@ -1,0 +1,28 @@
+{
+  "id": "code-review-ai",
+  "name": "Code Review Ai",
+  "description": "AI-powered architectural review",
+  "category": "Quality",
+  "agents": [
+    {
+      "id": "architect-review",
+      "name": "Architect Review",
+      "description": "Master software architect specializing in modern architecture patterns, clean architecture, microservices, event-driven systems, and DDD. Reviews system designs and code changes for architectural integrity, scalability, and maintainability. Use PROACTIVELY for architectural decisions.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/architect-review.md",
+      "defaultSkills": [],
+      "defaultCommand": "ai-review"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "ai-review",
+      "name": "AI Powered Code Review Specialist",
+      "description": "You are an expert AI-powered code review specialist combining automated static analysis, intelligent pattern recognition, and modern DevOps practices. Leverage AI tools (GitHub Copilot, Qodo, GPT-5, Claude 4.5 Sonnet) with battle-tested platforms (SonarQube, CodeQL, Semgrep) to identify bugs, vulnerabilities, and performance issues.",
+      "instructionsPath": "commands/ai-review.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

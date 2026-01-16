@@ -1,0 +1,94 @@
+{
+  "servers": {
+    "typescript": {
+      "command": "typescript-language-server",
+      "args": ["--stdio"],
+      "fileExtensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
+      "languages": ["typescript", "javascript"]
+    },
+    "java": {
+      "command": "jdtls",
+      "args": ["-data", "${stateDir}/lsp-workspaces/jdtls"],
+      "fileExtensions": [".java"],
+      "languages": ["java"]
+    },
+    "pyright": {
+      "command": "pyright-langserver",
+      "args": ["--stdio"],
+      "fileExtensions": [".py"],
+      "languages": ["python"]
+    },
+    "gopls": {
+      "command": "gopls",
+      "args": ["serve"],
+      "fileExtensions": [".go"],
+      "languages": ["go"]
+    },
+    "csharp": {
+      "command": "csharp-ls",
+      "args": [],
+      "fileExtensions": [".cs"],
+      "languages": ["csharp"]
+    },
+    "rust_analyzer": {
+      "command": "rust-analyzer",
+      "args": [],
+      "fileExtensions": [".rs"],
+      "languages": ["rust"]
+    },
+    "clangd": {
+      "command": "clangd",
+      "args": [],
+      "fileExtensions": [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp"],
+      "languages": ["c", "cpp"]
+    },
+    "php": {
+      "command": "intelephense",
+      "args": ["--stdio"],
+      "fileExtensions": [".php"],
+      "languages": ["php"]
+    },
+    "lua": {
+      "command": "lua-language-server",
+      "args": [],
+      "fileExtensions": [".lua"],
+      "languages": ["lua"]
+    },
+    "bash": {
+      "command": "bash-language-server",
+      "args": ["start"],
+      "fileExtensions": [".sh", ".bash", ".zsh"],
+      "languages": ["shellscript"]
+    },
+    "yaml": {
+      "command": "yaml-language-server",
+      "args": ["--stdio"],
+      "fileExtensions": [".yml", ".yaml"],
+      "languages": ["yaml"]
+    },
+    "json": {
+      "command": "vscode-json-language-server",
+      "args": ["--stdio"],
+      "fileExtensions": [".json"],
+      "languages": ["json"]
+    },
+    "html": {
+      "command": "vscode-html-language-server",
+      "args": ["--stdio"],
+      "fileExtensions": [".html", ".htm"],
+      "languages": ["html"]
+    },
+    "css": {
+      "command": "vscode-css-language-server",
+      "args": ["--stdio"],
+      "fileExtensions": [".css", ".scss", ".less"],
+      "languages": ["css", "scss", "less"]
+    },
+    "dockerfile": {
+      "command": "docker-langserver",
+      "args": ["--stdio"],
+      "fileExtensions": ["Dockerfile"],
+      "languages": ["dockerfile"]
+    }
+  }
+}

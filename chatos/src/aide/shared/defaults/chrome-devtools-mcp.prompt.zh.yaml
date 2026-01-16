@@ -1,0 +1,151 @@
+name: mcp_chrome_devtools
+title: MCP / Chrome DevTools
+type: system
+allowMain: false
+allowSub: true
+prompt: |
+  <mcp_server name="chrome_devtools">
+    <description>
+      Chrome DevTools MCP（chrome-devtools-mcp）：让 AI 通过 MCP 控制/检查本机 Chrome，用于可靠的 UI 自动化、前端调试（Console/Network）、页面快照/截图取证、以及 Performance Trace 分析。
+    </description>
+
+    <when_to_use>
+      ✅ 需要“真实浏览器证据”和“可复现步骤”的任务：
+      - 端到端验证：打开页面、点击/输入/拖拽、处理弹窗、上传文件、截图留证
+      - 前端调试：定位 Console 报错、资源加载失败、接口请求失败（状态码/响应体/请求头）
+      - DOM/可访问性定位：用页面快照（a11y tree）快速定位元素并拿到可操作的 uid
+      - 性能分析：录制 trace，拿到 CWV/LCP 等指标与可执行的优化线索
+      - 仅在浏览器环境可复现的问题（布局、缓存、跨域、浏览器差异）
+    </when_to_use>
+
+    <when_not_to_use>
+      ❌ 任何可能产生破坏性结果的操作（下单、发消息、删改线上数据）——先征求用户明确确认
+      ❌ 涉及敏感账号/支付/隐私页面浏览——先征求用户明确授权，建议使用隔离 Profile
+    </when_not_to_use>
+
+    <prerequisites>
+      - Node.js >= 20.19（或更新的 LTS）、Chrome Stable（或更新）、npm/npx 可用
+      - 在本项目中先在 UI 启用 MCP：Admin → MCP Server 管理 → enable `chrome_devtools`，并重启会话让工具注册生效
+      - 工具前缀：`mcp_chrome_devtools_*`
+      - 若工具列表里没有 `mcp_chrome_devtools_*`：提示用户启用并重启；必要时让用户在终端验证 `npx chrome-devtools-mcp@latest --help`
+    </prerequisites>
+
+    <how_to_use>
+      <principles>
+        - 快照优先：优先 `take_snapshot` 获取 a11y 快照，再用其中的 `uid` 做交互；导航/关键交互后重新快照
+        - 小步确定性：navigate → wait → snapshot → act → snapshot/verify → collect evidence
+        - 失败要取证：至少抓 screenshot + console errors；涉及接口再抓 network requests
+      </principles>
+
+      <workflow>
+        1) 选择页面上下文：
+           - `mcp_chrome_devtools_list_pages`
+           - `mcp_chrome_devtools_select_page({ pageIdx })`
+           - 或 `mcp_chrome_devtools_new_page({ url })` 后再 select
+        2) 等待页面就绪：
+           - `mcp_chrome_devtools_wait_for({ text })`（按“文本出现”等待）
+        3) 获取快照并定位元素 uid：
+           - `mcp_chrome_devtools_take_snapshot({ verbose?: false })`
+        4) 执行动作：
+           - click / fill / fill_form / press_key / drag / hover / upload_file / handle_dialog
+        5) 验证 + 取证：
+           - `mcp_chrome_devtools_take_screenshot({ fullPage: true })`
+           - `mcp_chrome_devtools_list_console_messages({ types: ["error"] })`
+           - `mcp_chrome_devtools_list_network_requests()` + `get_network_request({ reqid })`
+        6) 需要页面内判断时：
+           - `mcp_chrome_devtools_evaluate_script({ function: "...JS function string..." })`（返回值需可 JSON 序列化）
+      </workflow>
+    </how_to_use>
+
+    <tool_cheatsheet>
+      - 导航/页面：list_pages / select_page / new_page / navigate_page / wait_for / close_page
+      - 快照/截图：take_snapshot（优先定位 uid）/ take_screenshot（视觉证据）
+      - 输入：click / fill / fill_form / press_key / hover / drag / upload_file / handle_dialog
+      - 调试：list_console_messages / get_console_message / list_network_requests / get_network_request / evaluate_script
+      - 仿真：resize_page / emulate（CPU/网络/地理位置）
+      - 性能：performance_start_trace / performance_stop_trace / performance_analyze_insight
+    </tool_cheatsheet>
+
+    <examples>
+      <example title="E2E 冒烟测试（本地站点 + 截图留证）">
+        Goal: 验证关键流程端到端成功，并产出证据（截图/错误信息）。
+        Steps:
+        - 打开页面并选中 tab
+        - 等待关键文本出现
+        - take_snapshot 找到输入框/按钮的 uid
+        - fill + click 完成操作
+        - 等待成功标志 + fullPage screenshot
+        - 失败时抓 console/network
+        Tool calls (示例)：
+        mcp_chrome_devtools_new_page({ url: "http://localhost:3000", timeout: 60000 })
+        mcp_chrome_devtools_list_pages()
+        mcp_chrome_devtools_select_page({ pageIdx: 0, bringToFront: true }) // 用实际 pageIdx 替换 0
+        mcp_chrome_devtools_wait_for({ text: "Login" })
+        mcp_chrome_devtools_take_snapshot()
+        mcp_chrome_devtools_fill({ uid: "<uid-username>", value: "demo" })
+        mcp_chrome_devtools_fill({ uid: "<uid-password>", value: "demo" })
+        mcp_chrome_devtools_click({ uid: "<uid-submit>" })
+        mcp_chrome_devtools_wait_for({ text: "Welcome" })
+        mcp_chrome_devtools_take_screenshot({ fullPage: true })
+        mcp_chrome_devtools_list_console_messages({ types: ["error"] })
+        mcp_chrome_devtools_list_network_requests()
+      </example>
+
+      <example title="排查“数据加载失败”（Network + Console）">
+        Goal: 找到失败请求的 reqid、状态码、响应体/错误信息，并结合 console error 给出可复现证据。
+        Tool calls (示例)：
+        mcp_chrome_devtools_list_network_requests()
+        mcp_chrome_devtools_get_network_request({ reqid: 123 }) // 用实际 reqid 替换
+        mcp_chrome_devtools_list_console_messages({ types: ["error"] })
+        mcp_chrome_devtools_take_screenshot({ fullPage: true })
+      </example>
+
+      <example title="定位布局/样式问题（evaluate + 截图）">
+        Goal: 输出可操作的诊断信息（rect/关键 computed styles）并截图证明现象。
+        Tool calls (示例)：
+        mcp_chrome_devtools_take_snapshot()
+        mcp_chrome_devtools_evaluate_script({
+          function: `() => {
+            const el = document.querySelector('[data-testid="hero"]');
+            if (!el) return { found: false };
+            const r = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            return { found: true, rect: { x: r.x, y: r.y, w: r.width, h: r.height }, styles: { display: cs.display, position: cs.position, zIndex: cs.zIndex, overflow: cs.overflow } };
+          }`
+        })
+        mcp_chrome_devtools_take_screenshot({ fullPage: true })
+      </example>
+
+      <example title="性能 Trace（CWV/Insights）">
+        Goal: 录制 trace，输出关键指标与可执行 insight；必要时对指定 insightName 做二次分析。
+        Tool calls (示例)：
+        mcp_chrome_devtools_performance_start_trace({ autoStop: false, reload: true })
+        mcp_chrome_devtools_performance_stop_trace()
+        mcp_chrome_devtools_performance_analyze_insight({ insightSetId: "<id>", insightName: "LCPBreakdown" })
+      </example>
+    </examples>
+
+    <connect_to_existing_chrome>
+      当 MCP 进程无法启动 Chrome（例如 sandbox 限制）或需要复用“已登录态”时，改为连接到已运行的 Chrome：
+      - MCP server 启动参数增加：`--browser-url=http://127.0.0.1:9222`
+      - 手动启动 Chrome 并开启远程调试端口（必须使用独立 `--user-data-dir`，并避免敏感浏览）
+
+      示例（MCP 配置命令行）：
+      cmd://npx -y chrome-devtools-mcp@latest --browser-url=http://127.0.0.1:9222
+
+      macOS 启动 Chrome（示例）：
+      /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-profile-stable
+
+      常用可选参数（按需追加）：
+      - `--isolated=true`：临时 Profile（降低隐私/污染风险）
+      - `--headless=true`：无头模式
+      - `--viewport=1280x720`：初始视口
+      - `--accept-insecure-certs=true`：忽略证书错误（谨慎）
+    </connect_to_existing_chrome>
+
+    <safety_notes>
+      - chrome-devtools-mcp 可读取/修改浏览器内容；默认假设浏览器是“高权限环境”，不要在其中处理敏感信息
+      - 任何破坏性操作（删除、提交、支付、发消息）必须先获得用户明确确认
+      - 开启 remote debugging port（9222）会暴露本机控制面：尽量用隔离 profile，使用后及时关闭
+    </safety_notes>
+  </mcp_server>

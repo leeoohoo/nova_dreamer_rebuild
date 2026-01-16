@@ -1,0 +1,49 @@
+{
+  "id": "blockchain-web3",
+  "name": "Blockchain Web3",
+  "description": "Smart contracts and DeFi protocols",
+  "category": "Blockchain",
+  "agents": [
+    {
+      "id": "blockchain-developer",
+      "name": "Blockchain Developer",
+      "description": "Build production-ready Web3 applications, smart contracts, and decentralized systems. Implements DeFi protocols, NFT platforms, DAOs, and enterprise blockchain integrations. Use PROACTIVELY for smart contracts, Web3 apps, DeFi protocols, or blockchain infrastructure.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/blockchain-developer.md",
+      "defaultSkills": [
+        "defi-protocol-templates",
+        "nft-standards",
+        "solidity-security",
+        "web3-testing"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "defi-protocol-templates",
+      "name": "Defi Protocol Templates",
+      "description": "Implement DeFi protocols with production-ready templates for staking, AMMs, governance, and lending systems. Use when building decentralized finance applications or smart contract protocols.",
+      "instructionsPath": "skills/defi-protocol-templates.md"
+    },
+    {
+      "id": "nft-standards",
+      "name": "Nft Standards",
+      "description": "Implement NFT standards (ERC-721, ERC-1155) with proper metadata handling, minting strategies, and marketplace integration. Use when creating NFT contracts, building NFT marketplaces, or implementing digital asset systems.",
+      "instructionsPath": "skills/nft-standards.md"
+    },
+    {
+      "id": "solidity-security",
+      "name": "Solidity Security",
+      "description": "Master smart contract security best practices to prevent common vulnerabilities and implement secure Solidity patterns. Use when writing smart contracts, auditing existing contracts, or implementing security measures for blockchain applications.",
+      "instructionsPath": "skills/solidity-security.md"
+    },
+    {
+      "id": "web3-testing",
+      "name": "Web3 Testing",
+      "description": "Test smart contracts comprehensively using Hardhat and Foundry with unit tests, integration tests, and mainnet forking. Use when testing Solidity contracts, setting up blockchain test suites, or validating DeFi protocols.",
+      "instructionsPath": "skills/web3-testing.md"
+    }
+  ],
+  "commands": []
+}

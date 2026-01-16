@@ -1,0 +1,87 @@
+{
+  "id": "llm-application-dev",
+  "name": "Llm Application Dev",
+  "description": "LLM apps and prompt engineering",
+  "category": "AI & ML",
+  "agents": [
+    {
+      "id": "ai-engineer",
+      "name": "Ai Engineer",
+      "description": "Build production-ready LLM applications, advanced RAG systems, and intelligent agents. Implements vector search, multimodal AI, agent orchestration, and enterprise AI integrations. Use PROACTIVELY for LLM features, chatbots, AI agents, or AI-powered applications.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/ai-engineer.md",
+      "defaultSkills": [
+        "langchain-architecture",
+        "llm-evaluation",
+        "prompt-engineering-patterns",
+        "rag-implementation"
+      ],
+      "defaultCommand": "ai-assistant"
+    },
+    {
+      "id": "prompt-engineer",
+      "name": "Prompt Engineer",
+      "description": "Expert prompt engineer specializing in advanced prompting techniques, LLM optimization, and AI system design. Masters chain-of-thought, constitutional AI, and production prompt strategies. Use when building AI features, improving agent performance, or crafting system prompts.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/prompt-engineer.md",
+      "defaultSkills": [
+        "langchain-architecture",
+        "llm-evaluation",
+        "prompt-engineering-patterns",
+        "rag-implementation"
+      ],
+      "defaultCommand": "ai-assistant"
+    }
+  ],
+  "skills": [
+    {
+      "id": "langchain-architecture",
+      "name": "Langchain Architecture",
+      "description": "Design LLM applications using the LangChain framework with agents, memory, and tool integration patterns. Use when building LangChain applications, implementing AI agents, or creating complex LLM workflows.",
+      "instructionsPath": "skills/langchain-architecture.md"
+    },
+    {
+      "id": "llm-evaluation",
+      "name": "Llm Evaluation",
+      "description": "Implement comprehensive evaluation strategies for LLM applications using automated metrics, human feedback, and benchmarking. Use when testing LLM performance, measuring AI application quality, or establishing evaluation frameworks.",
+      "instructionsPath": "skills/llm-evaluation.md"
+    },
+    {
+      "id": "prompt-engineering-patterns",
+      "name": "Prompt Engineering Patterns",
+      "description": "Master advanced prompt engineering techniques to maximize LLM performance, reliability, and controllability in production. Use when optimizing prompts, improving LLM outputs, or designing production prompt templates.",
+      "instructionsPath": "skills/prompt-engineering-patterns.md"
+    },
+    {
+      "id": "rag-implementation",
+      "name": "Rag Implementation",
+      "description": "Build Retrieval-Augmented Generation (RAG) systems for LLM applications with vector databases and semantic search. Use when implementing knowledge-grounded AI, building document Q&A systems, or integrating LLMs with external knowledge bases.",
+      "instructionsPath": "skills/rag-implementation.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "ai-assistant",
+      "name": "AI Assistant Development",
+      "description": "You are an AI assistant development expert specializing in creating intelligent conversational interfaces, chatbots, and AI-powered applications. Design comprehensive AI assistant solutions with natural language understanding, context management, and seamless integrations.",
+      "instructionsPath": "commands/ai-assistant.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "langchain-agent",
+      "name": "LangChain/LangGraph Agent Development Expert",
+      "description": "You are an expert LangChain agent developer specializing in production-grade AI systems using LangChain 0.1+ and LangGraph.",
+      "instructionsPath": "commands/langchain-agent.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "prompt-optimize",
+      "name": "Prompt Optimization",
+      "description": "You are an expert prompt engineer specializing in crafting effective prompts for LLMs through advanced techniques including constitutional AI, chain-of-thought reasoning, and model-specific optimization.",
+      "instructionsPath": "commands/prompt-optimize.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "database-migrations",
+  "name": "Database Migrations",
+  "description": "Database migration automation",
+  "category": "Database",
+  "agents": [
+    {
+      "id": "database-admin",
+      "name": "Database Admin",
+      "description": "Expert database administrator specializing in modern cloud databases, automation, and reliability engineering. Masters AWS/Azure/GCP database services, Infrastructure as Code, high availability, disaster recovery, performance optimization, and compliance. Handles multi-cloud strategies, container databases, and cost optimization. Use PROACTIVELY for database architecture, operations, or reliability engineering.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/database-admin.md",
+      "defaultSkills": [],
+      "defaultCommand": "migration-observability"
+    },
+    {
+      "id": "database-optimizer",
+      "name": "Database Optimizer",
+      "description": "Expert database optimizer specializing in modern performance tuning, query optimization, and scalable architectures. Masters advanced indexing, N+1 resolution, multi-tier caching, partitioning strategies, and cloud database optimization. Handles complex query analysis, migration strategies, and performance monitoring. Use PROACTIVELY for database optimization, performance issues, or scalability challenges.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/database-optimizer.md",
+      "defaultSkills": [],
+      "defaultCommand": "migration-observability"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "migration-observability",
+      "name": "Migration Observability and Real Time Monitoring",
+      "description": "Migration monitoring, CDC, and observability infrastructure",
+      "instructionsPath": "commands/migration-observability.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "sql-migrations",
+      "name": "SQL Database Migration Strategy and Implementation",
+      "description": "SQL database migrations with zero-downtime strategies for PostgreSQL, MySQL, SQL Server",
+      "instructionsPath": "commands/sql-migrations.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "id": "javascript-typescript",
+  "name": "Javascript Typescript",
+  "description": "JavaScript/TypeScript with Node.js",
+  "category": "Languages",
+  "agents": [
+    {
+      "id": "javascript-pro",
+      "name": "Javascript Pro",
+      "description": "Master modern JavaScript with ES6+, async patterns, and Node.js APIs. Handles promises, event loops, and browser/Node compatibility. Use PROACTIVELY for JavaScript optimization, async debugging, or complex JS patterns.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/javascript-pro.md",
+      "defaultSkills": [
+        "javascript-testing-patterns",
+        "modern-javascript-patterns",
+        "nodejs-backend-patterns",
+        "typescript-advanced-types"
+      ],
+      "defaultCommand": "typescript-scaffold"
+    },
+    {
+      "id": "typescript-pro",
+      "name": "Typescript Pro",
+      "description": "Master TypeScript with advanced types, generics, and strict type safety. Handles complex type systems, decorators, and enterprise-grade patterns. Use PROACTIVELY for TypeScript architecture, type inference optimization, or advanced typing patterns.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/typescript-pro.md",
+      "defaultSkills": [
+        "javascript-testing-patterns",
+        "modern-javascript-patterns",
+        "nodejs-backend-patterns",
+        "typescript-advanced-types"
+      ],
+      "defaultCommand": "typescript-scaffold"
+    }
+  ],
+  "skills": [
+    {
+      "id": "javascript-testing-patterns",
+      "name": "Javascript Testing Patterns",
+      "description": "Implement comprehensive testing strategies using Jest, Vitest, and Testing Library for unit tests, integration tests, and end-to-end testing with mocking, fixtures, and test-driven development. Use when writing JavaScript/TypeScript tests, setting up test infrastructure, or implementing TDD/BDD workflows.",
+      "instructionsPath": "skills/javascript-testing-patterns.md"
+    },
+    {
+      "id": "modern-javascript-patterns",
+      "name": "Modern Javascript Patterns",
+      "description": "Master ES6+ features including async/await, destructuring, spread operators, arrow functions, promises, modules, iterators, generators, and functional programming patterns for writing clean, efficient JavaScript code. Use when refactoring legacy code, implementing modern patterns, or optimizing JavaScript applications.",
+      "instructionsPath": "skills/modern-javascript-patterns.md"
+    },
+    {
+      "id": "nodejs-backend-patterns",
+      "name": "Nodejs Backend Patterns",
+      "description": "Build production-ready Node.js backend services with Express/Fastify, implementing middleware patterns, error handling, authentication, database integration, and API design best practices. Use when creating Node.js servers, REST APIs, GraphQL backends, or microservices architectures.",
+      "instructionsPath": "skills/nodejs-backend-patterns.md"
+    },
+    {
+      "id": "typescript-advanced-types",
+      "name": "Typescript Advanced Types",
+      "description": "Master TypeScript's advanced type system including generics, conditional types, mapped types, template literals, and utility types for building type-safe applications. Use when implementing complex type logic, creating reusable type utilities, or ensuring compile-time type safety in TypeScript projects.",
+      "instructionsPath": "skills/typescript-advanced-types.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "typescript-scaffold",
+      "name": "TypeScript Project Scaffolding",
+      "description": "You are a TypeScript project architecture expert specializing in scaffolding production-ready Node.js and frontend applications. Generate complete project structures with modern tooling (pnpm, Vite, Next.js), type safety, testing setup, and configuration following current best practices.",
+      "instructionsPath": "commands/typescript-scaffold.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

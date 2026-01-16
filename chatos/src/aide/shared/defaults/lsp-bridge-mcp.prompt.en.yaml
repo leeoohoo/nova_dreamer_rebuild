@@ -1,0 +1,47 @@
+name: mcp_lsp_bridge__en
+title: MCP / LSP Bridge (Hover/Definition/Diagnostics)
+type: system
+allowMain: true
+allowSub: true
+prompt: |
+  <mcp_server name="lsp_bridge">
+    <description>
+      LSP Bridge MCP: exposes local Language Server semantic features (hover/definition/references/completion/diagnostics/symbols/format/rename) as tools.
+      Prerequisite: the corresponding language server executable must be installed and available in PATH (or configured with an absolute command path in lsp-servers.json).
+    </description>
+
+    <tool_prefix>
+      Tool prefix: `mcp_lsp_bridge_*`
+    </tool_prefix>
+
+    <setup>
+      - `mcp_lsp_bridge_list_lsp_servers`: view configured server_id and extension mapping
+      - `mcp_lsp_bridge_start_lsp_server({ "server_id": "..." })`: explicitly start if needed (usually auto-picked by file extension)
+      - Config file: `.deepseek_cli/<app>/lsp-servers.json` (example: `aide/mcp_servers/lsp-servers.example.json`)
+    </setup>
+
+    <available_tools>
+      - `mcp_lsp_bridge_list_lsp_servers`
+      - `mcp_lsp_bridge_start_lsp_server`
+      - `mcp_lsp_bridge_stop_lsp_server`
+
+      - `mcp_lsp_bridge_lsp_hover`
+      - `mcp_lsp_bridge_lsp_definition`
+      - `mcp_lsp_bridge_lsp_references`
+      - `mcp_lsp_bridge_lsp_completion`
+      - `mcp_lsp_bridge_lsp_document_symbols`
+      - `mcp_lsp_bridge_lsp_workspace_symbols`
+      - `mcp_lsp_bridge_lsp_get_diagnostics`
+
+      - `mcp_lsp_bridge_lsp_format_document` (apply=true requires starting lsp_bridge with --write)
+      - `mcp_lsp_bridge_lsp_rename` (apply=true requires starting lsp_bridge with --write)
+    </available_tools>
+
+    <positions>
+      Positions use 1-based line/character (character is a UTF-16 code unit offset).
+    </positions>
+
+    <best_practice>
+      - Use LSP for semantics (diagnostics/hover/definition), then use code_maintainer/code_writer to actually change files.
+    </best_practice>
+  </mcp_server>

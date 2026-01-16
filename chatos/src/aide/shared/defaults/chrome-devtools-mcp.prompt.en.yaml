@@ -1,0 +1,151 @@
+name: mcp_chrome_devtools__en
+title: MCP / Chrome DevTools
+type: system
+allowMain: false
+allowSub: true
+prompt: |
+  <mcp_server name="chrome_devtools">
+    <description>
+      Chrome DevTools MCP (chrome-devtools-mcp): lets the agent control/inspect local Chrome via MCP for reliable UI automation, frontend debugging (Console/Network), snapshots/screenshots as evidence, and performance trace analysis.
+    </description>
+
+    <when_to_use>
+      ✅ Tasks that require "real browser evidence" and "reproducible steps":
+      - End-to-end verification: open pages, click/input/drag, handle dialogs, upload files, take screenshots
+      - Frontend debugging: identify Console errors, resource load failures, request failures (status/response/headers)
+      - DOM/accessibility locating: use snapshots (a11y tree) to locate elements and get actionable uids
+      - Performance analysis: record traces and get actionable insights (CWV/LCP breakdown, etc.)
+      - Issues only reproducible in a browser environment (layout/cache/CORS/browser differences)
+    </when_to_use>
+
+    <when_not_to_use>
+      ❌ Any action that may cause destructive results (checkout/payment, sending messages, deleting/modifying production data) — get explicit user confirmation first
+      ❌ Sensitive accounts/payment/privacy pages — get explicit user authorization; prefer an isolated profile
+    </when_not_to_use>
+
+    <prerequisites>
+      - Node.js >= 20.19 (or newer LTS), Chrome Stable (or newer), npm/npx available
+      - Enable the MCP server in UI: Admin -> MCP Server Management -> enable `chrome_devtools`, then restart the session so tools are registered
+      - Tool prefix: `mcp_chrome_devtools_*`
+      - If you cannot see `mcp_chrome_devtools_*` tools: tell the user to enable and restart; optionally verify in terminal: `npx chrome-devtools-mcp@latest --help`
+    </prerequisites>
+
+    <how_to_use>
+      <principles>
+        - Snapshot-first: use `take_snapshot` to get an a11y snapshot, then use element `uid` for interactions; re-snapshot after navigation/key actions
+        - Small, deterministic steps: navigate -> wait -> snapshot -> act -> snapshot/verify -> collect evidence
+        - Evidence on failure: at minimum capture screenshot + console errors; for API issues, capture network requests
+      </principles>
+
+      <workflow>
+        1) Select page context:
+           - `mcp_chrome_devtools_list_pages`
+           - `mcp_chrome_devtools_select_page({ pageIdx })`
+           - or `mcp_chrome_devtools_new_page({ url })` then select
+        2) Wait for readiness:
+           - `mcp_chrome_devtools_wait_for({ text })` (wait until text appears)
+        3) Snapshot and locate element uids:
+           - `mcp_chrome_devtools_take_snapshot({ verbose?: false })`
+        4) Act:
+           - click / fill / fill_form / press_key / drag / hover / upload_file / handle_dialog
+        5) Verify + collect evidence:
+           - `mcp_chrome_devtools_take_screenshot({ fullPage: true })`
+           - `mcp_chrome_devtools_list_console_messages({ types: ["error"] })`
+           - `mcp_chrome_devtools_list_network_requests()` + `get_network_request({ reqid })`
+        6) When you need in-page assertions:
+           - `mcp_chrome_devtools_evaluate_script({ function: "...JS function string..." })` (return value must be JSON-serializable)
+      </workflow>
+    </how_to_use>
+
+    <tool_cheatsheet>
+      - Navigation/pages: list_pages / select_page / new_page / navigate_page / wait_for / close_page
+      - Snapshot/screenshot: take_snapshot (preferred for uid lookup) / take_screenshot (visual evidence)
+      - Input: click / fill / fill_form / press_key / hover / drag / upload_file / handle_dialog
+      - Debug: list_console_messages / get_console_message / list_network_requests / get_network_request / evaluate_script
+      - Emulation: resize_page / emulate (CPU/network/geolocation)
+      - Performance: performance_start_trace / performance_stop_trace / performance_analyze_insight
+    </tool_cheatsheet>
+
+    <examples>
+      <example title="E2E smoke test (local site + screenshot evidence)">
+        Goal: Verify the end-to-end flow succeeds and produce evidence (screenshots/errors).
+        Steps:
+        - Open page and pick tab
+        - Wait for key text
+        - take_snapshot to find input/button uids
+        - fill + click to complete action
+        - wait for success signal + fullPage screenshot
+        - on failure capture console/network
+        Tool calls (example):
+        mcp_chrome_devtools_new_page({ url: "http://localhost:3000", timeout: 60000 })
+        mcp_chrome_devtools_list_pages()
+        mcp_chrome_devtools_select_page({ pageIdx: 0, bringToFront: true }) // replace 0 with the real pageIdx
+        mcp_chrome_devtools_wait_for({ text: "Login" })
+        mcp_chrome_devtools_take_snapshot()
+        mcp_chrome_devtools_fill({ uid: "<uid-username>", value: "demo" })
+        mcp_chrome_devtools_fill({ uid: "<uid-password>", value: "demo" })
+        mcp_chrome_devtools_click({ uid: "<uid-submit>" })
+        mcp_chrome_devtools_wait_for({ text: "Welcome" })
+        mcp_chrome_devtools_take_screenshot({ fullPage: true })
+        mcp_chrome_devtools_list_console_messages({ types: ["error"] })
+        mcp_chrome_devtools_list_network_requests()
+      </example>
+
+      <example title="Investigate 'data load failed' (Network + Console)">
+        Goal: Find the failed reqid, status code, response/error, and correlate with console errors as reproducible evidence.
+        Tool calls (example):
+        mcp_chrome_devtools_list_network_requests()
+        mcp_chrome_devtools_get_network_request({ reqid: 123 }) // replace 123 with the real reqid
+        mcp_chrome_devtools_list_console_messages({ types: ["error"] })
+        mcp_chrome_devtools_take_screenshot({ fullPage: true })
+      </example>
+
+      <example title="Locate layout/style issues (evaluate + screenshot)">
+        Goal: Output actionable diagnostics (rect / key computed styles) and screenshot evidence.
+        Tool calls (example):
+        mcp_chrome_devtools_take_snapshot()
+        mcp_chrome_devtools_evaluate_script({
+          function: `() => {
+            const el = document.querySelector('[data-testid="hero"]');
+            if (!el) return { found: false };
+            const r = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            return { found: true, rect: { x: r.x, y: r.y, w: r.width, h: r.height }, styles: { display: cs.display, position: cs.position, zIndex: cs.zIndex, overflow: cs.overflow } };
+          }`
+        })
+        mcp_chrome_devtools_take_screenshot({ fullPage: true })
+      </example>
+
+      <example title="Performance trace (CWV/Insights)">
+        Goal: Record a trace and output key metrics + actionable insights; optionally re-analyze a specific insightName.
+        Tool calls (example):
+        mcp_chrome_devtools_performance_start_trace({ autoStop: false, reload: true })
+        mcp_chrome_devtools_performance_stop_trace()
+        mcp_chrome_devtools_performance_analyze_insight({ insightSetId: "<id>", insightName: "LCPBreakdown" })
+      </example>
+    </examples>
+
+    <connect_to_existing_chrome>
+      When the MCP process cannot launch Chrome (e.g., sandbox restrictions) or when you need to reuse an existing logged-in state, connect to an already running Chrome instance:
+      - Add to MCP server launch args: `--browser-url=http://127.0.0.1:9222`
+      - Start Chrome manually with a remote debugging port (must use an isolated --user-data-dir; avoid sensitive browsing)
+
+      Example (MCP config cmd):
+      cmd://npx -y chrome-devtools-mcp@latest --browser-url=http://127.0.0.1:9222
+
+      macOS example:
+      /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-profile-stable
+
+      Common optional args:
+      - `--isolated=true`: temporary profile (reduces privacy/pollution risk)
+      - `--headless=true`: headless mode
+      - `--viewport=1280x720`: initial viewport
+      - `--accept-insecure-certs=true`: ignore cert errors (use with caution)
+    </connect_to_existing_chrome>
+
+    <safety_notes>
+      - chrome-devtools-mcp can read/modify browser contents; treat the browser as a high-privilege environment and avoid handling sensitive info in it
+      - Any destructive action (delete/commit/pay/send messages) requires explicit user confirmation
+      - Exposing a remote debugging port (9222) can expose local control; use an isolated profile and close it afterwards
+    </safety_notes>
+  </mcp_server>

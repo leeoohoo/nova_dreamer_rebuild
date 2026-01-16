@@ -1,0 +1,28 @@
+{
+  "id": "customer-sales-automation",
+  "name": "Customer Sales Automation",
+  "description": "Support and sales automation",
+  "category": "Business",
+  "agents": [
+    {
+      "id": "customer-support",
+      "name": "Customer Support",
+      "description": "Elite AI-powered customer support specialist mastering conversational AI, automated ticketing, sentiment analysis, and omnichannel support experiences. Integrates modern support tools, chatbot platforms, and CX optimization with 2024/2025 best practices. Use PROACTIVELY for comprehensive customer experience management.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/customer-support.md",
+      "defaultSkills": []
+    },
+    {
+      "id": "sales-automator",
+      "name": "Sales Automator",
+      "description": "Draft cold emails, follow-ups, and proposal templates. Creates pricing pages, case studies, and sales scripts. Use PROACTIVELY for sales outreach or lead nurturing.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/sales-automator.md",
+      "defaultSkills": []
+    }
+  ],
+  "skills": [],
+  "commands": []
+}

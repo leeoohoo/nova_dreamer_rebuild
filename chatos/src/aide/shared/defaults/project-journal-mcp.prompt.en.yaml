@@ -1,0 +1,89 @@
+name: mcp_project_journal__en
+title: MCP / Project Journal
+type: system
+allowMain: true
+allowSub: true
+prompt: |
+  <mcp_server name="project_journal">
+    <description>
+      Project Journal MCP provides two capabilities for the current project:
+      1) Execution logs: record what was done, which files changed, key highlights, and next steps.
+      2) Project info: store relatively stable notes (background, summary, git URL, main config, iteration notes).
+    </description>
+
+    <tool_prefix>
+      Tool prefix: `mcp_project_journal_*`
+    </tool_prefix>
+
+    <when_to_use>
+      - At the start of a new session: call `mcp_project_journal_get_project_info` + `mcp_project_journal_list_exec_logs({limit: 5})` to quickly restore context.
+      - First use / missing info: if get_project_info returns empty summary/gitUrl/mainConfig, prefer `mcp_project_journal_set_project_info` (ask the user if needed).
+      - After completing a deliverable change: call `mcp_project_journal_add_exec_log` to record the work (recommended as a closing step).
+      - When you need to recall prior work: list_exec_logs / search_exec_logs / get_exec_log.
+      - When project info changes (repo migration, major config changes, new iteration): set_project_info or add_project_iteration.
+    </when_to_use>
+
+    <how_to_use>
+      <principles>
+        - Title: default title is generated as `<timestamp> #tag1 #tag2`; tags help search and grouping.
+        - One log per task/PR/fix: keep entries granular and clear.
+        - Result-first: summary should start with what was delivered, then add key details/impact.
+        - Files should be navigable: list relative paths (added/modified/deleted) so they can be opened quickly.
+        - Next steps should be actionable: short, concrete actions (avoid vague statements).
+      </principles>
+
+      <recommended_tags>
+        - Work type: `feat` / `fix` / `refactor` / `docs` / `test` / `chore`
+        - Module: `cli` / `ui` / `mcp` / `storage` / `auth` / `build` (adapt to your project)
+        - Examples: `fix ui`, `feat mcp`, `refactor storage`
+      </recommended_tags>
+    </how_to_use>
+
+    <examples>
+      <example title="Record an execution log">
+        mcp_project_journal_add_exec_log({
+          "tag": "feat",
+          "tags": ["mcp", "logging"],
+          "summary": "Added a Project Journal MCP server and registered it in default MCP config.",
+          "files": [
+            "mcp_servers/project-journal-server.js",
+            "shared/defaults/mcp.config.json",
+            "shared/defaults/project-journal-mcp.prompt.en.yaml"
+          ],
+          "highlights": [
+            "Supports adding/querying exec logs (timestamp + tags)",
+            "Supports storing project info and iteration entries"
+          ],
+          "next_steps": ["Restart session so MCP tools are registered", "Fill in project info at the start of the project"]
+        })
+      </example>
+
+      <example title="Session start: restore context">
+        mcp_project_journal_get_project_info()
+        mcp_project_journal_list_exec_logs({ "limit": 5 })
+      </example>
+
+      <example title="Search historical execution logs">
+        mcp_project_journal_search_exec_logs({ "query": "mcp", "limit": 20 })
+        mcp_project_journal_search_exec_logs({ "tag": "fix", "query": "crash", "limit": 20 })
+      </example>
+
+      <example title="Set/update project info (merge update; does not clear unspecified fields)">
+        mcp_project_journal_set_project_info({
+          "summary": "A terminal AI chat client for multiple models (with an Electron UI).",
+          "background": "Used for local development and debugging: MCP servers + sub-agents + UI floating-island prompts.",
+          "git_url": "https://example.com/your/repo.git",
+          "main_config": "Key paths: src/cli.js, electron/main.js, shared/defaults/mcp.config.json",
+          "notes": "Put relatively stable notes here."
+        })
+      </example>
+
+      <example title="Append an iteration entry">
+        mcp_project_journal_add_project_iteration({
+          "title": "v0.1.x: improve MCP and prompts",
+          "summary": "Added project journaling and refined default prompts.",
+          "tags": ["mcp", "prompt"]
+        })
+      </example>
+    </examples>
+  </mcp_server>

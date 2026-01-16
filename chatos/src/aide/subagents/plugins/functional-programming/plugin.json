@@ -1,0 +1,19 @@
+{
+  "id": "functional-programming",
+  "name": "Functional Programming",
+  "description": "Elixir with OTP and Phoenix",
+  "category": "Languages",
+  "agents": [
+    {
+      "id": "elixir-pro",
+      "name": "Elixir Pro",
+      "description": "Write idiomatic Elixir code with OTP patterns, supervision trees, and Phoenix LiveView. Masters concurrency, fault tolerance, and distributed systems. Use PROACTIVELY for Elixir refactoring, OTP design, or complex BEAM optimizations.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/elixir-pro.md",
+      "defaultSkills": []
+    }
+  ],
+  "skills": [],
+  "commands": []
+}

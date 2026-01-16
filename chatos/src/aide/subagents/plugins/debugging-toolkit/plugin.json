@@ -1,0 +1,38 @@
+{
+  "id": "debugging-toolkit",
+  "name": "Debugging Toolkit",
+  "description": "Interactive debugging and DX optimization",
+  "category": "Development",
+  "agents": [
+    {
+      "id": "debugger",
+      "name": "Debugger",
+      "description": "Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/debugger.md",
+      "defaultSkills": [],
+      "defaultCommand": "smart-debug"
+    },
+    {
+      "id": "dx-optimizer",
+      "name": "Dx Optimizer",
+      "description": "Developer Experience specialist. Improves tooling, setup, and workflows. Use PROACTIVELY when setting up new projects, after team feedback, or when development friction is noticed.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/dx-optimizer.md",
+      "defaultSkills": [],
+      "defaultCommand": "smart-debug"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "smart-debug",
+      "name": "Smart Debug",
+      "description": "You are an expert AI-assisted debugging specialist with deep knowledge of modern debugging tools, observability platforms, and automated root cause analysis.",
+      "instructionsPath": "commands/smart-debug.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

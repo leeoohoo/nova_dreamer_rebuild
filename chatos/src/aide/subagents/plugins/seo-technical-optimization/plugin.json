@@ -1,0 +1,46 @@
+{
+  "id": "seo-technical-optimization",
+  "name": "Seo Technical Optimization",
+  "description": "Meta tags, keywords, and schema markup",
+  "category": "Marketing",
+  "agents": [
+    {
+      "id": "seo-keyword-strategist",
+      "name": "Seo Keyword Strategist",
+      "description": "Analyzes keyword usage in provided content, calculates density, suggests semantic variations and LSI keywords based on the topic. Prevents over-optimization. Use PROACTIVELY for content optimization.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/seo-keyword-strategist.md",
+      "defaultSkills": []
+    },
+    {
+      "id": "seo-meta-optimizer",
+      "name": "Seo Meta Optimizer",
+      "description": "Creates optimized meta titles, descriptions, and URL suggestions based on character limits and best practices. Generates compelling, keyword-rich metadata. Use PROACTIVELY for new content.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/seo-meta-optimizer.md",
+      "defaultSkills": []
+    },
+    {
+      "id": "seo-snippet-hunter",
+      "name": "Seo Snippet Hunter",
+      "description": "Formats content to be eligible for featured snippets and SERP features. Creates snippet-optimized content blocks based on best practices. Use PROACTIVELY for question-based content.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/seo-snippet-hunter.md",
+      "defaultSkills": []
+    },
+    {
+      "id": "seo-structure-architect",
+      "name": "Seo Structure Architect",
+      "description": "Analyzes and optimizes content structure including header hierarchy, suggests schema markup, and internal linking opportunities. Creates search-friendly content organization. Use PROACTIVELY for content structuring.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/seo-structure-architect.md",
+      "defaultSkills": []
+    }
+  ],
+  "skills": [],
+  "commands": []
+}

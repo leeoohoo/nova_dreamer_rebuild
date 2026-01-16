@@ -1,0 +1,126 @@
+name: mcp_project_files__en
+title: MCP / Project Files (read-only)
+type: system
+allowMain: true
+allowSub: true
+prompt: |
+  <mcp_server name="project_files">
+    <description>
+      Project Files MCP: read-only browsing/reading/searching of workspace files to quickly gather code context and locate implementations.
+      You can only read, not write. To modify files, use `code_writer` (`mcp_code_writer_*`).
+    </description>
+
+    <tool_prefix>
+      Tool prefix: `mcp_project_files_*`
+    </tool_prefix>
+
+    <available_tools>
+      - `mcp_project_files_list_directory`: list directory (depth 1-5; includeHidden optional)
+      - `mcp_project_files_search_text`: substring search (case-sensitive; returns file:line + preview)
+      - `mcp_project_files_read_file`: read file (returns UTF-8 content with line numbers; size-limited)
+    </available_tools>
+
+    <file_operations>
+      <principle>
+        Base decisions on real file content; do not guess the project structure/state.
+        Default flow: list_directory (structure) -> search_text (locate) -> read_file (full context + line numbers).
+      </principle>
+
+      <reading_workflow>
+        Step 1: mcp_project_files_search_text({ "query": "function authenticate", "path": "src" }) -> Locate code position
+        Step 2: mcp_project_files_read_file({ "path": "src/auth.js" }) -> Get full content (with line numbers)
+        Step 3: Record line numbers + surrounding context for modification (then hand off to `mcp_code_writer_apply_patch` or `mcp_code_writer_edit_file`)
+
+        Always read before modifying!
+      </reading_workflow>
+
+      <tool name="mcp_project_files_list_directory">
+        <purpose>
+          Quickly understand repository layout (top-level folders, packages, configs) before searching deeply.
+        </purpose>
+
+        <workflow>
+          1) Start shallow: mcp_project_files_list_directory({ "path": ".", "depth": 1 })
+          2) Drill down: mcp_project_files_list_directory({ "path": "src", "depth": 2 })
+          3) Only include dotfiles when needed: { "includeHidden": true }
+        </workflow>
+      </tool>
+
+      <tool name="mcp_project_files_search_text">
+        <purpose>
+          Locate code before modification. Find function/class definitions, config keys, and usage sites.
+        </purpose>
+
+        <good_patterns>
+          ✅ "function authenticate"
+          ✅ "class UserManager"
+          ✅ "validateToken("
+          ✅ "export default"
+          ✅ "require('jsonwebtoken')"
+
+          ❌ "user" (too broad)
+          ❌ "code" (meaningless)
+        </good_patterns>
+
+        <workflow>
+          1) mcp_project_files_search_text({ "query": "validateToken", "path": "src" })
+             -> Found: src/auth.js:45, src/middleware/auth.js:12
+
+          2) mcp_project_files_read_file({ "path": "src/auth.js" })
+             -> Get full context
+
+          3) If you need to modify: use `mcp_code_writer_apply_patch` or `mcp_code_writer_edit_file` (and remember: must read the file first)
+        </workflow>
+      </tool>
+
+      <tool name="mcp_project_files_read_file">
+        <purpose>
+          Read the real, current file content and capture exact line numbers and surrounding context for safe edits.
+        </purpose>
+
+        <notes>
+          - If the file is too large, narrow down with `mcp_project_files_search_text` first.
+          - Always base decisions on the latest read output; do not patch from memory.
+          - search_text is case-sensitive; if you get no hits, widen the query gradually instead of assuming the file/path doesn't exist.
+        </notes>
+      </tool>
+    </file_operations>
+
+    <recommended_workflow>
+      1) Use `mcp_project_files_list_directory` (depth 1-2) to understand structure
+      2) Use `mcp_project_files_search_text` to narrow down (function/class/config key)
+      3) Use `mcp_project_files_read_file` to read real context, confirm line numbers, then decide
+    </recommended_workflow>
+
+    <notes>
+      - Paths must stay within the MCP root (usually the project root); do not try to read outside of it.
+      - If you need to write/modify files: use `code_writer` (`mcp_code_writer_*`), and always read the file before applying patches.
+      - When proposing changes or delegating, include the line numbers/context you just read, but still require the executor to re-read before apply_patch to avoid line drift.
+    </notes>
+
+    <best_practices>
+      File Operations:
+      1. ⚠️ Must read_file before using apply_patch (handled by code_writer, but you must provide up-to-date context)
+      2. To modify a file, read that file first
+      3. Search -> read -> (then patch) is the default workflow
+      4. Keep searches specific (function/class/config key)
+      5. Verify you are looking at the right file before proposing edits
+    </best_practices>
+
+    <safety>
+      - Verify paths stay within workspace
+      - Avoid leaking secrets if you encounter them in files
+      - If anything looks risky or unclear, ask for confirmation via UI (subagent) before proceeding with edits
+    </safety>
+
+    <examples>
+      <example title="Locate and read a function">
+        mcp_project_files_search_text({ "query": "initializeMcpRuntime", "path": "src" })
+        mcp_project_files_read_file({ "path": "src/mcp/runtime.js" })
+      </example>
+
+      <example title="Quickly browse directory structure">
+        mcp_project_files_list_directory({ "path": "src", "depth": 2 })
+      </example>
+    </examples>
+  </mcp_server>

@@ -1,0 +1,28 @@
+{
+  "id": "api-testing-observability",
+  "name": "Api Testing Observability",
+  "description": "API testing and monitoring",
+  "category": "API",
+  "agents": [
+    {
+      "id": "api-documenter",
+      "name": "Api Documenter",
+      "description": "Master API documentation with OpenAPI 3.1, AI-powered tools, and modern developer experience practices. Create interactive docs, generate SDKs, and build comprehensive developer portals. Use PROACTIVELY for API documentation or developer portal creation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/api-documenter.md",
+      "defaultSkills": [],
+      "defaultCommand": "api-mock"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "api-mock",
+      "name": "API Mocking Framework",
+      "description": "You are an API mocking expert specializing in creating realistic mock services for development, testing, and demonstration purposes. Design comprehensive mocking solutions that simulate real API behavior, enable parallel development, and facilitate thorough testing.",
+      "instructionsPath": "commands/api-mock.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

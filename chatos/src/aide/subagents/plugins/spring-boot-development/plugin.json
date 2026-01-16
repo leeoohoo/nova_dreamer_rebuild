@@ -1,0 +1,60 @@
+{
+  "id": "spring-boot-development",
+  "name": "Spring Boot Development",
+  "description": "Spring Boot backend toolkit with architecture and coding agents.",
+  "category": "language",
+  "agents": [
+    {
+      "id": "spring-architect",
+      "name": "Spring Architect",
+      "model": "glm-4.7",
+      "reasoning": true,
+      "description": "Designs Spring Boot project structure, tech choices, and dependency management.",
+      "systemPromptPath": "agents/spring-architect.md",
+      "defaultSkills": [
+        "spring-boot-best-practices"
+      ],
+      "skills": [
+        "spring-boot-best-practices",
+        "spring-data-jpa",
+        "spring-web-mvc"
+      ]
+    },
+    {
+      "id": "spring-coder",
+      "name": "Spring Developer",
+      "model": "glm-4.7",
+      "description": "Implements controllers/services/repositories and unit tests.",
+      "systemPromptPath": "agents/spring-coder.md",
+      "defaultSkills": [
+        "spring-web-mvc",
+        "spring-data-jpa"
+      ],
+      "skills": [
+        "spring-web-mvc",
+        "spring-data-jpa",
+        "spring-boot-best-practices"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "spring-web-mvc",
+      "name": "Spring Web MVC",
+      "description": "RESTful API design, Controller Advice, DTO patterns.",
+      "instructionsPath": "skills/spring-web-mvc.md"
+    },
+    {
+      "id": "spring-data-jpa",
+      "name": "Spring Data JPA",
+      "description": "Entity design, Repository interfaces, transaction management, Hibernate best practices.",
+      "instructionsPath": "skills/spring-data-jpa.md"
+    },
+    {
+      "id": "spring-boot-best-practices",
+      "name": "Spring Boot Best Practices",
+      "description": "Layered architecture, configuration (application.yml), dependency injection norms.",
+      "instructionsPath": "skills/spring-boot-best-practices.md"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "frontend-react",
+  "name": "Frontend React",
+  "description": "React/TypeScript architecture and delivery agent bundle.",
+  "category": "frontend",
+  "agents": [
+    {
+      "id": "react-architect",
+      "name": "React Architect",
+      "model": "glm-4.7",
+      "reasoning": true,
+      "description": "Owns frontend architecture, tech choices, state management, and routing.",
+      "systemPromptPath": "agents/react-architect.md",
+      "defaultSkills": [
+        "react-best-practices"
+      ],
+      "skills": [
+        "react-best-practices",
+        "react-routing",
+        "react-state-management"
+      ]
+    },
+    {
+      "id": "react-coder",
+      "name": "React Developer",
+      "model": "glm-4.7",
+      "description": "Delivers components/pages, API wiring, and unit tests.",
+      "systemPromptPath": "agents/react-coder.md",
+      "defaultSkills": [
+        "react-best-practices",
+        "react-routing"
+      ],
+      "skills": [
+        "react-best-practices",
+        "react-routing",
+        "react-state-management"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "react-best-practices",
+      "name": "React Best Practices",
+      "description": "Component patterns, hooks conventions, typing and testing practices.",
+      "instructionsPath": "skills/react-best-practices.md"
+    },
+    {
+      "id": "react-routing",
+      "name": "React Routing",
+      "description": "Routing design, nested routes, guards, and lazy-loading strategy.",
+      "instructionsPath": "skills/react-routing.md"
+    },
+    {
+      "id": "react-state-management",
+      "name": "State Management",
+      "description": "Choosing/combining Zustand/Redux/Context; data flow and performance trade-offs.",
+      "instructionsPath": "skills/react-state-management.md"
+    }
+  ]
+}

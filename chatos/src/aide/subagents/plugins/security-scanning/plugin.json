@@ -1,0 +1,51 @@
+{
+  "id": "security-scanning",
+  "name": "Security Scanning",
+  "description": "SAST analysis and vulnerability scanning",
+  "category": "Security",
+  "agents": [
+    {
+      "id": "security-auditor",
+      "name": "Security Auditor",
+      "description": "Expert security auditor specializing in DevSecOps, comprehensive cybersecurity, and compliance frameworks. Masters vulnerability assessment, threat modeling, secure authentication (OAuth2/OIDC), OWASP standards, cloud security, and security automation. Handles DevSecOps integration, compliance (GDPR/HIPAA/SOC2), and incident response. Use PROACTIVELY for security audits, DevSecOps, or compliance implementation.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/security-auditor.md",
+      "defaultSkills": [
+        "sast-configuration"
+      ],
+      "defaultCommand": "security-dependencies"
+    }
+  ],
+  "skills": [
+    {
+      "id": "sast-configuration",
+      "name": "Sast Configuration",
+      "description": "Configure Static Application Security Testing (SAST) tools for automated vulnerability detection in application code. Use when setting up security scanning, implementing DevSecOps practices, or automating code vulnerability detection.",
+      "instructionsPath": "skills/sast-configuration.md"
+    }
+  ],
+  "commands": [
+    {
+      "id": "security-dependencies",
+      "name": "Dependency Vulnerability Scanning",
+      "description": "You are a security expert specializing in dependency vulnerability analysis, SBOM generation, and supply chain security. Scan project dependencies across multiple ecosystems to identify vulnerabilities, assess risks, and provide automated remediation strategies.",
+      "instructionsPath": "commands/security-dependencies.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "security-hardening",
+      "name": "Security Hardening",
+      "description": "Implement comprehensive security hardening with defense-in-depth strategy through coordinated multi-agent orchestration:",
+      "instructionsPath": "commands/security-hardening.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "security-sast",
+      "name": "SAST Security Plugin",
+      "description": "Static Application Security Testing (SAST) for code vulnerability analysis across multiple languages and frameworks",
+      "instructionsPath": "commands/security-sast.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

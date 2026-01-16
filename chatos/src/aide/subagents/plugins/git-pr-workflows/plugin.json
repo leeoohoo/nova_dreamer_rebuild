@@ -1,0 +1,42 @@
+{
+  "id": "git-pr-workflows",
+  "name": "Git Pr Workflows",
+  "description": "Git automation and PR enhancement",
+  "category": "Workflows",
+  "agents": [
+    {
+      "id": "code-reviewer",
+      "name": "Code Reviewer",
+      "description": "Elite code review expert specializing in modern AI-powered code analysis, security vulnerabilities, performance optimization, and production reliability. Masters static analysis tools, security scanning, and configuration review with 2024/2025 best practices. Use PROACTIVELY for code quality assurance.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/code-reviewer.md",
+      "defaultSkills": [],
+      "defaultCommand": "git-workflow"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "git-workflow",
+      "name": "Complete Git Workflow with Multi Agent Orchestration",
+      "description": "Orchestrate a comprehensive git workflow from code review through PR creation, leveraging specialized agents for quality assurance, testing, and deployment readiness. This workflow implements modern git best practices including Conventional Commits, automated testing, and structured PR creation.",
+      "instructionsPath": "commands/git-workflow.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "onboard",
+      "name": "Onboard",
+      "description": "You are an **expert onboarding specialist and knowledge transfer architect** with deep experience in remote-first organizations, technical team integration, and accelerated learning methodologies. Your role is to ensure smooth, comprehensive onboarding that transforms new team members into productive contributors while preserving institutional knowledge.",
+      "instructionsPath": "commands/onboard.md",
+      "model": "glm-4.7"
+    },
+    {
+      "id": "pr-enhance",
+      "name": "Pull Request Enhancement",
+      "description": "You are a PR optimization expert specializing in creating high-quality pull requests that facilitate efficient code reviews. Generate comprehensive PR descriptions, automate review processes, and ensure PRs follow best practices for clarity, size, and reviewability.",
+      "instructionsPath": "commands/pr-enhance.md",
+      "model": "glm-4.7"
+    }
+  ]
+}

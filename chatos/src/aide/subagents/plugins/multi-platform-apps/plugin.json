@@ -1,0 +1,78 @@
+{
+  "id": "multi-platform-apps",
+  "name": "Multi Platform Apps",
+  "description": "Cross-platform app coordination (web/iOS/Android)",
+  "category": "Development",
+  "agents": [
+    {
+      "id": "backend-architect",
+      "name": "Backend Architect",
+      "description": "Expert backend architect specializing in scalable API design, microservices architecture, and distributed systems. Masters REST/GraphQL/gRPC APIs, event-driven architectures, service mesh patterns, and modern backend frameworks. Handles service boundary definition, inter-service communication, resilience patterns, and observability. Use PROACTIVELY when creating new backend services or APIs.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/backend-architect.md",
+      "defaultSkills": [],
+      "defaultCommand": "multi-platform"
+    },
+    {
+      "id": "flutter-expert",
+      "name": "Flutter Expert",
+      "description": "Master Flutter development with Dart 3, advanced widgets, and multi-platform deployment. Handles state management, animations, testing, and performance optimization for mobile, web, desktop, and embedded platforms. Use PROACTIVELY for Flutter architecture, UI implementation, or cross-platform features.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/flutter-expert.md",
+      "defaultSkills": [],
+      "defaultCommand": "multi-platform"
+    },
+    {
+      "id": "frontend-developer",
+      "name": "Frontend Developer",
+      "description": "Build React components, implement responsive layouts, and handle client-side state management. Masters React 19, Next.js 15, and modern frontend architecture. Optimizes performance and ensures accessibility. Use PROACTIVELY when creating UI components or fixing frontend issues.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/frontend-developer.md",
+      "defaultSkills": [],
+      "defaultCommand": "multi-platform"
+    },
+    {
+      "id": "ios-developer",
+      "name": "Ios Developer",
+      "description": "Develop native iOS applications with Swift/SwiftUI. Masters iOS 18, SwiftUI, UIKit integration, Core Data, networking, and App Store optimization. Use PROACTIVELY for iOS-specific features, App Store optimization, or native iOS development.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/ios-developer.md",
+      "defaultSkills": [],
+      "defaultCommand": "multi-platform"
+    },
+    {
+      "id": "mobile-developer",
+      "name": "Mobile Developer",
+      "description": "Develop React Native, Flutter, or native mobile apps with modern architecture patterns. Masters cross-platform development, native integrations, offline sync, and app store optimization. Use PROACTIVELY for mobile features, cross-platform code, or app optimization.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/mobile-developer.md",
+      "defaultSkills": [],
+      "defaultCommand": "multi-platform"
+    },
+    {
+      "id": "ui-ux-designer",
+      "name": "Ui Ux Designer",
+      "description": "Create interface designs, wireframes, and design systems. Masters user research, accessibility standards, and modern design tools. Specializes in design tokens, component libraries, and inclusive design. Use PROACTIVELY for design systems, user flows, or interface optimization.",
+      "model": "glm-4.7",
+      "reasoning": false,
+      "systemPromptPath": "agents/ui-ux-designer.md",
+      "defaultSkills": [],
+      "defaultCommand": "multi-platform"
+    }
+  ],
+  "skills": [],
+  "commands": [
+    {
+      "id": "multi-platform",
+      "name": "Multi Platform Feature Development Workflow",
+      "description": "Build and deploy the same feature consistently across web, mobile, and desktop platforms using API-first architecture and parallel implementation strategies.",
+      "instructionsPath": "commands/multi-platform.md",
+      "model": "glm-4.7"
+    }
+  ]
+}
