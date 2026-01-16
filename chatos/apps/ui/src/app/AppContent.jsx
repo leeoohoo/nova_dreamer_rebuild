@@ -1,17 +1,13 @@
 import React from 'react';
 
 import {
-  McpServersManager,
   LspServersManager,
   ModelsManager,
   SecretsManager,
-  PromptsManager,
   SubagentsManager,
 } from '../features/admin/AdminManagers.jsx';
 import { ChatView } from '../features/chat/ChatView.jsx';
 import { ChatAgentsView } from '../features/chat/ChatAgentsView.jsx';
-import { ChatMcpServersView } from '../features/chat/ChatMcpServersView.jsx';
-import { ChatPromptsView } from '../features/chat/ChatPromptsView.jsx';
 import { AppsHubView } from '../features/apps/AppsHubView.jsx';
 import { AppsPluginView } from '../features/apps/AppsPluginView.jsx';
 import { ConfigManagerPage } from '../features/configs/ConfigManagerPage.jsx';
@@ -22,10 +18,8 @@ export function AppContent({
   loading,
   modelActions,
   secretsActions,
-  mcpActions,
   subagentActions,
   onSetSubagentModel,
-  promptActions,
   developerMode = false,
   onNavigate,
 }) {
@@ -65,19 +59,6 @@ export function AppContent({
         />
       );
     }
-    if (currentMenu === 'admin/mcp') {
-      return (
-        <McpServersManager
-          data={admin?.mcpServers}
-          prompts={admin?.prompts}
-          onCreate={mcpActions?.create}
-          onUpdate={mcpActions?.update}
-          onDelete={mcpActions?.delete}
-          loading={loading}
-          developerMode={developerMode}
-        />
-      );
-    }
     if (currentMenu === 'admin/subagents') {
       return (
         <SubagentsManager
@@ -89,19 +70,6 @@ export function AppContent({
           onInstallPlugin={subagentActions?.installPlugin}
           onUninstallPlugin={subagentActions?.uninstallPlugin}
           onSetModel={onSetSubagentModel}
-          loading={loading}
-          developerMode={developerMode}
-        />
-      );
-    }
-    if (currentMenu === 'admin/prompts') {
-      return (
-        <PromptsManager
-          data={admin?.prompts}
-          mcpServers={admin?.mcpServers}
-          onCreate={promptActions?.create}
-          onUpdate={promptActions?.update}
-          onDelete={promptActions?.delete}
           loading={loading}
           developerMode={developerMode}
         />
@@ -127,22 +95,6 @@ export function AppContent({
     return (
       <div style={{ flex: 1, minHeight: 0 }}>
         <ChatAgentsView admin={admin} />
-      </div>
-    );
-  }
-
-  if (currentMenu === 'chat/mcp') {
-    return (
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <ChatMcpServersView />
-      </div>
-    );
-  }
-
-  if (currentMenu === 'chat/prompts') {
-    return (
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <ChatPromptsView />
       </div>
     );
   }
