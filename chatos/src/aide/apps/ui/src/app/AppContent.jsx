@@ -92,7 +92,6 @@ export function AppContent({
       return (
         <PromptsManager
           data={admin?.prompts}
-          mcpServers={admin?.mcpServers}
           onCreate={promptActions?.create}
           onUpdate={promptActions?.update}
           onDelete={promptActions?.delete}

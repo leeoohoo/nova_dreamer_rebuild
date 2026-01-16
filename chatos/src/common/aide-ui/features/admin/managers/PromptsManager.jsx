@@ -5,56 +5,25 @@ import { EntityManager } from '../../../components/EntityManager.jsx';
 
 const { Paragraph, Text } = Typography;
 
-function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loading, developerMode = false }) {
+function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developerMode = false }) {
   const [restoringId, setRestoringId] = useState(null);
-  const [toggling, setToggling] = useState(null);
   const [showBuiltins, setShowBuiltins] = useState(false);
-  const isMcpPromptName = useCallback((value) => {
-    const name = String(value || '').trim().toLowerCase();
-    return name.startsWith('mcp_');
-  }, []);
-  const normalizeServerName = useCallback(
-    (value) =>
-      String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9_-]+/g, '_')
-        .replace(/^_+|_+$/g, ''),
-    []
-  );
-  const mcpServerMap = useMemo(() => {
-    const map = new Map();
-    (Array.isArray(mcpServers) ? mcpServers : []).forEach((srv) => {
-      const key = normalizeServerName(srv?.name);
-      if (!key) return;
-      map.set(key, srv);
-    });
-    return map;
-  }, [mcpServers, normalizeServerName]);
-  const resolveMcpDerivedFlags = useCallback(
-    (record) => {
-      const rawName = String(record?.name || '').trim().toLowerCase();
-      if (!rawName.startsWith('mcp_')) return null;
-      const stripLangSuffix = (value) => String(value || '').replace(/__(zh|en)$/i, '');
-      const serverKey = normalizeServerName(stripLangSuffix(rawName.replace(/^mcp_/, '')));
-      if (!serverKey) return null;
-      const server = mcpServerMap.get(serverKey) || null;
-      if (!server) {
-        return { allowMain: false, allowSub: false, missingServer: true };
-      }
-      const enabled = server.enabled !== false;
-      return {
-        allowMain: enabled && server.allowMain === true,
-        allowSub: enabled && server.allowSub !== false,
-        missingServer: false,
-      };
+  const normalizePromptName = useCallback((value) => String(value || '').trim().toLowerCase(), []);
+  const isMcpPromptName = useCallback(
+    (value) => {
+      const name = normalizePromptName(value);
+      return name.startsWith('mcp_');
     },
-    [mcpServerMap, normalizeServerName]
+    [normalizePromptName]
   );
   const reservedPromptNames = useMemo(
     () =>
       new Set(['internal', 'internal_main', 'internal_subagent', 'default', 'user_prompt', 'subagent_user_prompt']),
     []
+  );
+  const isReservedPromptName = useCallback(
+    (value) => reservedPromptNames.has(normalizePromptName(value)),
+    [normalizePromptName, reservedPromptNames]
   );
   const showLocked = developerMode || showBuiltins;
   const visible = useMemo(() => {
@@ -62,83 +31,22 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
     return list.filter((record) => {
       if (!record || typeof record !== 'object') return false;
       if (isMcpPromptName(record?.name)) return false;
-      if (reservedPromptNames.has(record?.name)) return false;
+      if (isReservedPromptName(record?.name)) return false;
       if (!showLocked && record.builtin) return false;
       if (!showLocked && record.locked) return false;
       return true;
     });
-  }, [data, isMcpPromptName, reservedPromptNames, showLocked]);
-  const isLockedPrompt = (record) => Boolean(record?.locked || reservedPromptNames.has(record?.name));
-  const shouldMaskContent = useCallback((record) => record?.builtin || reservedPromptNames.has(record?.name), [
-    reservedPromptNames,
-  ]);
-  const resolveAllowMain = useCallback(
-    (record) => {
-      const mcpDerived = resolveMcpDerivedFlags(record);
-      if (mcpDerived) return mcpDerived.allowMain;
-      return record?.allowMain === true;
-    },
-    [resolveMcpDerivedFlags]
-  );
-  const resolveAllowSub = useCallback(
-    (record) => {
-      const mcpDerived = resolveMcpDerivedFlags(record);
-      if (mcpDerived) return mcpDerived.allowSub;
-      return record?.allowSub === true;
-    },
-    [resolveMcpDerivedFlags]
-  );
-  const handleToggle = useCallback(
-    async (record, field, checked) => {
-      if (!record?.id) return;
-      try {
-        setToggling({ id: record.id, field });
-        await onUpdate(record.id, { [field]: checked });
-      } catch (err) {
-        message.error(err?.message || '更新失败');
-      } finally {
-        setToggling(null);
-      }
-    },
-    [onUpdate]
+  }, [data, isMcpPromptName, isReservedPromptName, showLocked]);
+  const isLockedPrompt = (record) => Boolean(record?.locked || isReservedPromptName(record?.name));
+  const shouldMaskContent = useCallback(
+    (record) => record?.builtin || isReservedPromptName(record?.name),
+    [isReservedPromptName]
   );
   const columns = useMemo(
     () => [
       { title: '名称', dataIndex: 'name', width: 160 },
       { title: '标题', dataIndex: 'title', width: 180 },
       { title: '类型', dataIndex: 'type', width: 120 },
-      {
-        title: '主代理',
-        dataIndex: 'allowMain',
-        width: 96,
-        render: (_val, record) => {
-          const derived = resolveMcpDerivedFlags(record);
-          return (
-            <Switch
-              checked={resolveAllowMain(record)}
-              onChange={(checked) => handleToggle(record, 'allowMain', checked)}
-              loading={toggling?.id === record.id && toggling?.field === 'allowMain'}
-              disabled={loading || Boolean(derived)}
-            />
-          );
-        },
-      },
-      {
-        title: '子代理',
-        dataIndex: 'allowSub',
-        width: 96,
-        render: (_val, record) => {
-          const derived = resolveMcpDerivedFlags(record);
-          return (
-            <Switch
-              checked={resolveAllowSub(record)}
-              onChange={(checked) => handleToggle(record, 'allowSub', checked)}
-              loading={toggling?.id === record.id && toggling?.field === 'allowSub'}
-              disabled={loading || Boolean(derived)}
-            />
-          );
-        },
-      },
       {
         title: '变量',
         dataIndex: 'variables',
@@ -173,15 +81,7 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
       },
       { title: '更新时间', dataIndex: 'updatedAt', width: 180 },
     ],
-    [
-      handleToggle,
-      loading,
-      resolveMcpDerivedFlags,
-      resolveAllowMain,
-      resolveAllowSub,
-      shouldMaskContent,
-      toggling,
-    ]
+    [shouldMaskContent]
   );
   const handleRestore = async (record) => {
     if (!record?.defaultContent) {
@@ -245,20 +145,6 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
       },
       { name: 'variables', label: '变量', type: 'tags', placeholder: '如 user.name' },
       {
-        name: 'allowMain',
-        label: '主代理使用',
-        type: 'switch',
-        defaultValue: true,
-        extra: '是否在主 agent 会话中注入该 Prompt（仅对 system 类型生效）。',
-      },
-      {
-        name: 'allowSub',
-        label: '子代理使用',
-        type: 'switch',
-        defaultValue: false,
-        extra: '是否在 sub agent 会话中注入该 Prompt（仅对 system 类型生效）。',
-      },
-      {
         name: 'content',
         label: '内容',
         type: 'textarea',
@@ -308,7 +194,7 @@ function PromptsManager({ data, mcpServers, onCreate, onUpdate, onDelete, loadin
       onUpdate={handleUpdate}
       onDelete={onDelete}
       renderActions={(record, { onEdit, onDelete: handleDelete }) => {
-        const reserved = reservedPromptNames.has(record?.name);
+        const reserved = isReservedPromptName(record?.name);
         const disableEdit = Boolean(record.locked || reserved);
         const disableDelete = Boolean(record.locked || record.builtin || reserved);
         const canRestore = record.defaultContent && record.content !== record.defaultContent;
