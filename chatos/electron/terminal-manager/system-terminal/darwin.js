@@ -18,6 +18,27 @@ export const darwinSystemTerminalLauncher = {
       typeof sessionRoot === 'string' && sessionRoot.trim() ? sessionRoot.trim() : process.cwd();
     const resolvedTerminalsDir =
       typeof terminalsDir === 'string' && terminalsDir.trim() ? terminalsDir.trim() : process.cwd();
+    const hostApp = typeof process.env.MODEL_CLI_HOST_APP === 'string' ? process.env.MODEL_CLI_HOST_APP.trim() : '';
+    const hostEnv = hostApp ? `MODEL_CLI_HOST_APP=${escapeShell(hostApp)}` : '';
+
+    const envPrefix = [
+      `MODEL_CLI_SESSION_ROOT=${escapeShell(resolvedSessionRoot)}`,
+      `MODEL_CLI_RUN_ID=${escapeShell(rid)}`,
+      hostEnv,
+      'MODEL_CLI_UI_BRIDGE=1',
+      'MODEL_CLI_DISABLE_INK=1',
+      'ELECTRON_RUN_AS_NODE=1',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const execCmd = [
+      envPrefix,
+      escapeShell(process.execPath),
+      escapeShell(resolvedCliPath),
+      'chat',
+    ]
+      .filter(Boolean)
+      .join(' ');
 
     const scriptPath = path.join(resolvedTerminalsDir, `${rid}.launch.command`);
     const script = [
@@ -26,16 +47,7 @@ export const darwinSystemTerminalLauncher = {
       'pwd',
       `echo ${escapeShell(`[deepseek-cli] runId=${rid}`)}`,
       '',
-      [
-        `MODEL_CLI_SESSION_ROOT=${escapeShell(resolvedSessionRoot)}`,
-        `MODEL_CLI_RUN_ID=${escapeShell(rid)}`,
-        'MODEL_CLI_UI_BRIDGE=1',
-        'MODEL_CLI_DISABLE_INK=1',
-        'ELECTRON_RUN_AS_NODE=1',
-        escapeShell(process.execPath),
-        escapeShell(resolvedCliPath),
-        'chat',
-      ].join(' '),
+      execCmd,
       '',
     ].join('\n');
 
@@ -68,13 +80,7 @@ export const darwinSystemTerminalLauncher = {
       '&&',
       `echo ${escapeShell(`[deepseek-cli] runId=${rid}`)}`,
       '&&',
-      `MODEL_CLI_SESSION_ROOT=${escapeShell(resolvedSessionRoot)}`,
-      `MODEL_CLI_RUN_ID=${escapeShell(rid)}`,
-      'MODEL_CLI_DISABLE_INK=1',
-      'ELECTRON_RUN_AS_NODE=1',
-      escapeShell(process.execPath),
-      escapeShell(resolvedCliPath),
-      'chat',
+      execCmd,
     ].join(' ');
     const appleScript = [
       'tell application \"Terminal\"',
