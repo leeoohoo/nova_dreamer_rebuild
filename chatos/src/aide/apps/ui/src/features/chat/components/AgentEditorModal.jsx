@@ -79,7 +79,7 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         .filter((p) => normalizeId(p?.id) && normalizeId(p?.name))
         .map((p) => ({
           value: p.id,
-          label: `${p.name}${p.title ? ` · ${p.title}` : ''}${p.type ? ` (${p.type})` : ''}`,
+          label: `${p.name}${p.title ? ` · ${p.title}` : ''}`,
           disabled: p.allowMain === false,
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),

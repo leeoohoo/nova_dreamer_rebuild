@@ -34,6 +34,7 @@ export async function launchCliInSystemTerminal({
   baseSessionRoot,
   baseTerminalsDir,
   pendingSystemTerminalLaunch,
+  landConfigId,
 } = {}) {
   const rid = typeof runId === 'string' ? runId.trim() : '';
   if (!rid) return false;
@@ -57,6 +58,7 @@ export async function launchCliInSystemTerminal({
       cliPath: resolvedCliPath,
       sessionRoot,
       terminalsDir,
+      landConfigId,
     });
   } catch {
     ok = false;

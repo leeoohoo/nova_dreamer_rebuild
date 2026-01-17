@@ -392,6 +392,15 @@ function CliAppBody({ host, mountContainer }) {
     return result;
   };
 
+  const readRuntimeLog = async ({ lineCount = 500 } = {}) => {
+    if (!hasApi) throw new Error('IPC bridge not available');
+    const result = await api.invoke('runtimeLog:read', { lineCount });
+    if (result?.ok === false) {
+      throw new Error(result?.message || '读取运行日志失败');
+    }
+    return result;
+  };
+
   const killAllSessions = async () => {
     if (!hasApi) return;
     try {
@@ -844,6 +853,7 @@ function CliAppBody({ host, mountContainer }) {
         onRestartSession={restartSession}
         onStopSession={stopBackendSession}
         onReadSessionLog={readSessionLog}
+        onReadRuntimeLog={readRuntimeLog}
         onKillAllSessions={killAllSessions}
         onOpenTasksDrawer={() => setTasksDrawerOpen(true)}
       />

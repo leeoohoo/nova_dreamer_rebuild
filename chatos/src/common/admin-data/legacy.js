@@ -512,12 +512,6 @@ export function loadBuiltinPromptFiles(defaultPaths = {}) {
       .replace(/[^a-z0-9_-]+/g, '_')
       .replace(/^_+|_+$/g, '');
 
-  const normalizeType = (value) => {
-    const raw = String(value || '').trim().toLowerCase();
-    if (['system', 'task', 'tool', 'subagent'].includes(raw)) return raw;
-    return 'system';
-  };
-
   const results = [];
   candidates.forEach((filePath) => {
     let raw = '';
@@ -555,7 +549,6 @@ export function loadBuiltinPromptFiles(defaultPaths = {}) {
       results.push({
         name,
         title: typeof node.title === 'string' ? node.title.trim() : name,
-        type: normalizeType(node.type),
         content: trimmed,
         allowMain: node.allowMain === true,
         allowSub: node.allowSub === true,

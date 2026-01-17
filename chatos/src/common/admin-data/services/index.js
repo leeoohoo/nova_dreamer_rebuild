@@ -44,15 +44,13 @@ function migratePromptAllowFlags(db) {
   });
 }
 
-function migratePromptTypeUsage(db) {
+function stripPromptTypeField(db) {
   const prompts = db.list('prompts') || [];
   prompts.forEach((prompt) => {
     if (!prompt?.id) return;
-    const rawType = typeof prompt.type === 'string' ? prompt.type.trim().toLowerCase() : '';
-    if (!rawType || rawType === 'system') return;
-    if (prompt.allowMain === false && prompt.allowSub === false) return;
+    if (!Object.prototype.hasOwnProperty.call(prompt, 'type')) return;
     try {
-      db.update('prompts', prompt.id, { allowMain: false, allowSub: false });
+      db.update('prompts', prompt.id, { type: undefined });
     } catch {
       // ignore migration errors
     }
@@ -61,7 +59,7 @@ function migratePromptTypeUsage(db) {
 
 export function createAdminServices(db) {
   migratePromptAllowFlags(db);
-  migratePromptTypeUsage(db);
+  stripPromptTypeField(db);
   const models = new ModelService(db);
   const secrets = new SecretService(db);
   const mcpServers = new McpService(db);

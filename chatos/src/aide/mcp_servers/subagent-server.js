@@ -501,6 +501,7 @@ async function ensureMcpRuntime() {
         caller: 'subagent',
         skipServers: Array.from(skip),
         extraServers: landSelection?.extraMcpServers || [],
+        eventLogger,
       });
     } catch (err) {
       console.error('[subagent_router] MCP init failed:', err.message);

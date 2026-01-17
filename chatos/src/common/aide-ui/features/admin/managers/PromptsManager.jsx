@@ -140,20 +140,6 @@ function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developer
       { name: 'title', label: '标题', placeholder: '可选显示名称' },
       { name: 'variables', label: '变量', type: 'tags', placeholder: '如 user.name' },
       {
-        name: 'allowMain',
-        label: '主流程注入',
-        type: 'switch',
-        defaultValue: true,
-        extra: '已废弃：land_config 以显式选择为准。',
-      },
-      {
-        name: 'allowSub',
-        label: '子流程注入',
-        type: 'switch',
-        defaultValue: false,
-        extra: '已废弃：land_config 以显式选择为准。',
-      },
-      {
         name: 'content',
         label: '内容',
         type: 'textarea',

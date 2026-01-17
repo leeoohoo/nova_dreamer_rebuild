@@ -17,6 +17,9 @@ const EVENT_META = {
   subagent_tool_call: { label: '子代理工具', color: 'volcano' },
   subagent_tool_result: { label: '子代理结果', color: 'geekblue' },
   subagent_tool: { label: '子代理工具', color: 'volcano' },
+  mcp_error: { label: 'MCP 错误', color: 'red' },
+  mcp_warning: { label: 'MCP 警告', color: 'orange' },
+  mcp_disconnect: { label: 'MCP 断开', color: 'orange' },
 };
 
 export function getEventMeta(type) {

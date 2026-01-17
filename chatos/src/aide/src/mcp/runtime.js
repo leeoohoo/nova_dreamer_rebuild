@@ -133,12 +133,18 @@ async function initializeMcpRuntime(
       sessionRoot,
       scope: 'MCP',
     });
+  const eventLogger = options?.eventLogger || null;
   let servers;
   try {
     ({ servers } = loadMcpConfig(configPath));
   } catch (err) {
     log.error('读取 mcp.config.json 失败', err);
     runtimeLogger?.error('读取 mcp.config.json 失败', { configPath }, err);
+    eventLogger?.log?.('mcp_error', {
+      stage: 'load_config',
+      path: configPath || '',
+      message: err?.message || String(err),
+    });
     return null;
   }
   const extraServers = Array.isArray(options?.extraServers) ? options.extraServers : [];
@@ -171,7 +177,7 @@ async function initializeMcpRuntime(
     options?.mcpStartupConcurrency ?? process.env.MODEL_CLI_MCP_STARTUP_CONCURRENCY,
     4
   );
-  const runtimeOptions = { ...options, runtimeLogger };
+  const runtimeOptions = { ...options, runtimeLogger, eventLogger };
   const settled = await mapAllSettledWithConcurrency(connectTargets, startupConcurrency, (entry) =>
     connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions)
   );
@@ -185,9 +191,19 @@ async function initializeMcpRuntime(
     }
     log.warn(`无法连接到 ${entry?.name || '<unnamed>'}`, result.reason);
     runtimeLogger?.warn('无法连接到 MCP 服务器', { server: entry?.name || '<unnamed>' }, result.reason);
+    eventLogger?.log?.('mcp_error', {
+      stage: 'connect',
+      server: entry?.name || '<unnamed>',
+      message: result.reason?.message || String(result.reason || ''),
+    });
   });
   if (handles.length === 0) {
     runtimeLogger?.warn('MCP 启动失败：未连接到任何服务器', {
+      servers: connectTargets.map((entry) => entry?.name || '<unnamed>'),
+    });
+    eventLogger?.log?.('mcp_warning', {
+      stage: 'startup',
+      message: 'No MCP servers connected',
       servers: connectTargets.map((entry) => entry?.name || '<unnamed>'),
     });
     return null;
@@ -232,6 +248,7 @@ async function initializeMcpRuntime(
 
 async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions = {}) {
   const runtimeLogger = runtimeOptions?.runtimeLogger;
+  const eventLogger = runtimeOptions?.eventLogger || null;
   const endpoint = parseMcpEndpoint(entry.url);
   if (!endpoint) {
     throw new Error('MCP 端点为空或无法解析。');
@@ -321,6 +338,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         pidName: endpoint.command,
         workspaceRoot,
         runtimeLogger,
+        eventLogger,
       });
     } catch (err) {
       const normalizedCommand = String(resolved.command || endpoint.command || '')
@@ -362,14 +380,30 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new StreamableHTTPClientTransport(endpoint.url);
-      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger });
+      return await connectAndRegisterTools({
+        entry,
+        client,
+        transport,
+        sessionRoot,
+        workspaceRoot,
+        runtimeLogger,
+        eventLogger,
+      });
     } catch (err) {
       errors.push(`streamable_http: ${err?.message || err}`);
     }
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new SSEClientTransport(endpoint.url);
-      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger });
+      return await connectAndRegisterTools({
+        entry,
+        client,
+        transport,
+        sessionRoot,
+        workspaceRoot,
+        runtimeLogger,
+        eventLogger,
+      });
     } catch (err) {
       errors.push(`sse: ${err?.message || err}`);
     }
@@ -379,7 +413,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   if (endpoint.type === 'ws') {
     const client = new Client({ name: 'model-cli', version: '0.1.0' });
     const transport = new WebSocketClientTransport(endpoint.url);
-    return connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger });
+    return connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger, eventLogger });
   }
 
   throw new Error(
@@ -387,7 +421,16 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   );
 }
 
-async function connectAndRegisterTools({ entry, client, transport, sessionRoot, pidName, workspaceRoot, runtimeLogger } = {}) {
+async function connectAndRegisterTools({
+  entry,
+  client,
+  transport,
+  sessionRoot,
+  pidName,
+  workspaceRoot,
+  runtimeLogger,
+  eventLogger,
+} = {}) {
   if (!client || !transport) {
     throw new Error('Missing MCP client or transport');
   }
@@ -395,6 +438,7 @@ async function connectAndRegisterTools({ entry, client, transport, sessionRoot, 
     transport.onclose = () => {
       log.warn(`连接 ${entry?.name || '<unnamed>'} 已关闭`);
       runtimeLogger?.warn('MCP 连接已关闭', { server: entry?.name || '<unnamed>' });
+      eventLogger?.log?.('mcp_disconnect', { server: entry?.name || '<unnamed>' });
     };
   }
   await client.connect(transport);
@@ -409,10 +453,15 @@ async function connectAndRegisterTools({ entry, client, transport, sessionRoot, 
   if (toolsFromServer.length === 0) {
     log.warn(`${entry?.name || '<unnamed>'} 未公开任何工具。`);
     runtimeLogger?.warn('MCP 未公开工具', { server: entry?.name || '<unnamed>' });
+    eventLogger?.log?.('mcp_warning', {
+      stage: 'no_tools',
+      server: entry?.name || '<unnamed>',
+      message: 'No tools exposed',
+    });
   }
   const runtimeMeta = buildRuntimeCallMeta({ workspaceRoot });
   const registeredTools = toolsFromServer
-    .map((tool) => registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger))
+    .map((tool) => registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger, eventLogger))
     .filter(Boolean);
   return { entry, client, transport, registeredTools };
 }
@@ -516,7 +565,7 @@ function summarizeArgs(value) {
   };
 }
 
-function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger) {
+function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger, eventLogger) {
   const serverName = serverEntry?.name || 'server';
   const normalizedServer = String(serverName || '').toLowerCase();
   if (
@@ -688,6 +737,14 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
           },
           err
         );
+        eventLogger?.log?.('mcp_error', {
+          stage: 'tool_call',
+          server: serverName,
+          tool: tool.name,
+          caller: toolContext?.caller || '',
+          args: summarizeArgs(normalizedArgs),
+          message: err?.message || String(err),
+        });
         throw err;
       }
       return formatCallResult(serverName, tool.name, response);

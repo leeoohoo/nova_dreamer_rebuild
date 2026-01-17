@@ -42,6 +42,7 @@ function SessionView({
   onRestartSession,
   onStopSession,
   onReadSessionLog,
+  onReadRuntimeLog,
   onKillAllSessions,
   onOpenTasksDrawer,
 }) {
@@ -52,6 +53,11 @@ function SessionView({
   const [logLoading, setLogLoading] = useState(false);
   const [logError, setLogError] = useState(null);
   const [logPayload, setLogPayload] = useState(null);
+  const [runtimeOpen, setRuntimeOpen] = useState(false);
+  const [runtimeLines, setRuntimeLines] = useState(500);
+  const [runtimeLoading, setRuntimeLoading] = useState(false);
+  const [runtimeError, setRuntimeError] = useState(null);
+  const [runtimePayload, setRuntimePayload] = useState(null);
   const normalizedEvents = Array.isArray(eventList) ? eventList : [];
   const stats = useMemo(() => buildSessionStats(normalizedEvents, tasks), [normalizedEvents, tasks]);
   const recentConversation = useMemo(
@@ -77,6 +83,12 @@ function SessionView({
     setLogPayload(null);
   };
 
+  const closeRuntimeLog = () => {
+    setRuntimeOpen(false);
+    setRuntimeError(null);
+    setRuntimePayload(null);
+  };
+
   const refreshSessionLog = useCallback(async () => {
     if (!logSession?.name) return;
     if (typeof onReadSessionLog !== 'function') {
@@ -95,10 +107,32 @@ function SessionView({
     }
   }, [logLines, logSession?.name, onReadSessionLog]);
 
+  const refreshRuntimeLog = useCallback(async () => {
+    if (typeof onReadRuntimeLog !== 'function') {
+      setRuntimeError('IPC bridge not available');
+      return;
+    }
+    try {
+      setRuntimeLoading(true);
+      setRuntimeError(null);
+      const result = await onReadRuntimeLog({ lineCount: runtimeLines });
+      setRuntimePayload(result || null);
+    } catch (err) {
+      setRuntimeError(err?.message || '加载运行日志失败');
+    } finally {
+      setRuntimeLoading(false);
+    }
+  }, [onReadRuntimeLog, runtimeLines]);
+
   useEffect(() => {
     if (!logOpen) return;
     refreshSessionLog();
   }, [logOpen, refreshSessionLog]);
+
+  useEffect(() => {
+    if (!runtimeOpen) return;
+    refreshRuntimeLog();
+  }, [runtimeOpen, refreshRuntimeLog]);
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -128,6 +162,9 @@ function SessionView({
 	                placeholder="按终端(runId)过滤"
 	              />
 		              <Button onClick={onRefreshLogs}>刷新</Button>
+		              {typeof onReadRuntimeLog === 'function' ? (
+		                <Button onClick={() => setRuntimeOpen(true)}>运行日志</Button>
+		              ) : null}
 		              <Button onClick={() => setToolOpen(true)}>工具调用</Button>
 		              <Button onClick={onOpenTasksDrawer}>任务</Button>
 	            </Space>
@@ -200,6 +237,59 @@ function SessionView({
         <div style={{ flex: 1, minHeight: 0 }}>
           <CodeBlock
             text={logPayload?.content || ''}
+            maxHeight={620}
+            highlight={false}
+            language="text"
+            wrap={false}
+            alwaysExpanded={false}
+          />
+        </div>
+      </Drawer>
+
+      <Drawer
+        title="运行日志"
+        open={runtimeOpen}
+        onClose={closeRuntimeLog}
+        width={980}
+        destroyOnClose
+        styles={{ body: { display: 'flex', flexDirection: 'column', minHeight: 0 } }}
+        extra={
+          <Space size={8} wrap>
+            <Select
+              size="small"
+              value={runtimeLines}
+              onChange={(val) => setRuntimeLines(Number(val) || 500)}
+              options={[200, 500, 2000, 10_000].map((v) => ({ label: `${v} 行`, value: v }))}
+              style={{ width: 120 }}
+            />
+            <Button size="small" onClick={refreshRuntimeLog} loading={runtimeLoading}>
+              刷新
+            </Button>
+          </Space>
+        }
+      >
+        {runtimeError ? (
+          <Alert type="error" showIcon={false} message={runtimeError} style={{ marginBottom: 12 }} />
+        ) : null}
+        {runtimePayload?.outputPath ? (
+          <Alert
+            type="info"
+            showIcon={false}
+            message={
+              <Space size={12} wrap>
+                <span style={{ fontFamily: 'monospace' }}>{runtimePayload.outputPath}</span>
+                {typeof runtimePayload?.size === 'number' ? (
+                  <Text type="secondary">{formatBytes(runtimePayload.size)}</Text>
+                ) : null}
+                {runtimePayload?.mtime ? <Text type="secondary">{runtimePayload.mtime}</Text> : null}
+              </Space>
+            }
+            style={{ marginBottom: 12 }}
+          />
+        ) : null}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <CodeBlock
+            text={runtimePayload?.content || ''}
             maxHeight={620}
             highlight={false}
             language="text"

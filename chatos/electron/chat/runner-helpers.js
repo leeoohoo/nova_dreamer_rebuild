@@ -112,7 +112,6 @@ export function buildSystemPrompt({
     const key = String(name || '').trim().toLowerCase();
     if (!key || selectedPromptNames.has(key) || addedExtra.has(key)) return;
     const record = promptByName.get(key);
-    if (record?.type !== 'system') return;
     const content = typeof record?.content === 'string' ? record.content.trim() : '';
     if (!content) return;
     extraPromptSections.push(content);
@@ -154,7 +153,6 @@ export function buildSystemPrompt({
         if (selectedPromptNames.has(name)) continue;
         if (addedExtra.has(name)) continue;
         const record = promptByName.get(name);
-        if (record?.type !== 'system') continue;
         const content = typeof record?.content === 'string' ? record.content.trim() : '';
         if (!content) continue;
         mcpPromptTexts.push(content);

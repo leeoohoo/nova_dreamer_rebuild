@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { parseJsonSafe, safeRead } from '../src/aide/shared/data/legacy.js';
 import { getHostApp } from '../src/common/host-app.js';
 import { resolveAppStateDir } from '../src/common/state-core/state-paths.js';
+import { createRuntimeLogger } from '../src/common/state-core/runtime-log.js';
 
 import { isPidAlive, listProcessTreePidsFromPs, tryKillPid, tryKillProcessGroup } from './terminal-manager/process-utils.js';
 import { isPendingSystemTerminalLaunch, launchCliInSystemTerminal } from './terminal-manager/system-terminal.js';
@@ -51,6 +52,12 @@ export function createTerminalManager({
           resolveAppStateDir(baseSessionRoot, { hostApp: resolvedHostApp, fallbackHostApp: 'chatos' }),
           'terminals'
         );
+  const runtimeLogger = createRuntimeLogger({
+    sessionRoot: baseSessionRoot,
+    hostApp: resolvedHostApp,
+    scope: 'TERMINAL',
+    runId: 'desktop',
+  });
   const getMainWindow = typeof mainWindowGetter === 'function' ? mainWindowGetter : () => null;
   const runsPath = typeof defaultPaths?.runs === 'string' && defaultPaths.runs.trim() ? defaultPaths.runs : '';
 
@@ -104,6 +111,16 @@ export function createTerminalManager({
       return fromSettings;
     }
     return process.platform === 'darwin' || process.platform === 'win32' ? 'system' : 'headless';
+  }
+
+  function resolveLandConfigId() {
+    try {
+      const runtime = adminServices?.settings?.getRuntime?.();
+      const raw = typeof runtime?.landConfigId === 'string' ? runtime.landConfigId.trim() : '';
+      return raw;
+    } catch {
+      return '';
+    }
   }
 
   function generateRunId() {
@@ -591,7 +608,9 @@ export function createTerminalManager({
     safeRead,
     resolveCliEntrypointPath,
     resolveUiTerminalMode,
+    resolveLandConfigId,
     uiTerminalStdio,
+    runtimeLogger,
     isPidAlive,
     isRunPidAliveFromRegistry,
     readTerminalStatus,
@@ -649,6 +668,7 @@ export function createTerminalManager({
       type: 'stop',
       ts: new Date().toISOString(),
     });
+    runtimeLogger?.info('terminal.stop', { runId });
     return { ok: true };
   }
 
@@ -658,6 +678,7 @@ export function createTerminalManager({
       return { ok: false, message: 'runId is required' };
     }
     const result = await forceKillRun(runId, { cleanupArtifacts: true });
+    runtimeLogger?.info('terminal.terminate', { runId, ok: result?.ok === true });
     return result;
   }
 
@@ -706,6 +727,7 @@ export function createTerminalManager({
     const terminated = await forceKillRun(runId, { cleanupArtifacts: true, pidHint: pid });
     pendingSystemTerminalLaunch.delete(runId);
     broadcastTerminalStatuses();
+    runtimeLogger?.info('terminal.close', { runId, force, ok: terminated?.ok === true });
     return terminated;
   }
 

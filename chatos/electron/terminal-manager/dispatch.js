@@ -11,7 +11,9 @@ export function createTerminalDispatch({
   safeRead,
   resolveCliEntrypointPath,
   resolveUiTerminalMode,
+  resolveLandConfigId,
   uiTerminalStdio,
+  runtimeLogger,
   isPidAlive,
   isRunPidAliveFromRegistry,
   readTerminalStatus,
@@ -24,6 +26,14 @@ export function createTerminalDispatch({
   generateRunId,
   isSystemTerminalLaunchPending,
 }) {
+  const logRuntime = (level, message, meta, err) => {
+    const logger = runtimeLogger;
+    if (!logger) return;
+    const fn = typeof logger[level] === 'function' ? logger[level] : logger.info;
+    if (typeof fn !== 'function') return;
+    fn(message, meta, err);
+  };
+
   const ensureCliRunning = async (runId, options = {}) => {
     const rid = typeof runId === 'string' ? runId.trim() : '';
     if (!rid) throw new Error('runId is required');
@@ -74,6 +84,15 @@ export function createTerminalDispatch({
 
     const mode = resolveUiTerminalMode();
     const autoPrefersSystemTerminal = process.platform === 'darwin' || process.platform === 'win32';
+    const landConfigId =
+      typeof resolveLandConfigId === 'function' ? resolveLandConfigId() : '';
+    const launchMeta = {
+      runId: rid,
+      mode,
+      cwd,
+      landConfigId: landConfigId || '',
+    };
+    logRuntime('info', 'terminal.launch_start', launchMeta);
     if (mode === 'system' || (mode === 'auto' && autoPrefersSystemTerminal)) {
       const launched = await launchCliInSystemTerminal({
         runId: rid,
@@ -82,11 +101,14 @@ export function createTerminalDispatch({
         baseSessionRoot,
         baseTerminalsDir,
         pendingSystemTerminalLaunch,
+        landConfigId,
       });
       if (launched) {
+        logRuntime('info', 'terminal.launch_system', launchMeta);
         startTerminalStatusWatcher();
         return;
       }
+      logRuntime('warn', 'terminal.launch_system_failed', launchMeta);
     }
 
     const env = {
@@ -95,6 +117,7 @@ export function createTerminalDispatch({
       MODEL_CLI_SESSION_ROOT: baseSessionRoot,
       MODEL_CLI_RUN_ID: rid,
       MODEL_CLI_UI_BRIDGE: '1',
+      ...(landConfigId ? { MODEL_CLI_LAND_CONFIG_ID: landConfigId } : {}),
     };
     const stdio = Array.isArray(uiTerminalStdio) ? uiTerminalStdio : ['pipe', 'ignore', 'ignore'];
     let child;
@@ -119,9 +142,11 @@ export function createTerminalDispatch({
         });
         child.unref();
       } else {
+        logRuntime('error', 'terminal.launch_headless_failed', launchMeta, err);
         throw err;
       }
     }
+    logRuntime('info', 'terminal.launch_headless', { ...launchMeta, pid: child?.pid || null });
     launchedCli.set(rid, child);
     startHealthChecker();
     child.on('exit', () => {
@@ -140,6 +165,7 @@ export function createTerminalDispatch({
     const force = payload?.force === true;
     const runId = requestedRunId || generateRunId();
     const created = !requestedRunId;
+    const textLength = text.length;
 
     const requestedCwd = typeof payload?.cwd === 'string' ? payload.cwd.trim() : '';
     let launchCwd = '';
@@ -175,6 +201,12 @@ export function createTerminalDispatch({
       const legacyAlive = isRunPidAliveFromRegistry(runId);
       if (legacyAlive) {
         if (created || (typeof isSystemTerminalLaunchPending === 'function' && isSystemTerminalLaunchPending(runId))) {
+          logRuntime('warn', 'terminal.dispatch_failed', {
+            runId,
+            reason: 'not_ready',
+            created,
+            textLength,
+          });
           return {
             ok: false,
             reason: 'not_ready',
@@ -183,6 +215,12 @@ export function createTerminalDispatch({
               '终端/CLI 仍在启动中（尚未检测到状态上报）。请稍候重试；若持续较久仍无状态上报，请重启该终端的 aide。',
           };
         }
+        logRuntime('warn', 'terminal.dispatch_failed', {
+          runId,
+          reason: 'unmanaged',
+          created,
+          textLength,
+        });
         return {
           ok: false,
           reason: 'unmanaged',
@@ -193,6 +231,12 @@ export function createTerminalDispatch({
       }
       // Otherwise: the terminal/CLI did not start in time.
       pendingSystemTerminalLaunch.delete(runId);
+      logRuntime('warn', 'terminal.dispatch_failed', {
+        runId,
+        reason: 'not_ready',
+        created,
+        textLength,
+      });
       return {
         ok: false,
         reason: 'not_ready',
@@ -204,6 +248,12 @@ export function createTerminalDispatch({
 
     const busy = alive && status.state === 'running';
     if (busy && !force) {
+      logRuntime('warn', 'terminal.dispatch_failed', {
+        runId,
+        reason: 'busy',
+        created,
+        textLength,
+      });
       return {
         ok: false,
         reason: 'busy',
@@ -223,6 +273,7 @@ export function createTerminalDispatch({
       text,
       ts: new Date().toISOString(),
     });
+    logRuntime('info', 'terminal.dispatch', { runId, created, force, textLength });
     return { ok: true, runId, created };
   };
 

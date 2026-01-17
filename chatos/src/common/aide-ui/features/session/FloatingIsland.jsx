@@ -95,14 +95,25 @@ function FloatingIsland({
   const landConfigId = typeof runtimeSettings?.landConfigId === 'string' ? runtimeSettings.landConfigId.trim() : '';
   const landConfigOptions = useMemo(() => {
     const list = Array.isArray(landConfigs) ? landConfigs : [];
-    const options = list
+    return list
       .filter((config) => config?.id)
       .map((config) => ({
         label: config?.name ? config.name : config?.id,
         value: config?.id,
       }));
-    return [{ label: '不使用 land_configs', value: '' }, ...options];
   }, [landConfigs]);
+  const landConfigIdSet = useMemo(
+    () => new Set(landConfigOptions.map((option) => option.value).filter(Boolean)),
+    [landConfigOptions]
+  );
+  const landConfigMissing = !landConfigId;
+  const landConfigInvalid = Boolean(landConfigId && !landConfigIdSet.has(landConfigId));
+  const landConfigHint = landConfigMissing
+    ? landConfigOptions.length > 0
+      ? '请先选择 land_config'
+      : '暂无 land_config，请先在管理台创建'
+    : '当前 land_config 已失效，请重新选择';
+  const blockDispatch = landConfigMissing || landConfigInvalid;
   const uiTerminalMode = useMemo(() => {
     const raw = typeof runtimeSettings?.uiTerminalMode === 'string' ? runtimeSettings.uiTerminalMode.trim().toLowerCase() : '';
     if (raw === 'system' || raw === 'headless' || raw === 'auto') return raw;
@@ -221,6 +232,7 @@ function FloatingIsland({
                     placeholder="选择 land_config"
                     disabled={settingsSaving}
                   />
+                  {blockDispatch ? <Text type="danger">{landConfigHint}</Text> : null}
                   <Select
                     size="large"
                     value={runFilter || RUN_FILTER_ALL}
@@ -348,7 +360,15 @@ function FloatingIsland({
                       if (e.shiftKey) return;
                       e.preventDefault();
                       if (stopVisible) {
+                        if (blockDispatch) {
+                          message.warning(landConfigHint);
+                          return;
+                        }
                         if (typeof onCorrect === 'function') onCorrect();
+                        return;
+                      }
+                      if (blockDispatch) {
+                        message.warning(landConfigHint);
                         return;
                       }
                       if (typeof onSend === 'function') onSend();
@@ -381,8 +401,14 @@ function FloatingIsland({
                       size="large"
                       danger
                       loading={sending}
-                      onClick={() => (typeof onCorrect === 'function' ? onCorrect() : null)}
-                      disabled={!input || !input.trim()}
+                      onClick={() => {
+                        if (blockDispatch) {
+                          message.warning(landConfigHint);
+                          return;
+                        }
+                        if (typeof onCorrect === 'function') onCorrect();
+                      }}
+                      disabled={!input || !input.trim() || blockDispatch}
                     >
                       纠正
                     </Button>
@@ -391,8 +417,14 @@ function FloatingIsland({
                         size="large"
                         type="primary"
                         loading={sending}
-                        onClick={onSend}
-                        disabled={!input || !input.trim()}
+                        onClick={() => {
+                          if (blockDispatch) {
+                            message.warning(landConfigHint);
+                            return;
+                          }
+                          onSend();
+                        }}
+                        disabled={!input || !input.trim() || blockDispatch}
                       >
                         发送
                       </Button>

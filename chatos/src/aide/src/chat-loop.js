@@ -41,6 +41,7 @@ export async function chatLoop(initialClient, initialModel, session, options = {
   const autoRouteEnabled = process.env.MODEL_CLI_AUTO_ROUTE === '1';
   const toolHistory = createToolHistory();
   const eventLogger = options.eventLogger || null;
+  const runtimeLogger = options.runtimeLogger || null;
   const onSessionSnapshot =
     typeof options.onSessionSnapshot === 'function' ? options.onSessionSnapshot : null;
   if (typeof options.onToolHistoryAvailable === 'function') {
@@ -228,6 +229,10 @@ export async function chatLoop(initialClient, initialModel, session, options = {
     } catch (err) {
       const message = String(err?.message || '');
       if (message === 'Input closed') {
+        runtimeLogger?.warn('stdin.closed', {
+          uiBridge: process.env.MODEL_CLI_UI_BRIDGE === '1',
+          sawAnyUserInput,
+        });
         if (!sawAnyUserInput) {
           // Signal early stdin-close so Windows launcher shims can retry with a different stdin strategy (with/without CONIN$).
           process.exitCode = 2;

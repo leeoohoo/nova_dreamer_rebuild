@@ -33,16 +33,18 @@ export function createWin32TerminalPlatform() {
     ensureUtf8Console: () => ensureWindowsUtf8Console(),
 
     createChatReadlineInput: () => {
-      if (process.env.MODEL_CLI_DISABLE_CONSOLE_STDIN === '1') {
-        return { input: process.stdin, close: null };
-      }
-
       const stdin = process.stdin;
       const stdout = process.stdout;
       const stdinUsable = isStdinUsable(stdin);
+      const uiBridge = process.env.MODEL_CLI_UI_BRIDGE === '1';
+      if (uiBridge && !stdinUsable) {
+        return fallbackInputWhenStdinUnavailable();
+      }
+      if (process.env.MODEL_CLI_DISABLE_CONSOLE_STDIN === '1') {
+        return { input: stdin, close: null };
+      }
       const stdinIsTty = Boolean(stdin?.isTTY);
       const stdoutIsTty = Boolean(stdout?.isTTY);
-      const uiBridge = process.env.MODEL_CLI_UI_BRIDGE === '1';
       const forceConsole =
         process.env.MODEL_CLI_FORCE_CONSOLE_STDIN === '1' ||
         // Electron (GUI subsystem) on Windows may start with a closed/unusable stdin even when launched from a terminal.

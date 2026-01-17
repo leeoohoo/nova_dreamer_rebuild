@@ -11,7 +11,7 @@ import * as colors from './colors.js';
 import { createLogger } from './logger.js';
 import { runStartupWizard } from './ui/index.js';
 import { initializeMcpRuntime } from './mcp/runtime.js';
-import { loadPromptProfilesFromDb, buildUserPromptMessages } from './prompts.js';
+import { loadPromptProfilesFromDb } from './prompts.js';
 import { chatLoop } from './chat-loop.js';
 import { loadMcpConfig } from './mcp.js';
 import { buildLandConfigSelection, resolveLandConfig } from './land-config.js';
@@ -26,6 +26,7 @@ import { resolveSessionRoot, persistSessionRoot } from '../shared/session-root.j
 import { applySecretsToProcessEnv } from '../shared/secrets-env.js';
 import { ensureAppStateDir, resolveAppStateDir } from '../shared/state-paths.js';
 import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../shared/host-app.js';
+import { createRuntimeLogger } from '../shared/runtime-log.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -271,6 +272,11 @@ function appendPromptBlock(baseText, extraText) {
 
 function applyRuntimeSettings(config) {
   const normalized = {};
+  const envLandConfigId =
+    typeof process.env.MODEL_CLI_LAND_CONFIG_ID === 'string' ? process.env.MODEL_CLI_LAND_CONFIG_ID.trim() : '';
+  if (envLandConfigId) {
+    normalized.landConfigId = envLandConfigId;
+  }
   if (!config || typeof config !== 'object') {
     return normalized;
   }
@@ -305,7 +311,7 @@ function applyRuntimeSettings(config) {
     normalized.promptLanguage = promptLanguage;
     process.env.MODEL_CLI_PROMPT_LANGUAGE = promptLanguage;
   }
-  if (typeof config.landConfigId === 'string') {
+  if (!envLandConfigId && typeof config.landConfigId === 'string') {
     normalized.landConfigId = config.landConfigId.trim();
   }
   setFlag('MODEL_CLI_AUTO_ROUTE', Boolean(config.autoRoute));
@@ -344,6 +350,15 @@ async function runChat(options) {
   // Ensure status exists early so UI can enqueue control commands while initialization is running.
   writeTerminalStatusFile({ state: 'starting' });
   const { services, defaultPaths } = getAdminServices();
+  const runtimeLogger = createRuntimeLogger({
+    sessionRoot: process.env.MODEL_CLI_SESSION_ROOT || process.cwd(),
+    scope: 'CLI',
+  });
+  runtimeLogger?.info('cli.start', {
+    runId: process.env.MODEL_CLI_RUN_ID || '',
+    cwd: process.cwd(),
+    hostApp: process.env.MODEL_CLI_HOST_APP || '',
+  });
   applySecretsToProcessEnv(services);
   const runtimeConfig = services.settings.getRuntimeConfig
     ? services.settings.getRuntimeConfig()
@@ -378,6 +393,15 @@ async function runChat(options) {
       })
     : null;
   const landConfigActive = Boolean(landSelection);
+  runtimeLogger?.info('land_config.resolve', {
+    active: landConfigActive,
+    id: selectedLandConfig?.id || landConfigId || '',
+    name: selectedLandConfig?.name || '',
+    mainPrompts: landSelection?.main?.promptNames?.length || 0,
+    mainMcpServers: landSelection?.main?.selectedServerNames?.length || 0,
+    subPrompts: landSelection?.sub?.promptNames?.length || 0,
+    subMcpServers: landSelection?.sub?.selectedServerNames?.length || 0,
+  });
   const mainPromptWithMcp = landSelection
     ? appendPromptBlock(landSelection.main.promptText, landSelection.main.mcpPromptText)
     : '';
@@ -386,12 +410,15 @@ async function runChat(options) {
     : '';
   if (!landConfigActive && resolvedOptions.system) {
     console.log(colors.yellow('[prompts] land_config 未启用，已忽略内置/默认 prompt；仅使用 --system 覆盖。'));
+    runtimeLogger?.warn('land_config.inactive', { systemOverride: true });
   }
   if (landConfigActive && resolvedOptions.system) {
     console.log(colors.yellow('[prompts] land_config 已启用，忽略 --system 覆盖。'));
+    runtimeLogger?.warn('land_config.override_ignored', { systemOverride: true });
   }
   if (!landConfigActive && !resolvedOptions.system) {
     console.log(colors.yellow('[prompts] land_config 未启用，system prompt 为空。'));
+    runtimeLogger?.warn('land_config.inactive', { systemOverride: false });
   }
   const mcpSummary = loadMcpConfig(defaultPaths.mcpConfig);
   const subAgentManager = createSubAgentManager({
@@ -439,21 +466,23 @@ async function runChat(options) {
             )
             .map((srv) => srv.name)
         : [];
-	    mcpRuntime = await initializeMcpRuntime(
-	      resolvedConfigPath,
-	      process.env.MODEL_CLI_SESSION_ROOT,
-	      process.cwd(),
-        {
-          caller: 'main',
-          skipServers,
-          extraServers: landSelection?.extraMcpServers || [],
-        }
-	    );
+    mcpRuntime = await initializeMcpRuntime(
+      resolvedConfigPath,
+      process.env.MODEL_CLI_SESSION_ROOT,
+      process.cwd(),
+      {
+        caller: 'main',
+        skipServers,
+        extraServers: landSelection?.extraMcpServers || [],
+        eventLogger,
+      }
+    );
     if (mcpRuntime) {
       mcpRuntime.applyToConfig(config);
     }
   } catch (err) {
     mcpLog.error('初始化失败', err);
+    runtimeLogger?.error('mcp.init_failed', { mode: 'main' }, err);
   }
   const client = new ModelClient(config);
   const targetSettings = config.getModel(resolvedOptions.model || null);
@@ -529,8 +558,9 @@ async function runChat(options) {
   targetSettings.tools = filterMainTools(targetSettings.name);
 
   const systemOverride = landConfigActive ? undefined : resolvedOptions.system;
-  const sessionSystem =
-    systemOverride !== undefined
+  const sessionSystem = landConfigActive
+    ? (typeof mainPromptWithMcp === 'string' ? mainPromptWithMcp : '')
+    : systemOverride !== undefined
       ? String(systemOverride || '')
       : '';
 
@@ -570,6 +600,10 @@ async function runChat(options) {
           `[prompts] Missing MCP prompt(s) for main: ${landSelection.main.missingMcpPromptNames.join(', ')}`
         )
       );
+      runtimeLogger?.warn('land_config.missing_mcp_prompts', {
+        scope: 'main',
+        prompts: landSelection.main.missingMcpPromptNames,
+      });
     }
     if ((landSelection.sub?.missingMcpPromptNames || []).length > 0) {
       console.log(
@@ -577,6 +611,10 @@ async function runChat(options) {
           `[prompts] Missing MCP prompt(s) for subagent: ${landSelection.sub.missingMcpPromptNames.join(', ')}`
         )
       );
+      runtimeLogger?.warn('land_config.missing_mcp_prompts', {
+        scope: 'sub',
+        prompts: landSelection.sub.missingMcpPromptNames,
+      });
     }
     if ((landSelection.main?.missingAppServers || []).length > 0) {
       console.log(
@@ -584,6 +622,10 @@ async function runChat(options) {
           `[land_config] Missing app MCP servers (main): ${landSelection.main.missingAppServers.join(', ')}`
         )
       );
+      runtimeLogger?.warn('land_config.missing_app_mcp', {
+        scope: 'main',
+        apps: landSelection.main.missingAppServers,
+      });
     }
     if ((landSelection.sub?.missingAppServers || []).length > 0) {
       console.log(
@@ -591,6 +633,10 @@ async function runChat(options) {
           `[land_config] Missing app MCP servers (sub): ${landSelection.sub.missingAppServers.join(', ')}`
         )
       );
+      runtimeLogger?.warn('land_config.missing_app_mcp', {
+        scope: 'sub',
+        apps: landSelection.sub.missingAppServers,
+      });
     }
     if ((landSelection.main?.missingPromptNames || []).length > 0) {
       console.log(
@@ -598,6 +644,10 @@ async function runChat(options) {
           `[land_config] Missing prompts (main): ${landSelection.main.missingPromptNames.join(', ')}`
         )
       );
+      runtimeLogger?.warn('land_config.missing_prompts', {
+        scope: 'main',
+        prompts: landSelection.main.missingPromptNames,
+      });
     }
     if ((landSelection.sub?.missingPromptNames || []).length > 0) {
       console.log(
@@ -605,13 +655,14 @@ async function runChat(options) {
           `[land_config] Missing prompts (sub): ${landSelection.sub.missingPromptNames.join(', ')}`
         )
       );
+      runtimeLogger?.warn('land_config.missing_prompts', {
+        scope: 'sub',
+        prompts: landSelection.sub.missingPromptNames,
+      });
     }
   }
 
-  const extraSystemPrompts = landConfigActive ? buildUserPromptMessages(mainPromptWithMcp) : [];
-  const session = new ChatSession(sessionSystem, {
-    extraSystemPrompts,
-  });
+  const session = new ChatSession(sessionSystem);
   console.log(`Using config DB at: ${defaultPaths.adminDb}`);
   const streamEnabled =
     resolvedOptions.stream !== undefined ? resolvedOptions.stream : true;
@@ -636,6 +687,7 @@ async function runChat(options) {
     console.log(colors.green(`Session report will update at: ${sessionReportPath}`));
     console.log(colors.green(`Event log at: ${eventLogPath}`));
     updateSessionReport();
+    runtimeLogger?.info('chat_loop.start', { model: targetSettings.name, stream: streamEnabled });
     await chatLoop(client, targetSettings.name, session, {
       systemOverride,
       stream: streamEnabled,
@@ -659,9 +711,14 @@ async function runChat(options) {
         updateSessionReport();
       },
       updateSessionReport,
-      eventLogger: createEventLogger(eventLogPath),
+      eventLogger,
+      runtimeLogger,
       onSessionSnapshot: () => {},
     });
+    runtimeLogger?.info('chat_loop.exit', { model: targetSettings.name });
+  } catch (err) {
+    runtimeLogger?.error('chat_loop.failed', { model: targetSettings.name }, err);
+    throw err;
   } finally {
     // If we fail before chatLoop initializes terminalControl, still mark exited so UI won't treat it as an unmanaged run.
     writeTerminalStatusFile({ state: 'exited' });

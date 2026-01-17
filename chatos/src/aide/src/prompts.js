@@ -183,7 +183,6 @@ function ensureSystemPromptFile(filePath, internalMain = DEFAULT_INTERNAL_SYSTEM
   const payload = {
     name: 'internal_main',
     title: 'internal_main',
-    type: 'system',
     allowMain: true,
     allowSub: false,
     content: internalMain,
@@ -199,7 +198,6 @@ function ensureSystemDefaultPromptFile(filePath, defaultPrompt = DEFAULT_SYSTEM_
   const payload = {
     name: 'default',
     title: 'default',
-    type: 'system',
     allowMain: true,
     allowSub: false,
     content: defaultPrompt,
@@ -215,7 +213,6 @@ function ensureSystemUserPromptFile(filePath, userPrompt = '') {
   const payload = {
     name: 'user_prompt',
     title: 'user_prompt',
-    type: 'system',
     allowMain: true,
     allowSub: false,
     content: userPrompt,
@@ -231,7 +228,6 @@ function ensureSubagentSystemPromptFile(filePath, internalSubagent = DEFAULT_INT
   const payload = {
     name: 'internal_subagent',
     title: 'internal_subagent',
-    type: 'system',
     allowMain: false,
     allowSub: true,
     content: internalSubagent,
@@ -247,7 +243,6 @@ function ensureSubagentUserPromptFile(filePath, userPrompt = '') {
   const payload = {
     name: 'subagent_user_prompt',
     title: 'subagent_user_prompt',
-    type: 'system',
     allowMain: false,
     allowSub: true,
     content: userPrompt,

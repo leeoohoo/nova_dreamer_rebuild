@@ -95,9 +95,8 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
           value: p.id,
           label: p.name,
           title: p.title || '',
-          type: p.type || '',
           disabled: p.allowMain === false,
-          searchText: `${p.name} ${p.title || ''} ${p.type || ''}`.trim(),
+          searchText: `${p.name} ${p.title || ''}`.trim(),
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [prompts]
@@ -269,8 +268,7 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
             value: p.id,
             label: p.name,
             title: p.title || '',
-            type: p.type || '',
-            searchText: `${p.name} ${p.title || ''} ${p.type || ''}`.trim(),
+            searchText: `${p.name} ${p.title || ''}`.trim(),
           }))
           .sort((a, b) => a.label.localeCompare(b.label));
         out.set(key, opts);
@@ -289,8 +287,7 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
             value: p.id,
             label: p.name,
             title: p.title || '',
-            type: p.type || '',
-            searchText: `${p.name} ${p.title || ''} ${p.type || ''}`.trim(),
+            searchText: `${p.name} ${p.title || ''}`.trim(),
           }))
           .sort((a, b) => a.label.localeCompare(b.label));
         out.set(key, opts);
@@ -299,22 +296,21 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
       const names = meta?.promptNames && typeof meta.promptNames === 'object' ? meta.promptNames : null;
       const wanted = new Set([names?.zh, names?.en].map((n) => normalizeId(n).toLowerCase()).filter(Boolean));
       if (wanted.size === 0) continue;
-      const opts = list
-        .filter((p) => {
-          const id = normalizeId(p?.id);
-          const name = normalizeId(p?.name);
-          if (!id || !name) return false;
-          return wanted.has(name.toLowerCase());
-        })
-        .map((p) => ({
-          value: p.id,
-          label: p.name,
-          title: p.title || '',
-          type: p.type || '',
-          searchText: `${p.name} ${p.title || ''} ${p.type || ''}`.trim(),
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-      out.set(key, opts);
+        const opts = list
+          .filter((p) => {
+            const id = normalizeId(p?.id);
+            const name = normalizeId(p?.name);
+            if (!id || !name) return false;
+            return wanted.has(name.toLowerCase());
+          })
+          .map((p) => ({
+            value: p.id,
+            label: p.name,
+            title: p.title || '',
+            searchText: `${p.name} ${p.title || ''}`.trim(),
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+        out.set(key, opts);
     }
     return out;
   }, [uiAppMetaByKey, prompts]);
@@ -505,14 +501,12 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
   const renderPromptOption = (option) => {
     const data = option?.data && typeof option.data === 'object' ? option.data : {};
     const title = typeof option?.title === 'string' ? option.title.trim() : typeof data?.title === 'string' ? data.title.trim() : '';
-    const type = typeof option?.type === 'string' ? option.type.trim() : typeof data?.type === 'string' ? data.type.trim() : '';
-    const meta = `${title}${title && type ? ' · ' : ''}${type ? `(${type})` : ''}`.trim();
     return (
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.label}</div>
-        {meta ? (
+        {title ? (
           <div
-            title={meta}
+            title={title}
             style={{
               marginTop: 2,
               fontSize: 12,
@@ -522,7 +516,7 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
               whiteSpace: 'nowrap',
             }}
           >
-            {meta}
+            {title}
           </div>
         ) : null}
       </div>

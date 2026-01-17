@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Button, List, Select, Space, Tag, Typography } from 'antd';
+import { Button, List, Select, Space, Typography } from 'antd';
 
 const { Text } = Typography;
 
@@ -44,7 +44,6 @@ export function PromptConfig({ availablePrompts = [], items = [], onAdd, onRemov
               <Text strong>{item?.itemData?.title || item?.itemData?.name || item.itemId}</Text>
               <Space size={8}>
                 <Text type="secondary">{item?.itemData?.name || item.itemId}</Text>
-                {item?.itemData?.type ? <Tag>{item.itemData.type}</Tag> : null}
               </Space>
             </Space>
           </List.Item>

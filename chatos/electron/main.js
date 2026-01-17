@@ -28,12 +28,14 @@ import { ensureAllSubagentsInstalled, maybePurgeUiAppsSyncedAdminData, readLegac
 import { resolveAideRoot } from '../src/aide-paths.js';
 import { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
 import { ensureAppStateDir } from '../src/common/state-core/state-paths.js';
+import { resolveRuntimeLogPath } from '../src/common/state-core/runtime-log.js';
 import { createDb } from '../src/common/admin-data/storage.js';
 import { createAdminServices } from '../src/common/admin-data/services/index.js';
 import { syncAdminToFiles } from '../src/common/admin-data/sync.js';
 import { buildAdminSeed, parseMcpServers, loadBuiltinPromptFiles } from '../src/common/admin-data/legacy.js';
 import { createLspInstaller } from './lsp-installer.js';
 import { ConfigApplier } from '../src/core/session/ConfigApplier.js';
+import { readLastLinesFromFile } from './sessions/utils.js';
 
 const { app, BrowserWindow, ipcMain, dialog, nativeImage } = electron;
 const APP_DISPLAY_NAME = 'chatos';
@@ -134,6 +136,49 @@ function resolveBoolEnv(name, fallback = false) {
   if (['1', 'true', 'yes', 'y', 'on'].includes(raw)) return true;
   if (['0', 'false', 'no', 'n', 'off'].includes(raw)) return false;
   return fallback;
+}
+
+function readRuntimeLog({ lineCount, maxBytes } = {}) {
+  const outputPath = resolveRuntimeLogPath({
+    sessionRoot,
+    hostApp,
+    fallbackHostApp: 'chatos',
+    preferSessionRoot: true,
+  });
+  if (!outputPath) {
+    return { ok: false, message: 'runtime log path not available' };
+  }
+  try {
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    if (!fs.existsSync(outputPath)) {
+      fs.writeFileSync(outputPath, '', 'utf8');
+    }
+  } catch {
+    // ignore file bootstrap failures
+  }
+  const size = (() => {
+    try {
+      return fs.statSync(outputPath).size;
+    } catch {
+      return null;
+    }
+  })();
+  const mtime = (() => {
+    try {
+      const stat = fs.statSync(outputPath);
+      return stat?.mtime ? stat.mtime.toISOString() : null;
+    } catch {
+      return null;
+    }
+  })();
+  const bytes = Number.isFinite(Number(maxBytes))
+    ? Math.max(1024, Math.min(4 * 1024 * 1024, Math.floor(Number(maxBytes))))
+    : 1024 * 1024;
+  const lines = Number.isFinite(Number(lineCount))
+    ? Math.max(1, Math.min(50_000, Math.floor(Number(lineCount))))
+    : 500;
+  const content = readLastLinesFromFile(outputPath, lines, bytes);
+  return { ok: true, outputPath, size, mtime, lineCount: lines, maxBytes: bytes, content };
 }
 
 
@@ -538,7 +583,6 @@ Promise.resolve()
               id: name,
               name,
               title: typeof prompt?.title === 'string' ? prompt.title : '',
-              type: typeof prompt?.type === 'string' ? prompt.type : 'system',
               content,
               allowMain: prompt?.allowMain === true,
               allowSub: prompt?.allowSub === true,
@@ -807,6 +851,12 @@ ipcMain.handle('sessions:readLog', async (_event, payload = {}) =>
   readSessionLog({
     sessionRoot,
     name: payload?.name,
+    lineCount: payload?.lineCount,
+    maxBytes: payload?.maxBytes,
+  })
+);
+ipcMain.handle('runtimeLog:read', async (_event, payload = {}) =>
+  readRuntimeLog({
     lineCount: payload?.lineCount,
     maxBytes: payload?.maxBytes,
   })

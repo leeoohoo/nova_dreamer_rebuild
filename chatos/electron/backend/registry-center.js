@@ -129,7 +129,6 @@ export class RegistryCenter {
     const id = makeCompositeId(providerAppId, providerPromptId);
 
     const name = normalizeId(promptConfig?.name || providerPromptId) || providerPromptId;
-    const type = normalizeId(promptConfig?.type || 'system') || 'system';
     const content = typeof promptConfig?.content === 'string' ? promptConfig.content : '';
     if (!content.trim()) throw new Error('prompt content is required');
 
@@ -142,7 +141,6 @@ export class RegistryCenter {
       provider_prompt_id: providerPromptId,
       name,
       title: typeof promptConfig?.title === 'string' ? promptConfig.title : '',
-      type,
       content,
       tags: uniqStrings(promptConfig?.tags),
       allowMain: typeof promptConfig?.allowMain === 'boolean' ? promptConfig.allowMain : true,
