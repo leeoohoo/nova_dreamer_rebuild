@@ -31,7 +31,7 @@ function createTerminalControl({ runId, sessionRoot, rl, onStop, onAction } = {}
   let pollTimer = null;
   let draining = false;
   let lastStatusText = '';
-  const keepPollingAlive = process.env.MODEL_CLI_UI_BRIDGE === '1' && Boolean(process.stdout?.isTTY);
+  const keepPollingAlive = process.env.MODEL_CLI_UI_BRIDGE === '1';
 
   const writeStatus = ({ state, currentMessage } = {}) => {
     const payload = {
