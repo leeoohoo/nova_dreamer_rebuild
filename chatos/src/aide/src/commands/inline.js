@@ -11,10 +11,16 @@ export function handleCommand(
   currentModel,
   systemOverride,
   configPath,
-  systemConfigFromDb
+  systemConfigFromDb,
+  options = {}
 ) {
   const [name, ...rest] = command.slice(1).trim().split(/\s+/);
   const argument = rest.join(' ').trim();
+  const promptOptions = {
+    configPath,
+    systemConfigFromDb,
+    landConfigPrompt: options.landConfigPrompt,
+  };
   switch (name) {
     case 'exit':
     case 'quit':
@@ -33,10 +39,7 @@ export function handleCommand(
       console.log(renderAvailableModels(client));
       return currentModel;
     case 'reset': {
-      const systemPrompt = resolveSystemPrompt(client, currentModel, systemOverride, {
-        configPath,
-        systemConfigFromDb,
-      });
+      const systemPrompt = resolveSystemPrompt(client, currentModel, systemOverride, promptOptions);
       session.reset(systemPrompt);
       if (typeof session.setSessionId === 'function') {
         session.setSessionId(null);
@@ -56,7 +59,7 @@ export function handleCommand(
         return currentModel;
       }
       session.reset(
-        resolveSystemPrompt(client, argument, systemOverride, { configPath, systemConfigFromDb })
+        resolveSystemPrompt(client, argument, systemOverride, promptOptions)
       );
       console.log(colors.yellow(`Switched to model '${argument}'.`));
       return argument;

@@ -41,6 +41,35 @@ const DEFAULT_SYSTEM_PROMPT = `<assistant_role>
   </behaviors>
 </assistant_role>`;
 
+const RESERVED_PROMPT_NAMES = new Set([
+  'internal',
+  'internal_main',
+  'internal_subagent',
+  'default',
+  'user_prompt',
+  'subagent_user_prompt',
+]);
+
+function normalizePromptName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isReservedPromptName(name) {
+  const normalized = normalizePromptName(name);
+  if (!normalized) return false;
+  if (RESERVED_PROMPT_NAMES.has(normalized)) return true;
+  const suffixIndex = normalized.lastIndexOf('__');
+  if (suffixIndex > 0) {
+    const base = normalized.slice(0, suffixIndex);
+    if (RESERVED_PROMPT_NAMES.has(base)) return true;
+  }
+  return false;
+}
+
+function isMcpPromptName(name) {
+  return normalizePromptName(name).startsWith('mcp_');
+}
+
 function loadPromptProfiles(configPath) {
   const filePath = resolvePromptPath(configPath);
   ensurePromptFile(filePath);
@@ -60,10 +89,14 @@ function loadPromptProfiles(configPath) {
 
 function loadPromptProfilesFromDb(promptsList = []) {
   const map = {};
-  promptsList.forEach((p) => {
-    if (!p || p.type === 'system') return;
+  (Array.isArray(promptsList) ? promptsList : []).forEach((p) => {
+    if (!p) return;
+    const name = String(p.name || p.title || p.id || '').trim();
+    if (!name) return;
+    if (isMcpPromptName(name)) return;
+    if (isReservedPromptName(name)) return;
     if (typeof p.content === 'string' && p.content.trim()) {
-      map[p.name || p.title || p.id] = p.content.trim();
+      map[name] = p.content.trim();
     }
   });
   if (Object.keys(map).length === 0) {
@@ -319,8 +352,7 @@ function loadSystemPromptFromDb(promptsList = [], options = {}) {
     return '';
   };
   const language = normalizePromptLanguage(options?.language);
-  const systemPrompts = promptsList.filter((p) => p?.type === 'system');
-  const isMcpPromptName = (name) => String(name || '').trim().toLowerCase().startsWith('mcp_');
+  const promptList = Array.isArray(promptsList) ? promptsList : [];
   const resolveUseInMain = (prompt) => prompt?.allowMain === true;
   const resolveUseInSubagent = (prompt) => prompt?.allowSub === true;
 
@@ -335,7 +367,7 @@ function loadSystemPromptFromDb(promptsList = [], options = {}) {
     }
     candidates.push(normalizedBase);
     for (const name of candidates) {
-      const found = systemPrompts.find((p) => p?.name === name) || null;
+      const found = promptList.find((p) => p?.name === name) || null;
       if (found) return found;
     }
     return null;
@@ -362,21 +394,28 @@ function loadSystemPromptFromDb(promptsList = [], options = {}) {
   const mainBaseNames = new Set([
     'internal_main',
     'default',
+    'user_prompt',
     'internal_main__zh',
     'default__zh',
+    'user_prompt__zh',
     'internal_main__en',
     'default__en',
+    'user_prompt__en',
   ]);
   const subagentInternalNames = new Set([
     'internal_subagent',
+    'subagent_user_prompt',
     'internal_subagent__zh',
     'internal_subagent__en',
+    'subagent_user_prompt__zh',
+    'subagent_user_prompt__en',
   ]);
 
   const buildExtras = (enabledFn, excludedNames) =>
-    systemPrompts
+    promptList
       .filter((p) => p?.name && !excludedNames.has(p.name))
       .filter((p) => !isMcpPromptName(p.name))
+      .filter((p) => !isReservedPromptName(p.name))
       .filter((p) => enabledFn(p))
       .map((p) => ({ name: String(p.name), content: normalizeContent(p.content) }))
       .filter((p) => p.content)

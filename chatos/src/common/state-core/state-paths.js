@@ -63,10 +63,23 @@ export function resolveAppStateDir(sessionRoot, options = {}) {
   const hostApp = resolveHostApp({ env, hostApp: options.hostApp, fallbackHostApp: options.fallbackHostApp });
   const homeRaw = typeof options.homeDir === 'string' ? options.homeDir.trim() : '';
   const home = homeRaw || getHomeDir(env);
+  const envSessionRoot = typeof env.MODEL_CLI_SESSION_ROOT === 'string' ? env.MODEL_CLI_SESSION_ROOT.trim() : '';
+  const sessionRootRaw = typeof sessionRoot === 'string' ? sessionRoot.trim() : '';
+  const preferSessionRoot = options?.preferSessionRoot === true || Boolean(envSessionRoot);
+  const baseRoot = envSessionRoot || sessionRootRaw;
+
+  if (preferSessionRoot && baseRoot) {
+    const legacy = resolveLegacyStateDir(baseRoot);
+    if (hostApp) {
+      return path.join(legacy, hostApp);
+    }
+    return legacy;
+  }
+
   if (home && hostApp) {
     return path.join(home, '.deepseek_cli', hostApp);
   }
-  const legacy = resolveLegacyStateDir(sessionRoot);
+  const legacy = resolveLegacyStateDir(sessionRootRaw);
   if (hostApp) {
     return path.join(legacy, hostApp);
   }

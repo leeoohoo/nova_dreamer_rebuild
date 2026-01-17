@@ -27,6 +27,11 @@ export async function chatLoop(initialClient, initialModel, session, options = {
   let streamResponses = options.stream !== undefined ? options.stream : true;
   let configPath = options.configPath || null;
   const systemConfigFromDb = options.systemConfigFromDb || null;
+  const landConfigActive = options.landConfigActive === true;
+  const landConfigPrompt =
+    typeof options.landConfigPrompt === 'string' ? options.landConfigPrompt : undefined;
+  const landConfigInfo =
+    options.landConfigInfo && typeof options.landConfigInfo === 'object' ? options.landConfigInfo : null;
   let userPromptText =
     typeof options.userPrompt === 'string' ? options.userPrompt.trim() : '';
   let subagentUserPromptText =
@@ -44,8 +49,7 @@ export async function chatLoop(initialClient, initialModel, session, options = {
   const summaryManager = createSummaryManager(options);
   let pendingSummaryNow = false;
   const subAgentManager = createSubAgentManager({
-    internalSystemPrompt: options.systemConfigFromDb?.subagentInternal,
-    systemPromptPath: options.systemConfigFromDb?.path,
+    internalSystemPrompt: '',
   });
   const updateSessionReport =
     typeof options.updateSessionReport === 'function' ? options.updateSessionReport : null;
@@ -294,6 +298,9 @@ export async function chatLoop(initialClient, initialModel, session, options = {
         systemOverride,
         configPath,
         systemConfigFromDb,
+        landConfigActive,
+        landConfigPrompt,
+        landConfigInfo,
         allowUi: allowInlineUi,
         rl,
         toolHistory,
@@ -317,7 +324,11 @@ export async function chatLoop(initialClient, initialModel, session, options = {
         const nextPrompt =
           slashResult.sessionPrompt !== undefined
             ? slashResult.sessionPrompt
-            : resolveSystemPrompt(client, currentModel, systemOverride, { configPath, systemConfigFromDb });
+            : resolveSystemPrompt(client, currentModel, systemOverride, {
+                configPath,
+                systemConfigFromDb,
+                landConfigPrompt,
+              });
         session.reset(nextPrompt);
         session.setSessionId(null);
         updateSubContext();
@@ -340,7 +351,7 @@ export async function chatLoop(initialClient, initialModel, session, options = {
           client,
           currentModel,
           systemOverride,
-          { configPath, systemConfigFromDb }
+          { configPath, systemConfigFromDb, landConfigPrompt }
         );
         session.reset(nextPrompt);
         session.setSessionId(null);
@@ -359,7 +370,8 @@ export async function chatLoop(initialClient, initialModel, session, options = {
         currentModel,
         systemOverride,
         configPath,
-        systemConfigFromDb
+        systemConfigFromDb,
+        { landConfigPrompt }
       );
       if (result === null) {
         break;

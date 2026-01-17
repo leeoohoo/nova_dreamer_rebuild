@@ -31,7 +31,7 @@ export function buildMcpPromptBundles({ prompts = [], mcpServers = [], language 
   const allowExternalOnly = allowExternalOnlyMcpServers();
   const promptMap = new Map();
   (Array.isArray(prompts) ? prompts : []).forEach((prompt) => {
-    if (!prompt || prompt.type !== 'system') return;
+    if (!prompt) return;
     if (!isMcpPromptName(prompt.name)) return;
     const content = typeof prompt.content === 'string' ? prompt.content.trim() : '';
     if (!content) return;

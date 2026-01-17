@@ -46,9 +46,8 @@ const [
   { ModelClient },
   { ChatSession, generateSessionId },
   { initializeMcpRuntime },
-  { buildMcpPromptBundles },
   { listTools },
-  { loadSystemPromptFromDb, buildUserPromptMessages },
+  { buildUserPromptMessages },
   { buildLandConfigSelection, resolveLandConfig },
   { createEventLogger },
 ] = await Promise.all([
@@ -59,7 +58,6 @@ const [
   importEngine('client.js'),
   importEngine('session.js'),
   importEngine('mcp/runtime.js'),
-  importEngine('mcp/prompt-binding.js'),
   importEngine('tools/index.js'),
   importEngine('prompts.js'),
   importEngine('land-config.js'),
@@ -89,6 +87,14 @@ function readRegistrySnapshot(services) {
   }
 }
 
+function appendPromptBlock(baseText, extraText) {
+  const base = typeof baseText === 'string' ? baseText.trim() : '';
+  const extra = typeof extraText === 'string' ? extraText.trim() : '';
+  if (!base) return extra;
+  if (!extra) return base;
+  return `${base}\n\n${extra}`;
+}
+
 const { services: adminServices, defaultPaths } = getAdminServices();
 const runtimeConfig = adminServices.settings?.getRuntimeConfig ? adminServices.settings.getRuntimeConfig() : null;
 const promptLanguage = runtimeConfig?.promptLanguage || null;
@@ -108,29 +114,12 @@ const landSelection = selectedLandConfig
       promptLanguage,
     })
   : null;
-let systemPromptConfig = loadSystemPromptFromDb(promptRecords, { language: promptLanguage });
-if (landSelection) {
-  systemPromptConfig = {
-    ...systemPromptConfig,
-    subagentUserPrompt: landSelection.sub.promptText || '',
-  };
-}
+const combinedSubagentPrompt = landSelection
+  ? appendPromptBlock(landSelection.sub.promptText, landSelection.sub.mcpPromptText)
+  : '';
 const manager = createSubAgentManager({
-  internalSystemPrompt: systemPromptConfig.subagentInternal,
-  systemPromptPath: systemPromptConfig.path,
+  internalSystemPrompt: '',
 });
-const mcpPromptBundles = landSelection
-  ? null
-  : buildMcpPromptBundles({
-      prompts: promptRecords,
-      mcpServers: mcpServerRecords,
-      language: promptLanguage,
-    });
-const subagentMcpText = landSelection ? landSelection.sub.mcpPromptText : mcpPromptBundles.subagent.text;
-const combinedSubagentPrompt = [systemPromptConfig.subagentUserPrompt, subagentMcpText]
-  .map((value) => (typeof value === 'string' ? value.trim() : ''))
-  .filter(Boolean)
-  .join('\n\n');
 const userPromptMessages = buildUserPromptMessages(combinedSubagentPrompt, 'subagent_user_prompt');
 if (landSelection) {
   if ((landSelection.sub?.missingMcpPromptNames || []).length > 0) {
@@ -145,12 +134,6 @@ if (landSelection) {
       `[land_config] Missing app MCP servers (subagent_router): ${landSelection.sub.missingAppServers.join(', ')}`
     );
   }
-} else if (mcpPromptBundles.subagent.missingPromptNames.length > 0) {
-  console.error(
-    `[prompts] Missing MCP prompt(s) for subagent_router subagent sessions: ${mcpPromptBundles.subagent.missingPromptNames.join(
-      ', '
-    )}`
-  );
 }
 let cachedConfig = null;
 let cachedClient = null;

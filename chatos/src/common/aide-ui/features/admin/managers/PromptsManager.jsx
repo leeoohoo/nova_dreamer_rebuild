@@ -46,7 +46,17 @@ function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developer
     () => [
       { title: '名称', dataIndex: 'name', width: 160 },
       { title: '标题', dataIndex: 'title', width: 180 },
-      { title: '类型', dataIndex: 'type', width: 120 },
+      {
+        title: '主/子流程',
+        dataIndex: 'allowMain',
+        width: 140,
+        render: (_value, record) => (
+          <Space size={4} wrap>
+            <Tag color={record?.allowMain ? 'green' : 'default'}>{record?.allowMain ? '主·开' : '主·关'}</Tag>
+            <Tag color={record?.allowSub ? 'blue' : 'default'}>{record?.allowSub ? '子·开' : '子·关'}</Tag>
+          </Space>
+        ),
+      },
       {
         title: '变量',
         dataIndex: 'variables',
@@ -128,22 +138,21 @@ function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developer
     () => [
       { name: 'name', label: '名称', required: true, placeholder: 'system-default' },
       { name: 'title', label: '标题', placeholder: '可选显示名称' },
-      {
-        name: 'type',
-        label: '类型',
-        required: true,
-        type: 'select',
-        defaultValue: 'system',
-        extra:
-          '目前仅区分 system 与非 system；task/tool/subagent 行为一致（作为 /prompt 候选，不参与 system prompt 自动注入）。',
-        options: [
-          { label: 'system（系统/注入）', value: 'system' },
-          { label: 'task（/prompt 候选）', value: 'task' },
-          { label: 'tool（/prompt 候选）', value: 'tool' },
-          { label: 'subagent（/prompt 候选）', value: 'subagent' },
-        ],
-      },
       { name: 'variables', label: '变量', type: 'tags', placeholder: '如 user.name' },
+      {
+        name: 'allowMain',
+        label: '主流程注入',
+        type: 'switch',
+        defaultValue: true,
+        extra: '已废弃：land_config 以显式选择为准。',
+      },
+      {
+        name: 'allowSub',
+        label: '子流程注入',
+        type: 'switch',
+        defaultValue: false,
+        extra: '已废弃：land_config 以显式选择为准。',
+      },
       {
         name: 'content',
         label: '内容',
@@ -172,7 +181,7 @@ function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developer
   return (
     <EntityManager
       title="Prompt 管理"
-      description="集中维护系统/任务/工具 Prompt 模板（MCP Prompt 请在 MCP Servers 中维护）。"
+      description="集中维护 Prompt 模板（由 land_config 选择注入；MCP Prompt 请在 MCP Servers 中维护）。"
       data={visible}
       tableProps={{
         title: () => (

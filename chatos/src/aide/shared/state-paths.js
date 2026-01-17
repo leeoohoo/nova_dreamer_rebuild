@@ -13,16 +13,16 @@ export function resolveLegacyStateDir(sessionRoot) {
   return resolveLegacyStateDirCore(sessionRoot);
 }
 
-export function resolveAppStateDir(sessionRoot) {
-  return resolveAppStateDirCore(sessionRoot, { fallbackHostApp: 'aide' });
+export function resolveAppStateDir(sessionRoot, options = {}) {
+  return resolveAppStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
 }
 
-export function maybeMigrateLegacyStateDir(sessionRoot) {
-  return maybeMigrateLegacyStateDirCore(sessionRoot, { fallbackHostApp: 'aide' });
+export function maybeMigrateLegacyStateDir(sessionRoot, options = {}) {
+  return maybeMigrateLegacyStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
 }
 
-export function ensureAppStateDir(sessionRoot) {
-  return ensureAppStateDirCore(sessionRoot, { fallbackHostApp: 'aide' });
+export function ensureAppStateDir(sessionRoot, options = {}) {
+  return ensureAppStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
 }
 
 export function resolveAppDbFileName(hostApp) {
@@ -33,10 +33,10 @@ export function resolveAppDbJsonFileName(hostApp) {
   return resolveAppDbJsonFileNameCore(hostApp);
 }
 
-export function maybeMigrateLegacyDbFiles(stateDir) {
-  return maybeMigrateLegacyDbFilesCore(stateDir, { fallbackHostApp: 'aide' });
+export function maybeMigrateLegacyDbFiles(stateDir, options = {}) {
+  return maybeMigrateLegacyDbFilesCore(stateDir, { ...options, fallbackHostApp: 'aide' });
 }
 
-export function ensureAppDbPath(sessionRoot) {
-  return ensureAppDbPathCore(sessionRoot, { fallbackHostApp: 'aide' });
+export function ensureAppDbPath(sessionRoot, options = {}) {
+  return ensureAppDbPathCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
 }

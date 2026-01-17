@@ -1,13 +1,10 @@
-import { composeSystemPrompt, loadSystemPromptFromDb } from '../prompts.js';
-
-export function resolveSystemPrompt(client, modelName, systemOverride, options = {}) {
-  const settings = client.config.getModel(modelName);
-  const composed = composeSystemPrompt({
-    configPath: options.configPath,
-    systemOverride,
-    modelPrompt: settings.system_prompt,
-    systemConfig: options.systemConfigFromDb || loadSystemPromptFromDb([]),
-  });
-  return composed.prompt;
+export function resolveSystemPrompt(_client, _modelName, systemOverride, options = {}) {
+  if (options.landConfigPrompt !== undefined) {
+    return typeof options.landConfigPrompt === 'string' ? options.landConfigPrompt : '';
+  }
+  if (systemOverride !== undefined) {
+    return typeof systemOverride === 'string' ? systemOverride : '';
+  }
+  return '';
 }
 

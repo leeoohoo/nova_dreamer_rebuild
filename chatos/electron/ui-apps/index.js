@@ -4,6 +4,7 @@ import { pathToFileURL } from 'url';
 import { uiAppsPluginSchema } from './schemas.js';
 import { resolveUiAppsAi, syncUiAppsAiContributes } from './ai.js';
 import { getRegistryCenter } from '../backend/registry-center.js';
+import { createRuntimeLogger } from '../../src/common/state-core/runtime-log.js';
 
 const DEFAULT_MANIFEST_FILE = 'plugin.json';
 const DEFAULT_MAX_MANIFEST_BYTES = 256 * 1024;
@@ -56,6 +57,14 @@ class UiAppsManager {
 
     this.registryMap = new Map();
     this.backendCache = new Map();
+    this.loggedErrorKeys = new Set();
+    this.runtimeLogger =
+      this.stateDir && this.stateDir.trim()
+        ? createRuntimeLogger({
+            filePath: path.join(this.stateDir, 'runtime-log.jsonl'),
+            scope: 'UI_APPS',
+          })
+        : null;
   }
 
   async listRegistry() {
@@ -181,6 +190,12 @@ class UiAppsManager {
       .sort((a, b) => a.name.localeCompare(b.name));
 
     this.registryMap = byId;
+    if (errors.length > 0) {
+      errors.forEach((entry) => {
+        const key = `${entry?.source || 'unknown'}:${entry?.dir || ''}:${entry?.message || ''}`;
+        this.#logRuntimeOnce(key, 'warn', 'UI Apps registry error', entry);
+      });
+    }
     return { ok: true, pluginDirs, plugins, apps, errors };
   }
 
@@ -286,9 +301,11 @@ class UiAppsManager {
       plugin = this.registryMap.get(pluginId);
     }
     if (!plugin) {
+      this.#logRuntime('warn', 'UI Apps invoke failed: plugin not found', { pluginId, method });
       return { ok: false, message: `Plugin not found: ${pluginId}` };
     }
     if (!plugin.backend?.resolved) {
+      this.#logRuntime('warn', 'UI Apps invoke failed: backend not configured', { pluginId, method });
       return { ok: false, message: `Plugin backend not configured: ${pluginId}` };
     }
 
@@ -296,13 +313,33 @@ class UiAppsManager {
       const backend = await this.#getBackend(plugin);
       const fn = backend?.methods?.[method];
       if (typeof fn !== 'function') {
+        this.#logRuntime('warn', 'UI Apps invoke failed: method not found', { pluginId, method });
         return { ok: false, message: `Method not found: ${method}` };
       }
       const result = await fn(params, this.#buildInvokeContext(pluginId, plugin));
       return { ok: true, result };
     } catch (err) {
+      this.#logRuntime('error', 'UI Apps invoke failed', { pluginId, method }, err);
       return { ok: false, message: err?.message || String(err) };
     }
+  }
+
+  #logRuntime(level, message, meta, err) {
+    const logger = this.runtimeLogger;
+    if (!logger) return;
+    const fn = typeof logger[level] === 'function' ? logger[level] : logger.info;
+    if (typeof fn !== 'function') return;
+    fn(message, meta, err);
+  }
+
+  #logRuntimeOnce(key, level, message, meta, err) {
+    if (!key) {
+      this.#logRuntime(level, message, meta, err);
+      return;
+    }
+    if (this.loggedErrorKeys.has(key)) return;
+    this.loggedErrorKeys.add(key);
+    this.#logRuntime(level, message, meta, err);
   }
 
   #ensureDir(dirPath) {

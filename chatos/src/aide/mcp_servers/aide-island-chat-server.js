@@ -25,14 +25,15 @@ if (args.help || args.h) {
 const serverName = safeTrim(args.name) || 'aide_island_chat';
 assertStdioOnly(args);
 
-const sessionRoot = safeTrim(args['session-root']) ? path.resolve(String(args['session-root'])) : resolveSessionRoot();
+const sessionRootArg = safeTrim(args['session-root']);
+const sessionRoot = sessionRootArg ? path.resolve(String(sessionRootArg)) : resolveSessionRoot();
 const workspaceRoot = safeTrim(args['workspace-root'])
   ? path.resolve(String(args['workspace-root']))
   : process.env.MODEL_CLI_WORKSPACE_ROOT
     ? path.resolve(process.env.MODEL_CLI_WORKSPACE_ROOT)
     : process.cwd();
 
-const stateDir = resolveAppStateDir(sessionRoot);
+const stateDir = resolveAppStateDir(sessionRoot, { preferSessionRoot: Boolean(sessionRootArg) });
 const terminalDir = path.join(stateDir, 'terminals');
 const runsPath = process.env.MODEL_CLI_RUNS || path.join(stateDir, 'runs.jsonl');
 const eventLogPath = process.env.MODEL_CLI_EVENT_LOG || path.join(stateDir, 'events.jsonl');
@@ -816,7 +817,7 @@ function readTerminalStatus({ terminalDir, runId }) {
 async function ensureCliRunReady({ runId, sessionRoot, workspaceRoot, cwd, deadline, uiTerminalMode } = {}) {
   const rid = normalizeRunId(runId);
   if (!rid) throw new Error('runId is required');
-  const dir = path.join(resolveAppStateDir(sessionRoot), 'terminals');
+  const dir = path.join(resolveAppStateDir(sessionRoot, { preferSessionRoot: Boolean(sessionRootArg) }), 'terminals');
   ensureDir(dir);
 
   const existing = readTerminalStatus({ terminalDir: dir, runId: rid });
@@ -848,7 +849,9 @@ async function spawnCliChat({ runId, sessionRoot, workspaceRoot, cwd, uiTerminal
   const wr = typeof workspaceRoot === 'string' && workspaceRoot.trim() ? path.resolve(workspaceRoot) : process.cwd();
   const launchCwd = safeTrim(cwd) ? path.resolve(String(cwd)) : wr;
   const resolvedTerminalsDir =
-    typeof terminalsDir === 'string' && terminalsDir.trim() ? path.resolve(terminalsDir) : path.join(resolveAppStateDir(root), 'terminals');
+    typeof terminalsDir === 'string' && terminalsDir.trim()
+      ? path.resolve(terminalsDir)
+      : path.join(resolveAppStateDir(root, { preferSessionRoot: Boolean(sessionRootArg) }), 'terminals');
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);

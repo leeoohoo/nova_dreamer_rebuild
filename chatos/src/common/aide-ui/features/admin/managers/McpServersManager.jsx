@@ -138,7 +138,6 @@ function McpServersManager({
       const payload = {
         name,
         title: resolvePromptTitle(existing, serverName, lang),
-        type: 'system',
         content: trimmed,
         allowMain: allowMain === true,
         allowSub: allowSub !== false,

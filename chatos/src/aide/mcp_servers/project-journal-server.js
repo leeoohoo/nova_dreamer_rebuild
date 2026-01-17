@@ -19,7 +19,11 @@ const sessionRoot =
     : typeof args.root === 'string' && args.root.trim()
       ? args.root.trim()
       : process.cwd());
-const root = resolveAppStateDir(sessionRoot);
+const explicitSessionRoot = Boolean(
+  (typeof process.env.MODEL_CLI_SESSION_ROOT === 'string' && process.env.MODEL_CLI_SESSION_ROOT.trim()) ||
+    (typeof args.root === 'string' && args.root.trim())
+);
+const root = resolveAppStateDir(sessionRoot, { preferSessionRoot: explicitSessionRoot });
 const serverName = args.name || 'project_journal';
 const execLogPath = resolveStorePath(
   args['exec-log'] || args.exec_log || args.execLog,

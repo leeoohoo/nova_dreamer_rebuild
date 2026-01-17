@@ -372,8 +372,8 @@ function normalizeResponseStatus(status) {
   if (value === 'ok' || value === 'canceled' || value === 'timeout') {
     return value;
   }
-  if (!value) return 'ok';
-  return 'ok';
+  if (!value) return 'canceled';
+  return 'canceled';
 }
 
 function parseArgs(input) {

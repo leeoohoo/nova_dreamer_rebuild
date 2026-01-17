@@ -2,7 +2,6 @@ import * as colors from '../colors.js';
 import { runModelPicker, runMcpSetup, runMcpToolsConfigurator } from '../ui/index.js';
 import { loadMcpConfig, saveMcpConfig } from '../mcp.js';
 import { renderMarkdown } from '../markdown.js';
-import { loadSystemPromptFromDb } from '../prompts.js';
 import { estimateTokenCount, loadSummaryPromptConfig } from '../chat/summary.js';
 import { getHostApp } from '../../shared/host-app.js';
 
@@ -113,6 +112,16 @@ export async function handleSlashCommand(input, context) {
     case 'prompt':
     case 'propmt': {
       const promptStore = context.promptStore;
+      const landConfigActive = context.landConfigActive === true;
+      const landConfigPrompt =
+        typeof context.landConfigPrompt === 'string' ? context.landConfigPrompt.trim() : '';
+      const landConfigLabel = (() => {
+        const info = context.landConfigInfo;
+        if (!info || typeof info !== 'object') return '';
+        const name = typeof info.name === 'string' ? info.name.trim() : '';
+        const id = typeof info.id === 'string' ? info.id.trim() : '';
+        return name && id ? `${name} (${id})` : name || id;
+      })();
       if (argsText && promptStore) {
         const tokens = argsText.split(/\s+/).filter(Boolean);
         const [subRaw, ...restTokens] = tokens;
@@ -140,6 +149,10 @@ export async function handleSlashCommand(input, context) {
           return null;
         }
         if (['use', 'apply'].includes(sub) && restTokens.length > 0) {
+          if (landConfigActive) {
+            console.log(colors.yellow('land_config 已启用，/prompt 覆盖已禁用，请在 land_config 中配置。'));
+            return null;
+          }
           const key = restTokens.join(' ');
           const profile = promptStore.prompts?.[key];
           if (!profile) {
@@ -150,23 +163,44 @@ export async function handleSlashCommand(input, context) {
           return { type: 'prompt-update', systemOverride: profile };
         }
         if (promptStore.prompts?.[argsText]) {
+          if (landConfigActive) {
+            console.log(colors.yellow('land_config 已启用，/prompt 覆盖已禁用，请在 land_config 中配置。'));
+            return null;
+          }
           console.log(colors.green(`已切换到提示词 "${argsText}"。`));
           return { type: 'prompt-update', systemOverride: promptStore.prompts[argsText] };
         }
+        if (landConfigActive) {
+          console.log(colors.yellow('land_config 已启用，/prompt 覆盖已禁用，请在 land_config 中配置。'));
+          return null;
+        }
         console.log(colors.yellow('未知的提示词指令。使用 /prompt list 查看可用名称。'));
+        return null;
+      }
+      if (landConfigActive) {
+        console.log(colors.cyan('\n=== 当前 System Prompt（land_config） ==='));
+        if (landConfigLabel) {
+          console.log(colors.dim(`land_config: ${landConfigLabel}`));
+        }
+        console.log(landConfigPrompt ? landConfigPrompt : colors.dim('<空>'));
+        console.log(colors.dim('提示：请在管理台的 land_config 中修改。'));
         return null;
       }
       const current = resolveSystemPrompt(
         context.client,
         context.currentModel,
         context.systemOverride,
-        { configPath: context.configPath, systemConfigFromDb: context.systemConfigFromDb }
+        {
+          configPath: context.configPath,
+          systemConfigFromDb: context.systemConfigFromDb,
+          landConfigPrompt: context.landConfigPrompt,
+        }
       );
       console.log(colors.cyan('\n=== 当前 System Prompt ==='));
       console.log(current ? current : colors.dim('<未设置，将发送无 system prompt>'));
       console.log(
         colors.dim(
-          '输入新的 prompt 并回车即可生效。留空表示保持原样，"." 清空，输入 "!default" 使用内置开发提示，输入 "!config" 回到模型配置，输入 "!list" 查看 admin.db/管理台中维护的候选项。'
+          '输入新的 prompt 并回车即可生效。留空表示保持原样，"." 清空，输入 "!list" 查看 admin.db/管理台中维护的候选项。'
         )
       );
       const next = await context.askLine(colors.magenta('新 prompt: '));
@@ -177,13 +211,6 @@ export async function handleSlashCommand(input, context) {
       }
       if (trimmed === '.') {
         return { type: 'prompt-update', systemOverride: '' };
-      }
-      if (trimmed.toLowerCase() === '!default') {
-        const systemConfig = context.systemConfigFromDb || loadSystemPromptFromDb([]);
-        return { type: 'prompt-update', systemOverride: systemConfig.defaultPrompt };
-      }
-      if (trimmed.toLowerCase() === '!config') {
-        return { type: 'prompt-update', useConfigDefault: true };
       }
       if (trimmed.toLowerCase() === '!list' && promptStore) {
         const names = Object.keys(promptStore.prompts || {});
@@ -259,7 +286,7 @@ export async function handleSlashCommand(input, context) {
         context.client,
         selection,
         context.systemOverride,
-        { configPath: context.configPath }
+        { configPath: context.configPath, landConfigPrompt: context.landConfigPrompt }
       );
       return {
         type: 'switch-model',
@@ -360,7 +387,7 @@ function printSlashCommandHelp() {
     { name: '/mcp_set', description: 'Configure MCP servers (interactive)' },
     { name: '/mcp_tools', description: 'Select active MCP tools for current model' },
     { name: '/model', description: 'Choose what model to use' },
-    { name: '/prompt', description: 'Manage system prompts' },
+    { name: '/prompt', description: 'View/override system prompt (land_config active = read-only)' },
     { name: '/summary', description: 'Inspect/force auto summary' },
     { name: '/sub', description: 'Manage and run sub-agents' },
     { name: '/tool', description: 'View tool execution history' },

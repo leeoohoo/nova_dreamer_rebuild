@@ -435,7 +435,6 @@ export function buildAdminSeed(defaultPaths = {}) {
       id: crypto.randomUUID(),
       name: prompt.name,
       title: prompt.title || prompt.name,
-      type: prompt.type || 'system',
       content: prompt.content,
       defaultContent: prompt.content,
       allowMain: prompt.allowMain === true,

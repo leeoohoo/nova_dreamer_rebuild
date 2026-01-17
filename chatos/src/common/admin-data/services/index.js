@@ -44,8 +44,24 @@ function migratePromptAllowFlags(db) {
   });
 }
 
+function migratePromptTypeUsage(db) {
+  const prompts = db.list('prompts') || [];
+  prompts.forEach((prompt) => {
+    if (!prompt?.id) return;
+    const rawType = typeof prompt.type === 'string' ? prompt.type.trim().toLowerCase() : '';
+    if (!rawType || rawType === 'system') return;
+    if (prompt.allowMain === false && prompt.allowSub === false) return;
+    try {
+      db.update('prompts', prompt.id, { allowMain: false, allowSub: false });
+    } catch {
+      // ignore migration errors
+    }
+  });
+}
+
 export function createAdminServices(db) {
   migratePromptAllowFlags(db);
+  migratePromptTypeUsage(db);
   const models = new ModelService(db);
   const secrets = new SecretService(db);
   const mcpServers = new McpService(db);

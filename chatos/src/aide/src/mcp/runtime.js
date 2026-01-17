@@ -10,6 +10,7 @@ import { adjustCommandArgs, parseMcpEndpoint } from './runtime/endpoints.js';
 import { mapAllSettledWithConcurrency, resolveConcurrency } from './runtime/concurrency.js';
 import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../shared/host-app.js';
 import { ensureAppDbPath, resolveAppStateDir } from '../../shared/state-paths.js';
+import { createRuntimeLogger } from '../../shared/runtime-log.js';
 import {
   getDefaultToolMaxTimeoutMs,
   getDefaultToolTimeoutMs,
@@ -90,7 +91,7 @@ function isUiAppMcpServer(entry, options = {}) {
   return false;
 }
 
-function ensureUiAppNodeModules(sessionRoot) {
+function ensureUiAppNodeModules(sessionRoot, runtimeLogger) {
   const root = typeof sessionRoot === 'string' && sessionRoot.trim() ? sessionRoot.trim() : process.cwd();
   const stateDir = resolveAppStateDir(root);
   if (!stateDir || uiAppNodeModulesReady.has(stateDir)) return;
@@ -116,6 +117,7 @@ function ensureUiAppNodeModules(sessionRoot) {
     fs.symlinkSync(hostNodeModules, target, linkType);
   } catch (err) {
     log.warn('UI Apps MCP node_modules 连接失败', err);
+    runtimeLogger?.warn('UI Apps MCP node_modules 连接失败', { target, source: hostNodeModules }, err);
   }
 }
 
@@ -125,11 +127,18 @@ async function initializeMcpRuntime(
   workspaceRoot = process.cwd(),
   options = {}
 ) {
+  const runtimeLogger =
+    options?.runtimeLogger ||
+    createRuntimeLogger({
+      sessionRoot,
+      scope: 'MCP',
+    });
   let servers;
   try {
     ({ servers } = loadMcpConfig(configPath));
   } catch (err) {
     log.error('读取 mcp.config.json 失败', err);
+    runtimeLogger?.error('读取 mcp.config.json 失败', { configPath }, err);
     return null;
   }
   const extraServers = Array.isArray(options?.extraServers) ? options.extraServers : [];
@@ -162,8 +171,9 @@ async function initializeMcpRuntime(
     options?.mcpStartupConcurrency ?? process.env.MODEL_CLI_MCP_STARTUP_CONCURRENCY,
     4
   );
+  const runtimeOptions = { ...options, runtimeLogger };
   const settled = await mapAllSettledWithConcurrency(connectTargets, startupConcurrency, (entry) =>
-    connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, options)
+    connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions)
   );
   const handles = [];
   settled.forEach((result, idx) => {
@@ -174,8 +184,12 @@ async function initializeMcpRuntime(
       return;
     }
     log.warn(`无法连接到 ${entry?.name || '<unnamed>'}`, result.reason);
+    runtimeLogger?.warn('无法连接到 MCP 服务器', { server: entry?.name || '<unnamed>' }, result.reason);
   });
   if (handles.length === 0) {
+    runtimeLogger?.warn('MCP 启动失败：未连接到任何服务器', {
+      servers: connectTargets.map((entry) => entry?.name || '<unnamed>'),
+    });
     return null;
   }
   const toolNames = handles.flatMap((handle) =>
@@ -217,6 +231,7 @@ async function initializeMcpRuntime(
 }
 
 async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions = {}) {
+  const runtimeLogger = runtimeOptions?.runtimeLogger;
   const endpoint = parseMcpEndpoint(entry.url);
   if (!endpoint) {
     throw new Error('MCP 端点为空或无法解析。');
@@ -224,7 +239,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
 
   if (endpoint.type === 'command') {
     if (isUiAppMcpServer(entry, { endpoint, baseDir, sessionRoot })) {
-      ensureUiAppNodeModules(sessionRoot);
+      ensureUiAppNodeModules(sessionRoot, runtimeLogger);
     }
     const client = new Client({
       name: 'model-cli',
@@ -305,6 +320,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         sessionRoot,
         pidName: endpoint.command,
         workspaceRoot,
+        runtimeLogger,
       });
     } catch (err) {
       const normalizedCommand = String(resolved.command || endpoint.command || '')
@@ -346,14 +362,14 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new StreamableHTTPClientTransport(endpoint.url);
-      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot });
+      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger });
     } catch (err) {
       errors.push(`streamable_http: ${err?.message || err}`);
     }
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new SSEClientTransport(endpoint.url);
-      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot });
+      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger });
     } catch (err) {
       errors.push(`sse: ${err?.message || err}`);
     }
@@ -363,7 +379,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   if (endpoint.type === 'ws') {
     const client = new Client({ name: 'model-cli', version: '0.1.0' });
     const transport = new WebSocketClientTransport(endpoint.url);
-    return connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot });
+    return connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger });
   }
 
   throw new Error(
@@ -371,13 +387,14 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   );
 }
 
-async function connectAndRegisterTools({ entry, client, transport, sessionRoot, pidName, workspaceRoot } = {}) {
+async function connectAndRegisterTools({ entry, client, transport, sessionRoot, pidName, workspaceRoot, runtimeLogger } = {}) {
   if (!client || !transport) {
     throw new Error('Missing MCP client or transport');
   }
   if (transport && typeof transport === 'object') {
     transport.onclose = () => {
       log.warn(`连接 ${entry?.name || '<unnamed>'} 已关闭`);
+      runtimeLogger?.warn('MCP 连接已关闭', { server: entry?.name || '<unnamed>' });
     };
   }
   await client.connect(transport);
@@ -391,10 +408,11 @@ async function connectAndRegisterTools({ entry, client, transport, sessionRoot, 
   const toolsFromServer = await fetchAllTools(client);
   if (toolsFromServer.length === 0) {
     log.warn(`${entry?.name || '<unnamed>'} 未公开任何工具。`);
+    runtimeLogger?.warn('MCP 未公开工具', { server: entry?.name || '<unnamed>' });
   }
   const runtimeMeta = buildRuntimeCallMeta({ workspaceRoot });
   const registeredTools = toolsFromServer
-    .map((tool) => registerRemoteTool(client, entry, tool, runtimeMeta))
+    .map((tool) => registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger))
     .filter(Boolean);
   return { entry, client, transport, registeredTools };
 }
@@ -479,7 +497,26 @@ async function fetchAllTools(client) {
   return collected;
 }
 
-function registerRemoteTool(client, serverEntry, tool, runtimeMeta) {
+function summarizeArgs(value) {
+  if (value === null || value === undefined) {
+    return { type: String(value) };
+  }
+  if (Array.isArray(value)) {
+    return { type: 'array', length: value.length };
+  }
+  const kind = typeof value;
+  if (kind !== 'object') {
+    return { type: kind };
+  }
+  const keys = Object.keys(value);
+  return {
+    type: 'object',
+    keyCount: keys.length,
+    keys: keys.slice(0, 20),
+  };
+}
+
+function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger) {
   const serverName = serverEntry?.name || 'server';
   const normalizedServer = String(serverName || '').toLowerCase();
   if (
@@ -629,15 +666,30 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta) {
         tool: tool.name,
         args: injectedArgs,
       });
-      const response = await client.callTool(
-        {
-          name: tool.name,
-          arguments: normalizedArgs,
-          ...(callMeta ? { _meta: callMeta } : {}),
-        },
-        undefined,
-        optionsWithSignal
-      );
+      let response;
+      try {
+        response = await client.callTool(
+          {
+            name: tool.name,
+            arguments: normalizedArgs,
+            ...(callMeta ? { _meta: callMeta } : {}),
+          },
+          undefined,
+          optionsWithSignal
+        );
+      } catch (err) {
+        runtimeLogger?.error(
+          'MCP 工具调用失败',
+          {
+            server: serverName,
+            tool: tool.name,
+            caller: toolContext?.caller || '',
+            args: summarizeArgs(normalizedArgs),
+          },
+          err
+        );
+        throw err;
+      }
       return formatCallResult(serverName, tool.name, response);
     },
   });

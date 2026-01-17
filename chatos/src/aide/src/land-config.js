@@ -23,7 +23,7 @@ function ensureFlow(flow) {
 function buildPromptMap(prompts) {
   const map = new Map();
   (Array.isArray(prompts) ? prompts : []).forEach((prompt) => {
-    if (!prompt || prompt.type !== 'system') return;
+    if (!prompt) return;
     const name = normalizeKey(prompt?.name);
     if (!name) return;
     const content = typeof prompt?.content === 'string' ? prompt.content.trim() : '';

@@ -11,10 +11,9 @@ import * as colors from './colors.js';
 import { createLogger } from './logger.js';
 import { runStartupWizard } from './ui/index.js';
 import { initializeMcpRuntime } from './mcp/runtime.js';
-import { loadPromptProfilesFromDb, loadSystemPromptFromDb, composeSystemPrompt, buildUserPromptMessages } from './prompts.js';
+import { loadPromptProfilesFromDb, buildUserPromptMessages } from './prompts.js';
 import { chatLoop } from './chat-loop.js';
 import { loadMcpConfig } from './mcp.js';
-import { buildMcpPromptBundles } from './mcp/prompt-binding.js';
 import { buildLandConfigSelection, resolveLandConfig } from './land-config.js';
 import { createSubAgentManager } from './subagents/index.js';
 import { generateConfigReport, writeReport } from './report.js';
@@ -262,6 +261,14 @@ function parseBoolean(value, flag) {
   throw new Error(`Option ${flag} expected a boolean value but received "${value}"`);
 }
 
+function appendPromptBlock(baseText, extraText) {
+  const base = typeof baseText === 'string' ? baseText.trim() : '';
+  const extra = typeof extraText === 'string' ? extraText.trim() : '';
+  if (!base) return extra;
+  if (!extra) return base;
+  return `${base}\n\n${extra}`;
+}
+
 function applyRuntimeSettings(config) {
   const normalized = {};
   if (!config || typeof config !== 'object') {
@@ -370,18 +377,25 @@ async function runChat(options) {
         promptLanguage,
       })
     : null;
-  let systemPromptConfig = loadSystemPromptFromDb(promptRecords, { language: promptLanguage });
-  if (landSelection) {
-    systemPromptConfig = {
-      ...systemPromptConfig,
-      userPrompt: landSelection.main.promptText || '',
-      subagentUserPrompt: landSelection.sub.promptText || '',
-    };
+  const landConfigActive = Boolean(landSelection);
+  const mainPromptWithMcp = landSelection
+    ? appendPromptBlock(landSelection.main.promptText, landSelection.main.mcpPromptText)
+    : '';
+  const subagentPromptWithMcp = landSelection
+    ? appendPromptBlock(landSelection.sub.promptText, landSelection.sub.mcpPromptText)
+    : '';
+  if (!landConfigActive && resolvedOptions.system) {
+    console.log(colors.yellow('[prompts] land_config 未启用，已忽略内置/默认 prompt；仅使用 --system 覆盖。'));
+  }
+  if (landConfigActive && resolvedOptions.system) {
+    console.log(colors.yellow('[prompts] land_config 已启用，忽略 --system 覆盖。'));
+  }
+  if (!landConfigActive && !resolvedOptions.system) {
+    console.log(colors.yellow('[prompts] land_config 未启用，system prompt 为空。'));
   }
   const mcpSummary = loadMcpConfig(defaultPaths.mcpConfig);
   const subAgentManager = createSubAgentManager({
-    internalSystemPrompt: systemPromptConfig.subagentInternal,
-    systemPromptPath: systemPromptConfig.path,
+    internalSystemPrompt: '',
   });
   const subAgentList = subAgentManager.listAgents();
   const resolvedConfigPath = defaultPaths.models;
@@ -514,16 +528,28 @@ async function runChat(options) {
   // Apply once to initial model settings to avoid leaking broader tool list
   targetSettings.tools = filterMainTools(targetSettings.name);
 
+  const systemOverride = landConfigActive ? undefined : resolvedOptions.system;
+  const sessionSystem =
+    systemOverride !== undefined
+      ? String(systemOverride || '')
+      : '';
+
   // Generate config snapshot report for quick inspection
   try {
+    const promptLabel = landConfigActive
+      ? `land_config:${selectedLandConfig?.id || landConfigId || 'unknown'}`
+      : systemOverride !== undefined
+        ? '(system_override)'
+        : '(none)';
+    const promptText = landConfigActive ? mainPromptWithMcp : (typeof systemOverride === 'string' ? systemOverride : '');
     const html = generateConfigReport({
       modelsPath: resolvedConfigPath,
       models: config.models,
       activeModel: targetSettings.name,
       mcpPath: mcpSummary?.path,
       mcpServers: mcpSummary?.servers,
-      systemPromptPath: systemPromptConfig.path,
-      systemPrompt: `${systemPromptConfig.mainInternal}\n\n${systemPromptConfig.defaultPrompt}`,
+      systemPromptPath: promptLabel,
+      systemPrompt: promptText,
       promptProfiles: promptStore?.prompts,
       subAgents: subAgentList,
     });
@@ -534,34 +560,8 @@ async function runChat(options) {
     console.error(colors.yellow(`[report] Failed to write config snapshot: ${err.message}`));
   }
 
-  const {
-    prompt: sessionSystem,
-    userPrompt: userPromptText,
-    subagentUserPrompt: subagentUserPromptText,
-  } = composeSystemPrompt({
-    systemOverride: resolvedOptions.system,
-    modelPrompt: targetSettings.system_prompt,
-    systemConfig: systemPromptConfig,
-  });
-
-  const appendPromptBlock = (baseText, extraText) => {
-    const base = typeof baseText === 'string' ? baseText.trim() : '';
-    const extra = typeof extraText === 'string' ? extraText.trim() : '';
-    if (!base) return extra;
-    if (!extra) return base;
-    return `${base}\n\n${extra}`;
-  };
-  const mcpPromptBundles = landSelection
-    ? null
-    : buildMcpPromptBundles({
-        prompts: promptRecords,
-        mcpServers: mcpServerRecords,
-        language: promptLanguage,
-      });
-  const mainMcpText = landSelection ? landSelection.main.mcpPromptText : mcpPromptBundles.main.text;
-  const subagentMcpText = landSelection ? landSelection.sub.mcpPromptText : mcpPromptBundles.subagent.text;
-  const mainPromptWithMcp = appendPromptBlock(userPromptText, mainMcpText);
-  const subagentPromptWithMcp = appendPromptBlock(subagentUserPromptText, subagentMcpText);
+  const userPromptText = landConfigActive ? mainPromptWithMcp : '';
+  const subagentUserPromptText = landConfigActive ? subagentPromptWithMcp : '';
 
   if (landSelection) {
     if ((landSelection.main?.missingMcpPromptNames || []).length > 0) {
@@ -606,24 +606,9 @@ async function runChat(options) {
         )
       );
     }
-  } else {
-    if (mcpPromptBundles.main.missingPromptNames.length > 0) {
-      console.log(
-        colors.yellow(
-          `[prompts] Missing MCP prompt(s) for main: ${mcpPromptBundles.main.missingPromptNames.join(', ')}`
-        )
-      );
-    }
-    if (mcpPromptBundles.subagent.missingPromptNames.length > 0) {
-      console.log(
-        colors.yellow(
-          `[prompts] Missing MCP prompt(s) for subagent: ${mcpPromptBundles.subagent.missingPromptNames.join(', ')}`
-        )
-      );
-    }
   }
 
-  const extraSystemPrompts = buildUserPromptMessages(mainPromptWithMcp);
+  const extraSystemPrompts = landConfigActive ? buildUserPromptMessages(mainPromptWithMcp) : [];
   const session = new ChatSession(sessionSystem, {
     extraSystemPrompts,
   });
@@ -652,12 +637,17 @@ async function runChat(options) {
     console.log(colors.green(`Event log at: ${eventLogPath}`));
     updateSessionReport();
     await chatLoop(client, targetSettings.name, session, {
-      systemOverride: resolvedOptions.system,
+      systemOverride,
       stream: streamEnabled,
       configPath: resolvedConfigPath,
-      systemConfigFromDb: systemPromptConfig,
-      userPrompt: mainPromptWithMcp,
-      subagentUserPrompt: subagentPromptWithMcp,
+      systemConfigFromDb: null,
+      userPrompt: userPromptText,
+      subagentUserPrompt: subagentUserPromptText,
+      landConfigActive,
+      landConfigPrompt: userPromptText,
+      landConfigInfo: landConfigActive
+        ? { id: selectedLandConfig?.id || landConfigId || '', name: selectedLandConfig?.name || '' }
+        : null,
       subagentMcpAllowPrefixes: subagentAllowPrefixes,
       allowUi: interactiveTerminal,
       promptStore,

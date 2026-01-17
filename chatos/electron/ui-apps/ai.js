@@ -423,7 +423,6 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
           const desired = {
             name: String(variant.name || '').trim(),
             title,
-            type: 'system',
             content,
             allowMain: true,
             allowSub: true,
@@ -448,7 +447,6 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
 
           const patch = {};
           if ((existing.title || '') !== (desired.title || '')) patch.title = desired.title || '';
-          if ((existing.type || '') !== desired.type) patch.type = desired.type;
           if ((existing.content || '') !== desired.content) patch.content = desired.content;
           if (existing.allowMain !== desired.allowMain) patch.allowMain = desired.allowMain;
           if (existing.allowSub !== desired.allowSub) patch.allowSub = desired.allowSub;
