@@ -4,6 +4,9 @@
   "description": "ChatOS UI Apps DevKit (CLI + templates + sandbox) for building installable ChatOS UI Apps plugins.",
   "license": "MIT",
   "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2"
+  },
   "scripts": {
     "test": "node --test"
   },

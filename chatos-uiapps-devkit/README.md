@@ -33,6 +33,7 @@ npm run dev
 - 模拟 `module mount()` 与 `host.*` API
 - 右上角 Theme 切换（light/dark/system），用于测试 `host.theme.onChange` 与样式响应
 - Inspect 面板展示 `host.context` 与 `--ds-*` tokens
+- 右上角 `AI Config` 可配置 `API Key / Base URL / Model ID`，用于在沙箱内调用真实模型并测试应用 MCP（需配置 `ai.mcp`）
 
 ## 模板
 

@@ -48,7 +48,7 @@ npm run dev
 1) **前端直连 Chat 域**：用 `host.chat.*` 创建 agent/session、`host.chat.send()` 发送消息、`host.chat.events.subscribe()` 订阅流式事件。
 2) **后端调用 LLM**：在 `plugin/backend/index.mjs` 里通过 `ctx.llm.complete()` 调用模型；前端用 `host.backend.invoke('llmComplete', { input })` 触发。
 
-说明：本地沙箱只提供 mock（不会真实调用模型）；要验证真实 AI 行为请安装到 ChatOS 后运行。
+说明：本地沙箱默认是 mock；可通过右上角 `AI Config` 配置 `API Key / Base URL / Model ID` 后启用真实模型调用，并用于测试应用 MCP（需配置 `ai.mcp`）。
 
 ## 安装到本机 ChatOS
 

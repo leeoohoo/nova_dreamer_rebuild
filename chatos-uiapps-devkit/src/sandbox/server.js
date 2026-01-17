@@ -3,6 +3,12 @@ import http from 'http';
 import path from 'path';
 import url from 'url';
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
+
 import { ensureDir, isDirectory, isFile } from '../lib/fs.js';
 import { loadPluginManifest, pickAppFromManifest } from '../lib/plugin.js';
 import { resolveInsideDir } from '../lib/path-boundary.js';
@@ -31,6 +37,282 @@ function loadTokenNames() {
   return [];
 }
 
+const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function loadSandboxLlmConfig(filePath) {
+  if (!filePath) return { apiKey: '', baseUrl: '', modelId: '' };
+  try {
+    if (!fs.existsSync(filePath)) return { apiKey: '', baseUrl: '', modelId: '' };
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = raw ? JSON.parse(raw) : {};
+    return {
+      apiKey: normalizeText(parsed?.apiKey),
+      baseUrl: normalizeText(parsed?.baseUrl),
+      modelId: normalizeText(parsed?.modelId),
+    };
+  } catch {
+    return { apiKey: '', baseUrl: '', modelId: '' };
+  }
+}
+
+function saveSandboxLlmConfig(filePath, config) {
+  if (!filePath) return;
+  try {
+    ensureDir(path.dirname(filePath));
+    fs.writeFileSync(filePath, JSON.stringify(config || {}, null, 2), 'utf8');
+  } catch {
+    // ignore
+  }
+}
+
+function resolveChatCompletionsUrl(baseUrl) {
+  const raw = normalizeText(baseUrl);
+  if (!raw) return `${DEFAULT_LLM_BASE_URL}/chat/completions`;
+  const normalized = raw.replace(/\/+$/g, '');
+  if (normalized.endsWith('/chat/completions')) return normalized;
+  if (normalized.includes('/v1')) return `${normalized}/chat/completions`;
+  return `${normalized}/v1/chat/completions`;
+}
+
+function normalizeMcpName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function buildMcpToolIdentifier(serverName, toolName) {
+  const server = normalizeMcpName(serverName) || 'mcp_server';
+  const tool = normalizeMcpName(toolName) || 'tool';
+  return `mcp_${server}_${tool}`;
+}
+
+function buildMcpToolDescription(serverName, tool) {
+  const parts = [];
+  if (serverName) parts.push(`[${serverName}]`);
+  if (tool?.annotations?.title) parts.push(tool.annotations.title);
+  else if (tool?.description) parts.push(tool.description);
+  else parts.push('MCP tool');
+  return parts.join(' ');
+}
+
+function extractContentText(blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return '';
+  const lines = [];
+  blocks.forEach((block) => {
+    if (!block || typeof block !== 'object') return;
+    switch (block.type) {
+      case 'text':
+        if (block.text) lines.push(block.text);
+        break;
+      case 'resource_link':
+        lines.push(`resource: ${block.uri || block.resourceId || '(unknown)'}`);
+        break;
+      case 'image':
+        lines.push(`image (${block.mimeType || 'image'}, ${approxSize(block.data)})`);
+        break;
+      case 'audio':
+        lines.push(`audio (${block.mimeType || 'audio'}, ${approxSize(block.data)})`);
+        break;
+      case 'resource':
+        lines.push('resource payload returned (use /mcp to inspect).');
+        break;
+      default:
+        lines.push(`[${block.type}]`);
+        break;
+    }
+  });
+  return lines.join('\n');
+}
+
+function approxSize(base64Text) {
+  if (!base64Text) return 'unknown size';
+  const bytes = Math.round((base64Text.length * 3) / 4);
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function formatMcpToolResult(serverName, toolName, result) {
+  const header = `[${serverName}/${toolName}]`;
+  if (!result) return `${header} tool returned no result.`;
+  if (result.isError) {
+    const errorText = extractContentText(result.content) || 'MCP tool failed.';
+    return `${header} ❌ ${errorText}`;
+  }
+  const segments = [];
+  const textBlock = extractContentText(result.content);
+  if (textBlock) segments.push(textBlock);
+  if (result.structuredContent && Object.keys(result.structuredContent).length > 0) {
+    segments.push(JSON.stringify(result.structuredContent, null, 2));
+  }
+  if (segments.length === 0) segments.push('Tool completed with no text output.');
+  return `${header}\n${segments.join('\n\n')}`;
+}
+
+async function listAllMcpTools(client) {
+  const collected = [];
+  let cursor = null;
+  do {
+    // eslint-disable-next-line no-await-in-loop
+    const result = await client.listTools(cursor ? { cursor } : undefined);
+    if (Array.isArray(result?.tools)) {
+      collected.push(...result.tools);
+    }
+    cursor = result?.nextCursor || null;
+  } while (cursor);
+  if (typeof client.cacheToolMetadata === 'function') {
+    client.cacheToolMetadata(collected);
+  }
+  return collected;
+}
+
+async function connectMcpServer(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const serverName = normalizeText(entry.name) || 'mcp_server';
+  const env = { ...process.env };
+  if (!env.MODEL_CLI_SESSION_ROOT) env.MODEL_CLI_SESSION_ROOT = process.cwd();
+  if (!env.MODEL_CLI_WORKSPACE_ROOT) env.MODEL_CLI_WORKSPACE_ROOT = process.cwd();
+
+  if (entry.command) {
+    const client = new Client({ name: 'sandbox', version: '0.1.0' });
+    const transport = new StdioClientTransport({
+      command: entry.command,
+      args: Array.isArray(entry.args) ? entry.args : [],
+      cwd: entry.cwd || process.cwd(),
+      env,
+      stderr: 'pipe',
+    });
+    await client.connect(transport);
+    const tools = await listAllMcpTools(client);
+    return { serverName, client, transport, tools };
+  }
+
+  if (entry.url) {
+    const urlText = normalizeText(entry.url);
+    if (!urlText) return null;
+    const parsed = new URL(urlText);
+    if (parsed.protocol === 'ws:' || parsed.protocol === 'wss:') {
+      const client = new Client({ name: 'sandbox', version: '0.1.0' });
+      const transport = new WebSocketClientTransport(parsed);
+      await client.connect(transport);
+      const tools = await listAllMcpTools(client);
+      return { serverName, client, transport, tools };
+    }
+
+    const errors = [];
+    try {
+      const client = new Client({ name: 'sandbox', version: '0.1.0' });
+      const transport = new StreamableHTTPClientTransport(parsed);
+      await client.connect(transport);
+      const tools = await listAllMcpTools(client);
+      return { serverName, client, transport, tools };
+    } catch (err) {
+      errors.push(`streamable_http: ${err?.message || err}`);
+    }
+    try {
+      const client = new Client({ name: 'sandbox', version: '0.1.0' });
+      const transport = new SSEClientTransport(parsed);
+      await client.connect(transport);
+      const tools = await listAllMcpTools(client);
+      return { serverName, client, transport, tools };
+    } catch (err) {
+      errors.push(`sse: ${err?.message || err}`);
+    }
+    throw new Error(`Failed to connect MCP server (${serverName}): ${errors.join(' | ')}`);
+  }
+
+  return null;
+}
+
+function buildAppMcpEntry({ pluginDir, pluginId, app }) {
+  const mcp = app?.ai?.mcp && typeof app.ai.mcp === 'object' ? app.ai.mcp : null;
+  if (!mcp) return null;
+  if (mcp.enabled === false) return null;
+  const serverName = mcp?.name ? String(mcp.name).trim() : `${pluginId}.${app.id}`;
+  const command = normalizeText(mcp.command) || 'node';
+  const args = Array.isArray(mcp.args) ? mcp.args : [];
+  const entryRel = normalizeText(mcp.entry);
+  if (entryRel) {
+    const entryAbs = resolveInsideDir(pluginDir, entryRel);
+    return { name: serverName, command, args: [entryAbs, ...args], cwd: pluginDir };
+  }
+  const urlText = normalizeText(mcp.url);
+  if (urlText) {
+    return { name: serverName, url: urlText };
+  }
+  if (normalizeText(mcp.command)) {
+    return { name: serverName, command, args, cwd: pluginDir };
+  }
+  return null;
+}
+
+function readPromptSource(source, pluginDir) {
+  if (!source) return '';
+  if (typeof source === 'string') {
+    const rel = source.trim();
+    if (!rel) return '';
+    const abs = resolveInsideDir(pluginDir, rel);
+    if (!isFile(abs)) return '';
+    return fs.readFileSync(abs, 'utf8');
+  }
+  if (typeof source === 'object') {
+    const content = normalizeText(source?.content);
+    if (content) return content;
+    const rel = normalizeText(source?.path);
+    if (!rel) return '';
+    const abs = resolveInsideDir(pluginDir, rel);
+    if (!isFile(abs)) return '';
+    return fs.readFileSync(abs, 'utf8');
+  }
+  return '';
+}
+
+function resolveAppMcpPrompt(app, pluginDir) {
+  const prompt = app?.ai?.mcpPrompt;
+  if (!prompt) return '';
+  if (typeof prompt === 'string') {
+    return readPromptSource(prompt, pluginDir);
+  }
+  if (typeof prompt === 'object') {
+    const zh = readPromptSource(prompt.zh, pluginDir);
+    const en = readPromptSource(prompt.en, pluginDir);
+    return zh || en || '';
+  }
+  return '';
+}
+
+async function callOpenAiChat({ apiKey, baseUrl, model, messages, tools, signal }) {
+  const endpoint = resolveChatCompletionsUrl(baseUrl);
+  const payload = {
+    model,
+    messages,
+    stream: false,
+  };
+  if (Array.isArray(tools) && tools.length > 0) {
+    payload.tools = tools;
+    payload.tool_choice = 'auto';
+  }
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`LLM request failed (${res.status}): ${text || res.statusText}`);
+  }
+  return await res.json();
+}
 
 function sendJson(res, status, obj) {
   const raw = JSON.stringify(obj);
@@ -47,6 +329,23 @@ function sendText(res, status, text, contentType) {
     'cache-control': 'no-store',
   });
   res.end(text);
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (!body) return resolve({});
+      try {
+        resolve(JSON.parse(body));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
 }
 
 function guessContentType(filePath) {
@@ -278,6 +577,35 @@ function htmlPage() {
         flex-direction: column;
         gap: 10px;
       }
+      #llmPanel {
+        position: fixed;
+        right: 12px;
+        top: 72px;
+        width: 420px;
+        max-height: 70vh;
+        display: none;
+        flex-direction: column;
+        background: var(--ds-panel-bg);
+        border: 1px solid var(--ds-panel-border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 14px 40px rgba(0,0,0,0.16);
+        z-index: 11;
+      }
+      #llmPanelHeader {
+        padding: 10px 12px;
+        display:flex;
+        align-items:center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--ds-panel-border);
+      }
+      #llmPanelBody {
+        padding: 10px 12px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
       .section-title { font-size: 12px; font-weight: 700; opacity: 0.8; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
       input, textarea, select {
@@ -310,6 +638,7 @@ function htmlPage() {
             </div>
             <div id="themeStatus" class="muted"></div>
             <div id="sandboxContext" class="muted"></div>
+            <button id="btnLlmConfig" class="btn" type="button">AI Config</button>
             <button id="btnInspectorToggle" class="btn" type="button">Inspect</button>
             <button id="btnReload" class="btn" type="button">Reload</button>
           </div>
@@ -327,6 +656,36 @@ function htmlPage() {
         <button id="promptsClose" class="btn" type="button">Close</button>
       </div>
       <div id="promptsPanelBody"></div>
+    </div>
+
+    <div id="llmPanel" aria-hidden="true">
+      <div id="llmPanelHeader">
+        <div style="font-weight:800">Sandbox LLM</div>
+        <div class="row">
+          <button id="btnLlmRefresh" class="btn" type="button">Refresh</button>
+          <button id="btnLlmClose" class="btn" type="button">Close</button>
+        </div>
+      </div>
+      <div id="llmPanelBody">
+        <div class="card">
+          <label for="llmApiKey">API Key</label>
+          <input id="llmApiKey" type="password" placeholder="sk-..." autocomplete="off" />
+          <div id="llmKeyStatus" class="muted"></div>
+        </div>
+        <div class="card">
+          <label for="llmBaseUrl">Base URL</label>
+          <input id="llmBaseUrl" type="text" placeholder="https://api.openai.com/v1" />
+        </div>
+        <div class="card">
+          <label for="llmModelId">Model ID</label>
+          <input id="llmModelId" type="text" placeholder="gpt-4o-mini" />
+        </div>
+        <div class="row">
+          <button id="btnLlmSave" class="btn" type="button">Save</button>
+          <button id="btnLlmClear" class="btn" type="button">Clear Key</button>
+        </div>
+        <div id="llmStatus" class="muted"></div>
+      </div>
     </div>
 
     <div id="sandboxInspector" aria-hidden="true">
@@ -379,6 +738,17 @@ const btnInspectorRefresh = $('#btnInspectorRefresh');
 const inspectorContext = $('#inspectorContext');
 const inspectorTheme = $('#inspectorTheme');
 const inspectorTokens = $('#inspectorTokens');
+const btnLlmConfig = $('#btnLlmConfig');
+const llmPanel = $('#llmPanel');
+const btnLlmClose = $('#btnLlmClose');
+const btnLlmRefresh = $('#btnLlmRefresh');
+const btnLlmSave = $('#btnLlmSave');
+const btnLlmClear = $('#btnLlmClear');
+const llmApiKey = $('#llmApiKey');
+const llmBaseUrl = $('#llmBaseUrl');
+const llmModelId = $('#llmModelId');
+const llmStatus = $('#llmStatus');
+const llmKeyStatus = $('#llmKeyStatus');
 
 const setPanelOpen = (open) => { panel.style.display = open ? 'flex' : 'none'; };
 fab.addEventListener('click', () => setPanelOpen(panel.style.display !== 'flex'));
@@ -438,6 +808,64 @@ const updateContextStatus = () => {
 };
 
 const isInspectorOpen = () => sandboxInspector && sandboxInspector.style.display === 'flex';
+const isLlmPanelOpen = () => llmPanel && llmPanel.style.display === 'flex';
+
+const setLlmStatus = (text, isError) => {
+  if (!llmStatus) return;
+  llmStatus.textContent = text || '';
+  llmStatus.style.color = isError ? '#ef4444' : '';
+};
+
+const refreshLlmConfig = async () => {
+  try {
+    setLlmStatus('Loading...');
+    const r = await fetch('/api/sandbox/llm-config');
+    const j = await r.json();
+    if (!j?.ok) throw new Error(j?.message || 'Failed to load config');
+    const cfg = j?.config || {};
+    if (llmBaseUrl) llmBaseUrl.value = cfg.baseUrl || '';
+    if (llmModelId) llmModelId.value = cfg.modelId || '';
+    if (llmKeyStatus) llmKeyStatus.textContent = cfg.hasApiKey ? 'API key set' : 'API key missing';
+    setLlmStatus('');
+  } catch (err) {
+    setLlmStatus(err?.message || String(err), true);
+  }
+};
+
+const saveLlmConfig = async ({ clearKey } = {}) => {
+  try {
+    setLlmStatus('Saving...');
+    const payload = {
+      baseUrl: llmBaseUrl ? llmBaseUrl.value : '',
+      modelId: llmModelId ? llmModelId.value : '',
+    };
+    const apiKey = llmApiKey ? llmApiKey.value : '';
+    if (clearKey) {
+      payload.apiKey = '';
+    } else if (apiKey && apiKey.trim()) {
+      payload.apiKey = apiKey.trim();
+    }
+    const r = await fetch('/api/sandbox/llm-config', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!j?.ok) throw new Error(j?.message || 'Failed to save config');
+    if (llmApiKey) llmApiKey.value = '';
+    await refreshLlmConfig();
+    setLlmStatus('Saved');
+  } catch (err) {
+    setLlmStatus(err?.message || String(err), true);
+  }
+};
+
+const setLlmPanelOpen = (open) => {
+  if (!llmPanel) return;
+  llmPanel.style.display = open ? 'flex' : 'none';
+  llmPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (open) refreshLlmConfig();
+};
 
 const formatJson = (value) => {
   try {
@@ -542,6 +970,11 @@ if (systemQuery && typeof systemQuery.addEventListener === 'function') {
 if (btnThemeLight) btnThemeLight.addEventListener('click', () => applyThemeMode('light'));
 if (btnThemeDark) btnThemeDark.addEventListener('click', () => applyThemeMode('dark'));
 if (btnThemeSystem) btnThemeSystem.addEventListener('click', () => applyThemeMode('system'));
+if (btnLlmConfig) btnLlmConfig.addEventListener('click', () => setLlmPanelOpen(!isLlmPanelOpen()));
+if (btnLlmClose) btnLlmClose.addEventListener('click', () => setLlmPanelOpen(false));
+if (btnLlmRefresh) btnLlmRefresh.addEventListener('click', () => refreshLlmConfig());
+if (btnLlmSave) btnLlmSave.addEventListener('click', () => saveLlmConfig());
+if (btnLlmClear) btnLlmClear.addEventListener('click', () => saveLlmConfig({ clearKey: true }));
 if (btnInspectorToggle) btnInspectorToggle.addEventListener('click', () => setInspectorOpen(!isInspectorOpen()));
 if (btnInspectorClose) btnInspectorClose.addEventListener('click', () => setInspectorOpen(false));
 if (btnInspectorRefresh) btnInspectorRefresh.addEventListener('click', () => updateInspector());
@@ -695,6 +1128,31 @@ function renderPrompts() {
   }
 }
 
+const buildChatMessages = (list) => {
+  const out = [];
+  if (!Array.isArray(list)) return out;
+  for (const msg of list) {
+    const role = String(msg?.role || '').trim();
+    const text = typeof msg?.text === 'string' ? msg.text : '';
+    if (!text || !text.trim()) continue;
+    if (role !== 'user' && role !== 'assistant' && role !== 'system') continue;
+    out.push({ role, text });
+  }
+  return out;
+};
+
+const callSandboxChat = async (payload, signal) => {
+  const r = await fetch('/api/llm/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+    signal,
+  });
+  const j = await r.json();
+  if (!j?.ok) throw new Error(j?.message || 'Sandbox LLM call failed');
+  return j;
+};
+
 const getTheme = () => currentTheme || resolveTheme();
 
 const host = {
@@ -815,6 +1273,7 @@ const host = {
           id: 'sandbox-agent-' + uuid(),
           name: payload?.name ? String(payload.name) : 'Sandbox Agent',
           description: payload?.description ? String(payload.description) : '',
+          modelId: payload?.modelId ? String(payload.modelId) : '',
         };
         agents.unshift(agent);
         return { ok: true, agent: clone(agent) };
@@ -827,6 +1286,7 @@ const host = {
         const a = agents[idx];
         if (patch?.name) a.name = String(patch.name);
         if (patch?.description) a.description = String(patch.description);
+        if (patch?.modelId) a.modelId = String(patch.modelId);
         return { ok: true, agent: clone(a) };
       },
       delete: async (id) => {
@@ -874,6 +1334,13 @@ const host = {
       const run = activeRuns.get(sessionId);
       if (run) {
         run.aborted = true;
+        if (run.controller) {
+          try {
+            run.controller.abort();
+          } catch {
+            // ignore
+          }
+        }
         for (const t of run.timers) {
           try {
             clearTimeout(t);
@@ -905,12 +1372,61 @@ const host = {
       msgs.push(assistantMsg);
       emit({ type: 'assistant_start', sessionId, message: clone(assistantMsg) });
 
-      const out = '[sandbox] echo: ' + text;
-      const chunks = [];
-      for (let i = 0; i < out.length; i += 8) chunks.push(out.slice(i, i + 8));
-
-      const run = { aborted: false, timers: [] };
+      const run = { aborted: false, timers: [], controller: new AbortController() };
       activeRuns.set(sessionId, run);
+
+      let result = null;
+      try {
+        const session = sessions.get(sessionId);
+        const agent = session ? agents.find((a) => a.id === session.agentId) : null;
+        const agentModelId = agent?.modelId ? String(agent.modelId) : '';
+        const chatPayload = {
+          messages: buildChatMessages(msgs),
+          modelId: typeof payload?.modelId === 'string' && payload.modelId.trim() ? payload.modelId : agentModelId,
+          modelName: typeof payload?.modelName === 'string' ? payload.modelName : '',
+          systemPrompt: typeof payload?.systemPrompt === 'string' ? payload.systemPrompt : '',
+          disableTools: payload?.disableTools === true,
+        };
+        result = await callSandboxChat(chatPayload, run.controller.signal);
+      } catch (err) {
+        activeRuns.delete(sessionId);
+        if (run.aborted) {
+          emit({ type: 'assistant_abort', sessionId, ts: new Date().toISOString() });
+          return { ok: true, aborted: true };
+        }
+        const errText = '[sandbox error] ' + (err?.message || String(err));
+        assistantMsg.text = errText;
+        emit({ type: 'assistant_delta', sessionId, delta: errText });
+        emit({ type: 'assistant_end', sessionId, message: clone(assistantMsg), error: errText });
+        return { ok: false, error: errText };
+      }
+
+      if (run.aborted) {
+        activeRuns.delete(sessionId);
+        emit({ type: 'assistant_abort', sessionId, ts: new Date().toISOString() });
+        return { ok: true, aborted: true };
+      }
+
+      const toolTrace = Array.isArray(result?.toolTrace) ? result.toolTrace : [];
+      for (const trace of toolTrace) {
+        if (!trace) continue;
+        if (trace.tool) {
+          emit({ type: 'tool_call', sessionId, tool: trace.tool, args: trace.args || null });
+        }
+        if (trace.result !== undefined) {
+          emit({ type: 'tool_result', sessionId, tool: trace.tool, result: trace.result });
+        }
+      }
+
+      const out = typeof result?.content === 'string' ? result.content : '';
+      if (!out) {
+        activeRuns.delete(sessionId);
+        emit({ type: 'assistant_end', sessionId, message: clone(assistantMsg) });
+        return { ok: true };
+      }
+
+      const chunks = [];
+      for (let i = 0; i < out.length; i += 16) chunks.push(out.slice(i, i + 16));
 
       chunks.forEach((delta, idx) => {
         const t = setTimeout(() => {
@@ -921,7 +1437,7 @@ const host = {
             activeRuns.delete(sessionId);
             emit({ type: 'assistant_end', sessionId, message: clone(assistantMsg) });
           }
-        }, 80 + idx * 60);
+        }, 50 + idx * 40);
         run.timers.push(t);
       });
 
@@ -1026,6 +1542,178 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   let backendInstance = null;
   let backendFactory = null;
 
+  const sandboxConfigPath = path.join(process.cwd(), '.chatos', 'sandbox', 'llm-config.json');
+  let sandboxLlmConfig = loadSandboxLlmConfig(sandboxConfigPath);
+  const getAppMcpPrompt = () => resolveAppMcpPrompt(app, pluginDir);
+  const appMcpEntry = buildAppMcpEntry({ pluginDir, pluginId: String(manifest?.id || ''), app });
+
+  let mcpRuntime = null;
+  let mcpRuntimePromise = null;
+
+  const resetMcpRuntime = async () => {
+    const runtime = mcpRuntime;
+    mcpRuntime = null;
+    mcpRuntimePromise = null;
+    if (runtime?.transport && typeof runtime.transport.close === 'function') {
+      try {
+        await runtime.transport.close();
+      } catch {
+        // ignore
+      }
+    }
+    if (runtime?.client && typeof runtime.client.close === 'function') {
+      try {
+        await runtime.client.close();
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const ensureMcpRuntime = async () => {
+    if (!appMcpEntry) return null;
+    if (mcpRuntime) return mcpRuntime;
+    if (!mcpRuntimePromise) {
+      mcpRuntimePromise = (async () => {
+        const handle = await connectMcpServer(appMcpEntry);
+        if (!handle) return null;
+        const toolEntries = Array.isArray(handle.tools)
+          ? handle.tools.map((tool) => {
+              const identifier = buildMcpToolIdentifier(handle.serverName, tool?.name);
+              return {
+                identifier,
+                serverName: handle.serverName,
+                toolName: tool?.name,
+                client: handle.client,
+                definition: {
+                  type: 'function',
+                  function: {
+                    name: identifier,
+                    description: buildMcpToolDescription(handle.serverName, tool),
+                    parameters:
+                      tool?.inputSchema && typeof tool.inputSchema === 'object'
+                        ? tool.inputSchema
+                        : { type: 'object', properties: {} },
+                  },
+                },
+              };
+            })
+          : [];
+        const toolMap = new Map(toolEntries.map((entry) => [entry.identifier, entry]));
+        return { ...handle, toolEntries, toolMap };
+      })();
+    }
+    mcpRuntime = await mcpRuntimePromise;
+    return mcpRuntime;
+  };
+
+  const getSandboxLlmConfig = () => ({ ...sandboxLlmConfig });
+
+  const updateSandboxLlmConfig = (patch) => {
+    if (!patch || typeof patch !== 'object') return getSandboxLlmConfig();
+    const next = { ...sandboxLlmConfig };
+    if (Object.prototype.hasOwnProperty.call(patch, 'apiKey')) {
+      next.apiKey = normalizeText(patch.apiKey);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'baseUrl')) {
+      next.baseUrl = normalizeText(patch.baseUrl);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'modelId')) {
+      next.modelId = normalizeText(patch.modelId);
+    }
+    sandboxLlmConfig = next;
+    saveSandboxLlmConfig(sandboxConfigPath, next);
+    return { ...next };
+  };
+
+  const runSandboxChat = async ({ messages, modelId, modelName, systemPrompt, disableTools, signal } = {}) => {
+    const cfg = getSandboxLlmConfig();
+    const apiKey = normalizeText(cfg.apiKey || process.env.SANDBOX_LLM_API_KEY);
+    const baseUrl = normalizeText(cfg.baseUrl) || DEFAULT_LLM_BASE_URL;
+    const effectiveModel = normalizeText(modelId) || normalizeText(modelName) || normalizeText(cfg.modelId);
+    if (!apiKey) {
+      throw new Error('Sandbox API key not configured. Use "AI Config" in the sandbox toolbar.');
+    }
+    if (!effectiveModel) {
+      throw new Error('Sandbox modelId not configured. Use "AI Config" in the sandbox toolbar.');
+    }
+
+    const prompt = normalizeText(systemPrompt) || (!disableTools ? normalizeText(getAppMcpPrompt()) : '');
+    const openAiMessages = [];
+    if (prompt) openAiMessages.push({ role: 'system', content: prompt });
+    const inputMessages = Array.isArray(messages) ? messages : [];
+    for (const msg of inputMessages) {
+      const role = normalizeText(msg?.role);
+      if (role !== 'user' && role !== 'assistant' && role !== 'system') continue;
+      const text = typeof msg?.text === 'string' ? msg.text : typeof msg?.content === 'string' ? msg.content : '';
+      if (!text || !text.trim()) continue;
+      openAiMessages.push({ role, content: String(text) });
+    }
+    if (openAiMessages.length === 0) throw new Error('No input messages provided.');
+
+    let toolEntries = [];
+    let toolMap = new Map();
+    if (!disableTools) {
+      const runtime = await ensureMcpRuntime();
+      if (runtime?.toolEntries?.length) {
+        toolEntries = runtime.toolEntries;
+        toolMap = runtime.toolMap || new Map();
+      }
+    }
+    const toolDefs = toolEntries.map((entry) => entry.definition);
+
+    const toolTrace = [];
+    let iteration = 0;
+    const maxToolPasses = 8;
+    let workingMessages = openAiMessages.slice();
+
+    while (iteration < maxToolPasses) {
+      const response = await callOpenAiChat({
+        apiKey,
+        baseUrl,
+        model: effectiveModel,
+        messages: workingMessages,
+        tools: toolDefs,
+        signal,
+      });
+      const message = response?.choices?.[0]?.message;
+      if (!message) throw new Error('Empty model response.');
+      const content = typeof message.content === 'string' ? message.content : '';
+      const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+      if (toolCalls.length > 0 && toolMap.size > 0 && !disableTools) {
+        workingMessages.push({ role: 'assistant', content, tool_calls: toolCalls });
+        for (const call of toolCalls) {
+          const toolName = typeof call?.function?.name === 'string' ? call.function.name : '';
+          const toolEntry = toolName ? toolMap.get(toolName) : null;
+          let args = {};
+          let resultText = '';
+          if (!toolEntry) {
+            resultText = `[error] Tool not registered: ${toolName || 'unknown'}`;
+          } else {
+            const rawArgs = typeof call?.function?.arguments === 'string' ? call.function.arguments : '{}';
+            try {
+              args = JSON.parse(rawArgs || '{}');
+            } catch (err) {
+              resultText = '[error] Failed to parse tool arguments: ' + (err?.message || String(err));
+              args = {};
+            }
+            if (!resultText) {
+              const toolResult = await toolEntry.client.callTool({ name: toolEntry.toolName, arguments: args });
+              resultText = formatMcpToolResult(toolEntry.serverName, toolEntry.toolName, toolResult);
+            }
+          }
+          toolTrace.push({ tool: toolName || 'unknown', args, result: resultText });
+          workingMessages.push({ role: 'tool', tool_call_id: String(call?.id || ''), content: resultText });
+        }
+        iteration += 1;
+        continue;
+      }
+      return { content, model: effectiveModel, toolTrace };
+    }
+
+    throw new Error('Too many tool calls. Aborting.');
+  };
+
   const ctxBase = {
     pluginId: String(manifest?.id || ''),
     pluginDir,
@@ -1038,16 +1726,18 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
         const input = typeof payload?.input === 'string' ? payload.input : '';
         const normalized = String(input || '').trim();
         if (!normalized) throw new Error('input is required');
-        const modelName =
-          typeof payload?.modelName === 'string' && payload.modelName.trim()
-            ? payload.modelName.trim()
-            : typeof payload?.modelId === 'string' && payload.modelId.trim()
-              ? `model:${payload.modelId.trim()}`
-              : 'sandbox';
+        const result = await runSandboxChat({
+          messages: [{ role: 'user', text: normalized }],
+          modelId: typeof payload?.modelId === 'string' ? payload.modelId : '',
+          modelName: typeof payload?.modelName === 'string' ? payload.modelName : '',
+          systemPrompt: typeof payload?.systemPrompt === 'string' ? payload.systemPrompt : '',
+          disableTools: payload?.disableTools === true,
+        });
         return {
           ok: true,
-          model: modelName,
-          content: `[sandbox llm] ${normalized}`,
+          model: result.model,
+          content: result.content,
+          toolTrace: result.toolTrace,
         };
       },
     },
@@ -1084,6 +1774,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
       backendInstance = null;
       backendFactory = null;
     }
+    resetMcpRuntime().catch(() => {});
     sseBroadcast('reload', { seq: changeSeq, eventType: eventType || '', path: rel });
   });
 
@@ -1144,6 +1835,65 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
         return sendJson(res, 200, { ok: true, manifest });
       }
 
+      if (pathname === '/api/sandbox/llm-config') {
+        if (req.method === 'GET') {
+          const cfg = getSandboxLlmConfig();
+          return sendJson(res, 200, {
+            ok: true,
+            config: {
+              baseUrl: cfg.baseUrl || '',
+              modelId: cfg.modelId || '',
+              hasApiKey: Boolean(cfg.apiKey),
+            },
+          });
+        }
+        if (req.method === 'POST') {
+          try {
+            const payload = await readJsonBody(req);
+            const patch = payload?.config && typeof payload.config === 'object' ? payload.config : payload;
+            const next = updateSandboxLlmConfig({
+              ...(Object.prototype.hasOwnProperty.call(patch || {}, 'apiKey') ? { apiKey: patch.apiKey } : {}),
+              ...(Object.prototype.hasOwnProperty.call(patch || {}, 'baseUrl') ? { baseUrl: patch.baseUrl } : {}),
+              ...(Object.prototype.hasOwnProperty.call(patch || {}, 'modelId') ? { modelId: patch.modelId } : {}),
+            });
+            return sendJson(res, 200, {
+              ok: true,
+              config: {
+                baseUrl: next.baseUrl || '',
+                modelId: next.modelId || '',
+                hasApiKey: Boolean(next.apiKey),
+              },
+            });
+          } catch (err) {
+            return sendJson(res, 200, { ok: false, message: err?.message || String(err) });
+          }
+        }
+        return sendJson(res, 405, { ok: false, message: 'Method not allowed' });
+      }
+
+      if (pathname === '/api/llm/chat') {
+        if (req.method !== 'POST') return sendJson(res, 405, { ok: false, message: 'Method not allowed' });
+        try {
+          const payload = await readJsonBody(req);
+          const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+          const result = await runSandboxChat({
+            messages,
+            modelId: typeof payload?.modelId === 'string' ? payload.modelId : '',
+            modelName: typeof payload?.modelName === 'string' ? payload.modelName : '',
+            systemPrompt: typeof payload?.systemPrompt === 'string' ? payload.systemPrompt : '',
+            disableTools: payload?.disableTools === true,
+          });
+          return sendJson(res, 200, {
+            ok: true,
+            model: result.model,
+            content: result.content,
+            toolTrace: result.toolTrace || [],
+          });
+        } catch (err) {
+          return sendJson(res, 200, { ok: false, message: err?.message || String(err) });
+        }
+      }
+
       if (pathname === '/api/backend/invoke') {
         if (req.method !== 'POST') return sendJson(res, 405, { ok: false, message: 'Method not allowed' });
         let body = '';
@@ -1179,7 +1929,10 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
       sendJson(res, 500, { ok: false, message: e?.message || String(e) });
     }
   });
-  server.once('close', () => stopWatch());
+  server.once('close', () => {
+    stopWatch();
+    resetMcpRuntime().catch(() => {});
+  });
 
   await new Promise((resolve, reject) => {
     server.once('error', reject);
