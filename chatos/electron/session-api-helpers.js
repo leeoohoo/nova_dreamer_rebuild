@@ -87,7 +87,7 @@ export function resolveUiFlags(uiFlags) {
   return { uiFlags: resolvedUiFlags, exposeSubagents };
 }
 
-export function readFileFingerprint(filePath) {
+function statFingerprint(filePath) {
   try {
     const stat = fs.statSync(filePath);
     const ino = typeof stat.ino === 'number' ? stat.ino : 0;
@@ -97,4 +97,21 @@ export function readFileFingerprint(filePath) {
   } catch {
     return null;
   }
+}
+
+export function readFileFingerprint(filePath) {
+  const fingerprints = [];
+  const primary = statFingerprint(filePath);
+  if (primary) fingerprints.push(primary);
+
+  if (typeof filePath === 'string' && filePath.endsWith('.sqlite')) {
+    const wal = statFingerprint(`${filePath}-wal`);
+    const shm = statFingerprint(`${filePath}-shm`);
+    const journal = statFingerprint(`${filePath}-journal`);
+    if (wal) fingerprints.push(wal);
+    if (shm) fingerprints.push(shm);
+    if (journal) fingerprints.push(journal);
+  }
+
+  return fingerprints.length > 0 ? fingerprints.join('|') : null;
 }

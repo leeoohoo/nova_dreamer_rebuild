@@ -7,6 +7,26 @@ import { normalizeHostApp } from '../../src/common/state-core/utils.js';
 
 const require = createRequire(import.meta.url);
 
+function normalizeDriverName(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+const driverHint = normalizeDriverName(process.env.MODEL_CLI_DB_DRIVER);
+const forceSqlJs = driverHint === 'sqljs' || driverHint === 'sql.js';
+const forceBetterSqlite =
+  driverHint === 'better-sqlite3' || driverHint === 'better-sqlite' || driverHint === 'sqlite';
+
+let BETTER_SQLITE3 = undefined;
+function getBetterSqlite3() {
+  if (BETTER_SQLITE3 !== undefined) return BETTER_SQLITE3;
+  try {
+    BETTER_SQLITE3 = require('better-sqlite3');
+  } catch {
+    BETTER_SQLITE3 = null;
+  }
+  return BETTER_SQLITE3;
+}
+
 let SQL_PROMISE = null;
 
 function resolveSqlWasmPath() {
@@ -46,7 +66,7 @@ function normalizeRecordTags(value) {
   return [];
 }
 
-function readDbTable({ SQL, dbPath, tableName }) {
+function readDbTableWithSqlJs({ SQL, dbPath, tableName }) {
   const rawDbPath = typeof dbPath === 'string' ? dbPath.trim() : '';
   if (!rawDbPath) return [];
   if (!fs.existsSync(rawDbPath)) return [];
@@ -75,6 +95,43 @@ function readDbTable({ SQL, dbPath, tableName }) {
       // ignore
     }
   }
+}
+
+function readDbTableWithBetterSqlite({ Database, dbPath, tableName }) {
+  const rawDbPath = typeof dbPath === 'string' ? dbPath.trim() : '';
+  if (!rawDbPath) return [];
+  if (!fs.existsSync(rawDbPath)) return [];
+  const table = typeof tableName === 'string' ? tableName.trim() : '';
+  if (!table) return [];
+
+  let db;
+  try {
+    db = new Database(rawDbPath, { readonly: true, fileMustExist: true });
+    const rows = db.prepare('SELECT payload FROM records WHERE table_name = ?').all(table);
+    return rows.map((row) => parseJsonSafe(row?.payload)).filter(Boolean);
+  } catch {
+    return [];
+  } finally {
+    try {
+      db?.close?.();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function readDbTable({ dbPath, tableName }) {
+  if (!forceSqlJs) {
+    const Database = getBetterSqlite3();
+    if (Database) {
+      return readDbTableWithBetterSqlite({ Database, dbPath, tableName });
+    }
+    if (forceBetterSqlite) {
+      throw new Error('MODEL_CLI_DB_DRIVER requested better-sqlite3 but the module is not available.');
+    }
+  }
+  const SQL = await getSql();
+  return readDbTableWithSqlJs({ SQL, dbPath, tableName });
 }
 
 export function resolveExistingAppDbPath({ sessionRoot, hostApp }) {
@@ -118,9 +175,8 @@ export async function syncRegistryFromAppDb({ registry, providerAppId, dbPath } 
     return { ok: true, providerAppId: provider, dbPath: resolvedDbPath, synced: false, servers: 0, prompts: 0 };
   }
 
-  const SQL = await getSql();
-  const servers = readDbTable({ SQL, dbPath: resolvedDbPath, tableName: 'mcpServers' });
-  const prompts = readDbTable({ SQL, dbPath: resolvedDbPath, tableName: 'prompts' });
+  const servers = await readDbTable({ dbPath: resolvedDbPath, tableName: 'mcpServers' });
+  const prompts = await readDbTable({ dbPath: resolvedDbPath, tableName: 'prompts' });
 
   let serverCount = 0;
   (Array.isArray(servers) ? servers : []).forEach((srv) => {

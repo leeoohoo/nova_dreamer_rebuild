@@ -299,13 +299,19 @@ export function createSessionApi({ defaultPaths, adminDb, adminServices, mainWin
     const adminDbDir = path.dirname(defaultPaths.adminDb);
     const adminDbBase = path.basename(defaultPaths.adminDb);
 
+    const sqliteSidecars = new Set([
+      `${adminDbBase}-wal`,
+      `${adminDbBase}-shm`,
+      `${adminDbBase}-journal`,
+    ]);
+
     const shouldRefreshForFilename = (filename) => {
       if (!filename) return true;
       const normalized = Buffer.isBuffer(filename) ? filename.toString('utf8') : String(filename || '');
       if (!normalized) return true;
       if (normalized === adminDbBase) return true;
-      // createDb() persists the DB via atomic rename: writes a temp file like
-      // `.<db>.<pid>.<ts>.tmp` in the same directory, then renames to `<db>`.
+      if (sqliteSidecars.has(normalized)) return true;
+      // SQL.js persists via atomic rename; watch for temp artifacts too.
       if (normalized.startsWith(`.${adminDbBase}.`)) return true;
       return false;
     };
@@ -313,8 +319,8 @@ export function createSessionApi({ defaultPaths, adminDb, adminServices, mainWin
     ensureDir(adminDbDir);
     ensureFileExists(defaultPaths.adminDb);
     try {
-      // Watch the directory (not the file). `createDb()` writes the DB via atomic rename,
-      // which can permanently break `fs.watch(file)` depending on platform/timing.
+      // Watch the directory (not the file). SQL.js uses atomic rename, SQLite writes WAL/SHM sidecars,
+      // and a file watcher can break across rename on some platforms.
       tasksWatcher = fs.watch(adminDbDir, { persistent: false }, (_eventType, filename) => {
         if (!shouldRefreshForFilename(filename)) return;
         scheduleRefresh();

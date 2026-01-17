@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Self-test for Electron session-api tasks watcher:
-// - <hostApp>.db.sqlite is written via atomic rename (createDb)
+// - <hostApp>.db.sqlite may update in-place or via WAL sidecars depending on driver
 // - UI should still receive config:update without restarting
 import fs from 'fs';
 import path from 'path';
