@@ -23,9 +23,11 @@ export function AppHeader({ themeMode = 'light', onToggleTheme, menu, onMenuChan
       data-mode={mode}
       style={{
         background: 'var(--ds-header-bg)',
-        padding: '12px 16px',
+        padding: '0 16px',
         borderBottom: '1px solid var(--ds-header-border)',
-        height: 'auto',
+        minHeight: 64,
+        display: 'flex',
+        alignItems: 'center',
         lineHeight: 'normal',
       }}
     >

@@ -47,17 +47,6 @@ function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developer
       { title: '名称', dataIndex: 'name', width: 160 },
       { title: '标题', dataIndex: 'title', width: 180 },
       {
-        title: '主/子流程',
-        dataIndex: 'allowMain',
-        width: 140,
-        render: (_value, record) => (
-          <Space size={4} wrap>
-            <Tag color={record?.allowMain ? 'green' : 'default'}>{record?.allowMain ? '主·开' : '主·关'}</Tag>
-            <Tag color={record?.allowSub ? 'blue' : 'default'}>{record?.allowSub ? '子·开' : '子·关'}</Tag>
-          </Space>
-        ),
-      },
-      {
         title: '变量',
         dataIndex: 'variables',
         render: (vars) => (Array.isArray(vars) && vars.length > 0 ? vars.map((t) => <Tag key={t}>{t}</Tag>) : '-'),

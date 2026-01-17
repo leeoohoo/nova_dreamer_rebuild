@@ -511,8 +511,12 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
         />
       ) : null}
 
-      <Card size="small" style={{ flex: 1, minHeight: 0, borderRadius: 14 }} styles={{ body: { padding: 0, height: '100%' } }}>
-        <div style={{ height: '100%', minHeight: 0 }}>
+      <Card
+        size="small"
+        style={{ flex: 1, minHeight: 0, borderRadius: 14 }}
+        styles={{ body: { padding: 0, height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
+      >
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           {compactMissing ? (
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Alert type="info" showIcon message="This app only provides a fullscreen UI." />
@@ -527,7 +531,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
             </div>
           ) : entryUrl ? (
             isModuleApp ? (
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 {moduleStatus?.error ? (
                   <div style={{ padding: 12 }}>
                     <Alert type="error" showIcon message="应用加载失败" description={moduleStatus.error} />
