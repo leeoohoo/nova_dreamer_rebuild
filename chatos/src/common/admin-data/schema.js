@@ -43,6 +43,7 @@ export const TABLE_SCHEMAS = {
       { name: 'url', type: 'string', required: true, note: 'ws/wss/http 入口' },
       { name: 'description', type: 'string', required: false },
       { name: 'auth', type: 'object', required: false, note: 'token / basic / headers' },
+      { name: 'callMeta', type: 'object', required: false, note: 'MCP tools/call _meta 注入' },
       { name: 'tags', type: 'string[]', required: false },
       { name: 'locked', type: 'boolean', required: false, note: '内置不可修改' },
       { name: 'enabled', type: 'boolean', required: false, note: '是否启用（未启用则不连接/不注册工具）' },
@@ -203,6 +204,7 @@ export const mcpServerSchema = z.object({
     })
     .partial()
     .optional(),
+  callMeta: z.record(z.any()).optional(),
   tags: z.array(z.string().trim()).optional().default([]),
   locked: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),

@@ -43,6 +43,99 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneValue(entry));
+  }
+  if (isPlainObject(value)) {
+    const out = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      out[key] = cloneValue(entry);
+    });
+    return out;
+  }
+  return value;
+}
+
+function mergeCallMeta(base, override) {
+  if (!base && !override) return null;
+  if (!base) return cloneValue(override);
+  if (!override) return cloneValue(base);
+  if (!isPlainObject(base) || !isPlainObject(override)) {
+    return cloneValue(override);
+  }
+  const merged = cloneValue(base);
+  Object.entries(override).forEach(([key, value]) => {
+    if (isPlainObject(value) && isPlainObject(merged[key])) {
+      merged[key] = mergeCallMeta(merged[key], value);
+    } else {
+      merged[key] = cloneValue(value);
+    }
+  });
+  return merged;
+}
+
+function expandCallMetaValue(value, vars) {
+  if (typeof value === 'string') {
+    let text = value;
+    Object.entries(vars).forEach(([key, replacement]) => {
+      const token = `$${key}`;
+      text = text.split(token).join(String(replacement || ''));
+    });
+    return text;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => expandCallMetaValue(entry, vars));
+  }
+  if (isPlainObject(value)) {
+    const out = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      out[key] = expandCallMetaValue(entry, vars);
+    });
+    return out;
+  }
+  return value;
+}
+
+function buildSandboxCallMeta({ rawCallMeta, context } = {}) {
+  const ctx = context && typeof context === 'object' ? context : null;
+  const defaults = ctx
+    ? {
+        chatos: {
+          uiApp: {
+            ...(ctx.pluginId ? { pluginId: ctx.pluginId } : null),
+            ...(ctx.appId ? { appId: ctx.appId } : null),
+            ...(ctx.pluginDir ? { pluginDir: ctx.pluginDir } : null),
+            ...(ctx.dataDir ? { dataDir: ctx.dataDir } : null),
+            ...(ctx.stateDir ? { stateDir: ctx.stateDir } : null),
+            ...(ctx.sessionRoot ? { sessionRoot: ctx.sessionRoot } : null),
+            ...(ctx.projectRoot ? { projectRoot: ctx.projectRoot } : null),
+          },
+        },
+        workdir: ctx.dataDir || ctx.pluginDir || ctx.projectRoot || ctx.sessionRoot || '',
+      }
+    : null;
+  const raw = rawCallMeta && typeof rawCallMeta === 'object' ? rawCallMeta : null;
+  if (!defaults && !raw) return null;
+  const vars = ctx
+    ? {
+        pluginId: ctx.pluginId || '',
+        appId: ctx.appId || '',
+        pluginDir: ctx.pluginDir || '',
+        dataDir: ctx.dataDir || '',
+        stateDir: ctx.stateDir || '',
+        sessionRoot: ctx.sessionRoot || '',
+        projectRoot: ctx.projectRoot || '',
+      }
+    : {};
+  const expanded = raw ? expandCallMetaValue(raw, vars) : null;
+  return mergeCallMeta(defaults, expanded);
+}
+
 function loadSandboxLlmConfig(filePath) {
   if (!filePath) return { apiKey: '', baseUrl: '', modelId: '' };
   try {
@@ -1549,6 +1642,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
 
   let mcpRuntime = null;
   let mcpRuntimePromise = null;
+  let sandboxCallMeta = null;
 
   const resetMcpRuntime = async () => {
     const runtime = mcpRuntime;
@@ -1698,7 +1792,11 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
               args = {};
             }
             if (!resultText) {
-              const toolResult = await toolEntry.client.callTool({ name: toolEntry.toolName, arguments: args });
+              const toolResult = await toolEntry.client.callTool({
+                name: toolEntry.toolName,
+                arguments: args,
+                ...(sandboxCallMeta ? { _meta: sandboxCallMeta } : {}),
+              });
               resultText = formatMcpToolResult(toolEntry.serverName, toolEntry.toolName, toolResult);
             }
           }
@@ -1745,6 +1843,18 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   ctxBase.dataDir = path.join(process.cwd(), '.chatos', 'data', ctxBase.pluginId);
   ensureDir(ctxBase.stateDir);
   ensureDir(ctxBase.dataDir);
+  sandboxCallMeta = buildSandboxCallMeta({
+    rawCallMeta: app?.ai?.mcp?.callMeta,
+    context: {
+      pluginId: ctxBase.pluginId,
+      appId: effectiveAppId,
+      pluginDir: ctxBase.pluginDir,
+      dataDir: ctxBase.dataDir,
+      stateDir: ctxBase.stateDir,
+      sessionRoot: ctxBase.sessionRoot,
+      projectRoot: ctxBase.projectRoot,
+    },
+  });
 
   const sseClients = new Set();
   const sseWrite = (res, event, data) => {

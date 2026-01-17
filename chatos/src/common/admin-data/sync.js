@@ -58,6 +58,7 @@ function buildMcpConfig(mcpServers = []) {
       url: s.url || '',
       description: s.description || '',
       auth: s.auth || undefined,
+      callMeta: s.callMeta || undefined,
       tags: s.tags || [],
       enabled: s.enabled !== false,
       allowMain: s.allowMain === true,

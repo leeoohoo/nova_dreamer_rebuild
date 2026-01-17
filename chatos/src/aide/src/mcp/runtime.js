@@ -304,6 +304,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         transport,
         sessionRoot,
         pidName: endpoint.command,
+        workspaceRoot,
       });
     } catch (err) {
       const normalizedCommand = String(resolved.command || endpoint.command || '')
@@ -345,14 +346,14 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new StreamableHTTPClientTransport(endpoint.url);
-      return await connectAndRegisterTools({ entry, client, transport, sessionRoot });
+      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot });
     } catch (err) {
       errors.push(`streamable_http: ${err?.message || err}`);
     }
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new SSEClientTransport(endpoint.url);
-      return await connectAndRegisterTools({ entry, client, transport, sessionRoot });
+      return await connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot });
     } catch (err) {
       errors.push(`sse: ${err?.message || err}`);
     }
@@ -362,7 +363,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   if (endpoint.type === 'ws') {
     const client = new Client({ name: 'model-cli', version: '0.1.0' });
     const transport = new WebSocketClientTransport(endpoint.url);
-    return connectAndRegisterTools({ entry, client, transport, sessionRoot });
+    return connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot });
   }
 
   throw new Error(
@@ -370,7 +371,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   );
 }
 
-async function connectAndRegisterTools({ entry, client, transport, sessionRoot, pidName } = {}) {
+async function connectAndRegisterTools({ entry, client, transport, sessionRoot, pidName, workspaceRoot } = {}) {
   if (!client || !transport) {
     throw new Error('Missing MCP client or transport');
   }
@@ -391,8 +392,9 @@ async function connectAndRegisterTools({ entry, client, transport, sessionRoot, 
   if (toolsFromServer.length === 0) {
     log.warn(`${entry?.name || '<unnamed>'} 未公开任何工具。`);
   }
+  const runtimeMeta = buildRuntimeCallMeta({ workspaceRoot });
   const registeredTools = toolsFromServer
-    .map((tool) => registerRemoteTool(client, entry, tool))
+    .map((tool) => registerRemoteTool(client, entry, tool, runtimeMeta))
     .filter(Boolean);
   return { entry, client, transport, registeredTools };
 }
@@ -477,7 +479,7 @@ async function fetchAllTools(client) {
   return collected;
 }
 
-function registerRemoteTool(client, serverEntry, tool) {
+function registerRemoteTool(client, serverEntry, tool, runtimeMeta) {
   const serverName = serverEntry?.name || 'server';
   const normalizedServer = String(serverName || '').toLowerCase();
   if (
@@ -496,6 +498,7 @@ function registerRemoteTool(client, serverEntry, tool) {
       ? tool.inputSchema
       : { type: 'object', properties: {} };
   const requestOptions = buildRequestOptions(serverEntry);
+  const callMeta = buildCallMeta(serverEntry, runtimeMeta);
   if (normalizedServer === 'subagent_router' && tool.name === 'run_sub_agent') {
     registerTool({
       name: identifier,
@@ -626,7 +629,6 @@ function registerRemoteTool(client, serverEntry, tool) {
         tool: tool.name,
         args: injectedArgs,
       });
-      const callMeta = buildCallMeta(serverEntry);
       const response = await client.callTool(
         {
           name: tool.name,
@@ -708,11 +710,20 @@ function formatCallResult(serverName, toolName, result) {
   return `${header}\n${segments.join('\n\n')}`;
 }
 
-function buildCallMeta(serverEntry) {
-  if (!serverEntry || typeof serverEntry !== 'object') return null;
-  const raw = serverEntry.callMeta ?? serverEntry.call_meta;
-  if (!raw || typeof raw !== 'object') return null;
-  return raw;
+function buildCallMeta(serverEntry, runtimeMeta) {
+  const base = runtimeMeta && typeof runtimeMeta === 'object' ? runtimeMeta : null;
+  const raw = serverEntry?.callMeta ?? serverEntry?.call_meta;
+  const override = raw && typeof raw === 'object' ? raw : null;
+  if (!base && !override) return null;
+  if (!base) return { ...override };
+  if (!override) return { ...base };
+  return { ...base, ...override };
+}
+
+function buildRuntimeCallMeta({ workspaceRoot } = {}) {
+  const root = typeof workspaceRoot === 'string' ? workspaceRoot.trim() : '';
+  if (!root) return null;
+  return { workdir: path.resolve(root) };
 }
 
 function buildRequestOptions(serverEntry) {

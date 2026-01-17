@@ -1,7 +1,120 @@
 import fs from 'fs';
 import path from 'path';
 
-export function resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors) {
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneValue(entry));
+  }
+  if (isPlainObject(value)) {
+    const out = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      out[key] = cloneValue(entry);
+    });
+    return out;
+  }
+  return value;
+}
+
+function mergeCallMeta(base, override) {
+  if (!base && !override) return null;
+  if (!base) return cloneValue(override);
+  if (!override) return cloneValue(base);
+  if (!isPlainObject(base) || !isPlainObject(override)) {
+    return cloneValue(override);
+  }
+  const merged = cloneValue(base);
+  Object.entries(override).forEach(([key, value]) => {
+    if (isPlainObject(value) && isPlainObject(merged[key])) {
+      merged[key] = mergeCallMeta(merged[key], value);
+    } else {
+      merged[key] = cloneValue(value);
+    }
+  });
+  return merged;
+}
+
+function expandCallMetaValue(value, vars) {
+  if (typeof value === 'string') {
+    let text = value;
+    Object.entries(vars).forEach(([key, replacement]) => {
+      const token = `$${key}`;
+      text = text.split(token).join(String(replacement || ''));
+    });
+    return text;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => expandCallMetaValue(entry, vars));
+  }
+  if (isPlainObject(value)) {
+    const out = {};
+    Object.entries(value).forEach(([key, entry]) => {
+      out[key] = expandCallMetaValue(entry, vars);
+    });
+    return out;
+  }
+  return value;
+}
+
+function buildUiAppContext({ pluginId, appId, pluginDir, dataRootDir, stateDir, sessionRoot, projectRoot } = {}) {
+  const pid = typeof pluginId === 'string' ? pluginId.trim() : '';
+  const aid = typeof appId === 'string' ? appId.trim() : '';
+  const pdir = typeof pluginDir === 'string' ? pluginDir : '';
+  const baseDataRoot = typeof dataRootDir === 'string' && dataRootDir.trim() ? dataRootDir.trim() : '';
+  const baseStateDir = typeof stateDir === 'string' && stateDir.trim() ? stateDir.trim() : '';
+  const dataRoot = baseDataRoot || (baseStateDir ? path.join(baseStateDir, 'ui_apps', 'data') : '');
+  const dataDir = dataRoot && pid ? path.join(dataRoot, pid) : '';
+  return {
+    pluginId: pid,
+    appId: aid,
+    pluginDir: pdir,
+    dataDir,
+    stateDir: baseStateDir,
+    sessionRoot: typeof sessionRoot === 'string' ? sessionRoot : '',
+    projectRoot: typeof projectRoot === 'string' ? projectRoot : '',
+  };
+}
+
+function buildUiAppCallMeta({ rawCallMeta, context } = {}) {
+  const ctx = context && typeof context === 'object' ? context : null;
+  const defaults = ctx
+    ? {
+        chatos: {
+          uiApp: {
+            ...(ctx.pluginId ? { pluginId: ctx.pluginId } : null),
+            ...(ctx.appId ? { appId: ctx.appId } : null),
+            ...(ctx.pluginDir ? { pluginDir: ctx.pluginDir } : null),
+            ...(ctx.dataDir ? { dataDir: ctx.dataDir } : null),
+            ...(ctx.stateDir ? { stateDir: ctx.stateDir } : null),
+            ...(ctx.sessionRoot ? { sessionRoot: ctx.sessionRoot } : null),
+            ...(ctx.projectRoot ? { projectRoot: ctx.projectRoot } : null),
+          },
+        },
+        workdir: ctx.dataDir || ctx.pluginDir || ctx.projectRoot || ctx.sessionRoot || '',
+      }
+    : null;
+
+  const raw = rawCallMeta && typeof rawCallMeta === 'object' ? rawCallMeta : null;
+  if (!defaults && !raw) return null;
+  const vars = ctx
+    ? {
+        pluginId: ctx.pluginId || '',
+        appId: ctx.appId || '',
+        pluginDir: ctx.pluginDir || '',
+        dataDir: ctx.dataDir || '',
+        stateDir: ctx.stateDir || '',
+        sessionRoot: ctx.sessionRoot || '',
+        projectRoot: ctx.projectRoot || '',
+      }
+    : {};
+  const expanded = raw ? expandCallMetaValue(raw, vars) : null;
+  return mergeCallMeta(defaults, expanded);
+}
+
+export function resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors, context = {}) {
   const pluginId = typeof pluginIdRaw === 'string' ? pluginIdRaw.trim() : '';
   const appId = typeof app?.id === 'string' ? app.id.trim() : '';
   const ai = app?.ai && typeof app.ai === 'object' ? app.ai : null;
@@ -9,6 +122,15 @@ export function resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors) {
   if (!pluginId || !appId) return null;
 
   const serverName = `${pluginId}.${appId}`;
+  const uiAppContext = buildUiAppContext({
+    pluginId,
+    appId,
+    pluginDir,
+    dataRootDir: context?.dataRootDir,
+    stateDir: context?.stateDir,
+    sessionRoot: context?.sessionRoot,
+    projectRoot: context?.projectRoot,
+  });
   const normalizeMcpServerName = (value) =>
     String(value || '')
       .trim()
@@ -93,6 +215,7 @@ export function resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors) {
     ? {
         name: serverName,
         url: resolveMcpUrl(),
+        callMeta: buildUiAppCallMeta({ rawCallMeta: ai.mcp.callMeta, context: uiAppContext }) || undefined,
         description: ai.mcp.description || '',
         tags: Array.isArray(ai.mcp.tags) ? ai.mcp.tags : [],
         enabled: typeof ai.mcp.enabled === 'boolean' ? ai.mcp.enabled : undefined,
@@ -220,6 +343,7 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
           allowMain: typeof mcp.allowMain === 'boolean' ? mcp.allowMain : true,
           allowSub: typeof mcp.allowSub === 'boolean' ? mcp.allowSub : true,
           auth: mcp.auth || undefined,
+          callMeta: mcp.callMeta || undefined,
           updatedAt: now(),
         };
 
@@ -250,6 +374,11 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
           const existingAuth = existing.auth || undefined;
           const nextAuth = desired.auth || undefined;
           if (JSON.stringify(existingAuth || null) !== JSON.stringify(nextAuth || null)) patch.auth = nextAuth || undefined;
+          const existingCallMeta = existing.callMeta || undefined;
+          const nextCallMeta = desired.callMeta || undefined;
+          if (JSON.stringify(existingCallMeta || null) !== JSON.stringify(nextCallMeta || null)) {
+            patch.callMeta = nextCallMeta || undefined;
+          }
 
           if (Object.keys(patch).length > 0) {
             try {

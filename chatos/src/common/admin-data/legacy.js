@@ -98,6 +98,11 @@ export function parseMcpServers(raw) {
       url: s.url || '',
       description: s.description || '',
       auth: s.auth || s.headers ? { token: s.auth?.token, headers: s.headers } : undefined,
+      callMeta: s.callMeta && typeof s.callMeta === 'object'
+        ? s.callMeta
+        : s.call_meta && typeof s.call_meta === 'object'
+          ? s.call_meta
+          : undefined,
       tags: s.tags || [],
       locked: s.locked === true,
       enabled: s.enabled !== false && s.disabled !== true,

@@ -289,7 +289,6 @@ server.registerTool(
     inputSchema: z.object({
       text: z.string().min(1).describe('Message to send to AIDE'),
       run_id: z.string().optional().describe('Target runId (optional)'),
-      cwd: z.string().optional().describe('Working directory when starting a new run (optional)'),
       force: z.boolean().optional().describe('If true, stops current run output then sends message (optional)'),
       timeout_ms: z.number().int().min(0).max(MAX_WAIT_MS).optional().describe('Wait timeout (ms); 0 disables'),
       confirm_main_task_create: z
@@ -320,6 +319,7 @@ server.registerTool(
       return structuredResponse('text is required', { ok: false, error: 'text is required' });
     }
 
+    const injectedWorkdir = safeTrim(extra?._meta?.workdir);
     const force = input?.force === true;
     const timeoutMs = normalizeTimeoutMs(input?.timeout_ms, 120_000);
     const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : null;
@@ -379,7 +379,7 @@ server.registerTool(
         runId,
         sessionRoot,
         workspaceRoot,
-        cwd: safeTrim(input?.cwd),
+        cwd: injectedWorkdir || safeTrim(input?.cwd),
         deadline,
         uiTerminalMode: effectiveUiTerminalMode,
       });

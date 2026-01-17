@@ -412,7 +412,12 @@ class UiAppsManager {
   }
 
   #resolveAi(pluginDir, pluginIdRaw, app, errors) {
-    return resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors);
+    return resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors, {
+      stateDir: this.stateDir,
+      sessionRoot: this.sessionRoot,
+      projectRoot: this.projectRoot,
+      dataRootDir: this.dataRootDir,
+    });
   }
 
   #syncRegistryCenterFromUiApps(pluginsInternal, errors) {
