@@ -351,11 +351,9 @@ export function useChatSessions() {
       return;
     }
     try {
-      const inheritedWorkspaceRoot = typeof currentSession?.workspaceRoot === 'string' ? currentSession.workspaceRoot.trim() : '';
       const res = await api.invoke('chat:sessions:create', {
         title: '新会话',
         agentId: aid,
-        ...(inheritedWorkspaceRoot ? { workspaceRoot: inheritedWorkspaceRoot } : {}),
       });
       if (res?.ok === false) throw new Error(res?.message || '创建会话失败');
       const sid = normalizeId(res?.session?.id);

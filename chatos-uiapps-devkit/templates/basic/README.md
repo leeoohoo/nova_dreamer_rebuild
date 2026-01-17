@@ -72,6 +72,7 @@ npm run pack
 本模板默认只启用 `ai.mcpPrompt`（不启用 `ai.mcp`），避免第三方插件在未打包依赖时运行失败。
 
 ⚠️ ChatOS 导入插件时会排除 `node_modules/`。因此 MCP server 只要用了第三方依赖（如 `@modelcontextprotocol/sdk`、`zod`），就必须先 bundle 成单文件，或把依赖源码放进插件目录。
+若看到 `Cannot find package '@modelcontextprotocol/sdk'`，说明依赖未被 bundle。
 
 如果你要启用 MCP：
 

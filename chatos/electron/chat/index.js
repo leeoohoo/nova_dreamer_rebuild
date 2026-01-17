@@ -32,6 +32,19 @@ function validateWorkspaceRoot(value) {
   return resolved;
 }
 
+function normalizeWorkspaceRootInput(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeAgentPayload(payload) {
+  const next = payload && typeof payload === 'object' ? { ...payload } : {};
+  if (Object.prototype.hasOwnProperty.call(next, 'workspaceRoot')) {
+    const root = normalizeWorkspaceRootInput(next.workspaceRoot);
+    next.workspaceRoot = root ? validateWorkspaceRoot(root) : '';
+  }
+  return next;
+}
+
 function extractMimeTypeFromDataUrl(dataUrl) {
   const raw = typeof dataUrl === 'string' ? dataUrl : '';
   const match = raw.match(/^data:([^;]+);base64,/i);
@@ -126,11 +139,14 @@ export function registerChatApi(ipcMain, options = {}) {
   });
 
   ipcMain.handle('chat:agents:list', async () => ({ ok: true, agents: store.agents.list() }));
-  ipcMain.handle('chat:agents:create', async (_event, payload = {}) => ({ ok: true, agent: store.agents.create(payload) }));
+  ipcMain.handle('chat:agents:create', async (_event, payload = {}) => ({
+    ok: true,
+    agent: store.agents.create(normalizeAgentPayload(payload)),
+  }));
   ipcMain.handle('chat:agents:update', async (_event, payload = {}) => {
     const id = normalizeId(payload?.id);
     if (!id) throw new Error('id is required');
-    const agent = store.agents.update(id, payload?.data || {});
+    const agent = store.agents.update(id, normalizeAgentPayload(payload?.data || {}));
     if (!agent) throw new Error('agent not found');
     return { ok: true, agent };
   });

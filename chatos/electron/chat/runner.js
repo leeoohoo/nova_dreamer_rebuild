@@ -447,12 +447,14 @@ export function createChatRunner({
 
     const sessionRecord = store.sessions.get(sid);
     const sessionWorkspaceRoot = normalizeWorkspaceRoot(sessionRecord?.workspaceRoot);
-    const effectiveWorkspaceRoot = sessionWorkspaceRoot || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
     const effectiveAgentId = normalizeId(agentId) || normalizeId(sessionRecord?.agentId);
     const agentRecord = effectiveAgentId ? store.agents.get(effectiveAgentId) : null;
     if (!agentRecord) {
       throw new Error('agent not found for session');
     }
+    const agentWorkspaceRoot = normalizeWorkspaceRoot(agentRecord?.workspaceRoot);
+    const effectiveWorkspaceRoot =
+      agentWorkspaceRoot || sessionWorkspaceRoot || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
 
     const models = adminServices.models.list();
     const modelRecord = models.find((m) => m?.id === agentRecord.modelId);

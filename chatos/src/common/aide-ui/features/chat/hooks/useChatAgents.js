@@ -41,6 +41,9 @@ export function useChatAgents({ models } = {}) {
       description: '',
       prompt: '',
       modelId: defaultModelId,
+      workspaceRoot: '',
+      mcpServerIds: [],
+      promptIds: [],
       uiApps: [],
     });
     setAgentModalOpen(true);
@@ -54,6 +57,9 @@ export function useChatAgents({ models } = {}) {
       description: agent.description || '',
       prompt: agent.prompt || '',
       modelId: agent.modelId || '',
+      workspaceRoot: agent.workspaceRoot || '',
+      mcpServerIds: Array.isArray(agent.mcpServerIds) ? agent.mcpServerIds : [],
+      promptIds: Array.isArray(agent.promptIds) ? agent.promptIds : [],
       uiApps: Array.isArray(agent.uiApps) ? agent.uiApps : [],
     });
     setAgentModalOpen(true);
@@ -71,6 +77,9 @@ export function useChatAgents({ models } = {}) {
       description: values?.description,
       prompt: values?.prompt,
       modelId: values?.modelId,
+      workspaceRoot: values?.workspaceRoot,
+      mcpServerIds: values?.mcpServerIds,
+      promptIds: values?.promptIds,
       uiApps: values?.uiApps,
     };
     if (id) {

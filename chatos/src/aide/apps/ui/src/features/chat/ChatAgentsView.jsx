@@ -18,6 +18,8 @@ function countList(value) {
 
 export function ChatAgentsView({ admin }) {
   const models = useMemo(() => (Array.isArray(admin?.models) ? admin.models : []), [admin]);
+  const mcpServers = useMemo(() => (Array.isArray(admin?.mcpServers) ? admin.mcpServers : []), [admin]);
+  const prompts = useMemo(() => (Array.isArray(admin?.prompts) ? admin.prompts : []), [admin]);
   const { data: uiAppsData } = useUiAppsRegistry();
   const uiApps = useMemo(() => (Array.isArray(uiAppsData?.apps) ? uiAppsData.apps : []), [uiAppsData]);
 
@@ -127,6 +129,8 @@ export function ChatAgentsView({ admin }) {
         open={agentModalOpen}
         initialValues={agentModalInitial}
         models={models}
+        mcpServers={mcpServers}
+        prompts={prompts}
         uiApps={uiApps}
         onCancel={closeAgentModal}
         onSave={async (values) => saveAgent(values)}

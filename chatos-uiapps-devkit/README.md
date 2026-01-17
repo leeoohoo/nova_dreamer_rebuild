@@ -57,6 +57,7 @@ npm run install:chatos
 
 - ChatOS 导入插件时会排除 `node_modules/`，MCP server 运行时无法读取随包依赖。
 - MCP server 只要引入第三方依赖（如 `@modelcontextprotocol/sdk`、`zod`），就必须在 build 阶段 **bundle 成单文件**，并在 `plugin.json` 的 `ai.mcp.entry` 指向 bundle 产物。
+- 如果 MCP 启动报错 `Cannot find package '@modelcontextprotocol/sdk'`，说明依赖未被 bundle 或 vendoring 到插件目录。
 - 或者完全使用 Node 内置模块，或把依赖源码 vendoring 到插件目录内。
 
 ## 生成项目结构（约定）

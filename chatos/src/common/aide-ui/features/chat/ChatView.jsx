@@ -93,17 +93,23 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
       })),
     [agents]
   );
-  const workspaceRoot = useMemo(() => {
+  const sessionWorkspaceRoot = useMemo(() => {
     const raw = currentSession?.workspaceRoot;
     return typeof raw === 'string' ? raw.trim() : '';
   }, [currentSession?.workspaceRoot]);
-  const workspaceRootLabel = workspaceRoot || '默认（App 启动目录）';
+  const agentWorkspaceRoot = useMemo(() => {
+    const raw = selectedAgent?.workspaceRoot;
+    return typeof raw === 'string' ? raw.trim() : '';
+  }, [selectedAgent?.workspaceRoot]);
+  const effectiveWorkspaceRoot = agentWorkspaceRoot || sessionWorkspaceRoot;
+  const workspaceRootLabel = effectiveWorkspaceRoot || '默认（App 启动目录）';
+  const workspaceLockedByAgent = Boolean(agentWorkspaceRoot);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceDraft, setWorkspaceDraft] = useState('');
 
   useEffect(() => {
-    setWorkspaceDraft(workspaceRoot);
-  }, [currentSession?.id, workspaceRoot]);
+    setWorkspaceDraft(sessionWorkspaceRoot);
+  }, [currentSession?.id, sessionWorkspaceRoot]);
 
   useEffect(() => {
     if (!hasApi) return undefined;
@@ -301,8 +307,8 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                   <div style={{ flex: 1 }} />
 
                   <Space size={8} align="center" wrap>
-                    <Tag color="blue" style={{ marginRight: 0 }}>
-                      cwd
+                    <Tag color={workspaceLockedByAgent ? 'purple' : 'blue'} style={{ marginRight: 0 }}>
+                      {workspaceLockedByAgent ? 'agent cwd' : 'cwd'}
                     </Tag>
                     <Text type="secondary" ellipsis={{ tooltip: workspaceRootLabel }} style={{ maxWidth: 420 }}>
                       {workspaceRootLabel}
@@ -311,7 +317,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                       size="small"
                       icon={<FolderOpenOutlined />}
                       onClick={() => setWorkspaceModalOpen(true)}
-                      disabled={Boolean(streamState)}
+                      disabled={Boolean(streamState) || workspaceLockedByAgent}
                     >
                       设置目录
                     </Button>
@@ -319,7 +325,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                       size="small"
                       icon={<CloseCircleOutlined />}
                       onClick={() => clearWorkspaceRoot?.()}
-                      disabled={Boolean(streamState) || !workspaceRoot}
+                      disabled={Boolean(streamState) || !sessionWorkspaceRoot || workspaceLockedByAgent}
                     >
                       清除
                     </Button>

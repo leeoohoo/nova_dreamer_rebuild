@@ -113,6 +113,7 @@ export function createChatStore(db) {
       description: 'UI Chat 默认 Agent',
       prompt: '',
       modelId: normalizedModelId,
+      workspaceRoot: '',
       promptIds: [],
       subagentIds: [],
       skills: [],

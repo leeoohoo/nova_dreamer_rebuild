@@ -47,12 +47,47 @@ function resolveHostNodeModulesDir() {
   }
 }
 
-function isUiAppMcpServer(entry) {
+function isPathWithin(root, target) {
+  if (!root || !target) return false;
+  const relative = path.relative(root, target);
+  if (!relative) return true;
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function normalizeCommandPath(token, baseDir) {
+  const raw = typeof token === 'string' ? token.trim() : '';
+  if (!raw) return '';
+  const unquoted = raw.replace(/^['"]|['"]$/g, '');
+  if (!unquoted) return '';
+  if (path.isAbsolute(unquoted) || /^[a-zA-Z]:[\\/]/.test(unquoted)) {
+    return path.resolve(unquoted);
+  }
+  const base = typeof baseDir === 'string' && baseDir.trim() ? baseDir.trim() : process.cwd();
+  return path.resolve(base, unquoted);
+}
+
+function isUiAppMcpServer(entry, options = {}) {
   const tags = Array.isArray(entry?.tags) ? entry.tags : [];
-  return tags
+  const tagged = tags
     .map((tag) => String(tag || '').trim().toLowerCase())
     .filter(Boolean)
     .some((tag) => tag === 'uiapp' || tag.startsWith('uiapp:'));
+  if (tagged) return true;
+
+  const endpoint = options?.endpoint;
+  if (!endpoint || endpoint.type !== 'command') return false;
+  const sessionRoot = typeof options?.sessionRoot === 'string' ? options.sessionRoot.trim() : '';
+  const stateDir = resolveAppStateDir(sessionRoot || process.cwd());
+  if (!stateDir) return false;
+  const uiAppsRoot = path.join(stateDir, 'ui_apps', 'plugins');
+  const args = Array.isArray(endpoint.args) ? endpoint.args : [];
+  for (const arg of args) {
+    const candidate = normalizeCommandPath(arg, options?.baseDir);
+    if (candidate && isPathWithin(uiAppsRoot, candidate)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function ensureUiAppNodeModules(sessionRoot) {
@@ -188,7 +223,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   }
 
   if (endpoint.type === 'command') {
-    if (isUiAppMcpServer(entry)) {
+    if (isUiAppMcpServer(entry, { endpoint, baseDir, sessionRoot })) {
       ensureUiAppNodeModules(sessionRoot);
     }
     const client = new Client({

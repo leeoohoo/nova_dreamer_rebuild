@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Button, Checkbox, Form, Input, Modal, Select, Space, Typography, message } from 'antd';
+import { FolderOpenOutlined } from '@ant-design/icons';
 
 import { api, hasApi } from '../../../lib/api.js';
 
@@ -57,6 +58,35 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         label: `${m.name}${m.provider ? ` (${m.provider}/${m.model})` : ''}`,
       })),
     [models]
+  );
+  const mcpOptions = useMemo(
+    () =>
+      (Array.isArray(mcpServers) ? mcpServers : [])
+        .filter((srv) => normalizeId(srv?.id) && normalizeId(srv?.name))
+        .map((srv) => ({
+          value: srv.id,
+          label: srv.name,
+          description: srv.description || '',
+          disabled: srv.enabled === false,
+          searchText: `${srv.name} ${srv.description || ''}`.trim(),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [mcpServers]
+  );
+  const promptOptions = useMemo(
+    () =>
+      (Array.isArray(prompts) ? prompts : [])
+        .filter((p) => normalizeId(p?.id) && normalizeId(p?.name))
+        .map((p) => ({
+          value: p.id,
+          label: p.name,
+          title: p.title || '',
+          type: p.type || '',
+          disabled: p.allowMain === false,
+          searchText: `${p.name} ${p.title || ''} ${p.type || ''}`.trim(),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [prompts]
   );
 
   const mcpServerByName = useMemo(() => {
@@ -340,6 +370,9 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
       description: initialValues?.description || '',
       prompt: initialValues?.prompt || '',
       modelId: initialValues?.modelId || '',
+      workspaceRoot: initialValues?.workspaceRoot || '',
+      mcpServerIds: Array.isArray(initialValues?.mcpServerIds) ? uniqueIds(initialValues.mcpServerIds) : [],
+      promptIds: Array.isArray(initialValues?.promptIds) ? uniqueIds(initialValues.promptIds) : [],
       uiApps: normalizedUiApps,
     });
   }, [open, initialValues, form]);
@@ -410,6 +443,22 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         ) : null}
       </div>
     );
+  };
+
+  const pickWorkspaceRoot = async () => {
+    if (!hasApi) {
+      message.error('IPC bridge not available');
+      return;
+    }
+    const current = typeof form.getFieldValue('workspaceRoot') === 'string' ? form.getFieldValue('workspaceRoot').trim() : '';
+    try {
+      const result = await api.invoke('dialog:selectDirectory', { defaultPath: current || undefined });
+      if (result?.ok && typeof result?.path === 'string' && result.path.trim()) {
+        form.setFieldsValue({ workspaceRoot: result.path.trim() });
+      }
+    } catch (err) {
+      message.error(err?.message || '选择目录失败');
+    }
   };
 
   const applyAideIslandChatPreset = () => {
@@ -536,6 +585,53 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         </Form.Item>
         <Form.Item name="modelId" label="模型" rules={[{ required: true, message: '请选择模型' }]}>
           <Select options={modelOptions} showSearch optionFilterProp="label" placeholder="选择模型" />
+        </Form.Item>
+        <Form.Item
+          name="mcpServerIds"
+          label="启用的 MCP"
+          getValueFromEvent={(nextIds) => uniqueIds(nextIds)}
+        >
+          <Select
+            mode="multiple"
+            options={mcpOptions}
+            showSearch
+            filterOption={filterOptionBySearch}
+            optionRender={renderMcpOption}
+            maxTagCount="responsive"
+            maxTagTextLength={32}
+            placeholder="选择要启用的 MCP（可多选）"
+          />
+        </Form.Item>
+        <Form.Item
+          name="promptIds"
+          label="启用的 Prompt"
+          getValueFromEvent={(nextIds) => uniqueIds(nextIds)}
+        >
+          <Select
+            mode="multiple"
+            options={promptOptions}
+            showSearch
+            filterOption={filterOptionBySearch}
+            optionRender={renderPromptOption}
+            maxTagCount="responsive"
+            maxTagTextLength={32}
+            placeholder="选择要启用的 Prompt（可多选）"
+          />
+        </Form.Item>
+        <Form.Item
+          name="workspaceRoot"
+          label="工作目录"
+          extra="可选：留空则使用当前对话设置的目录；如果 Agent 自身设置了目录，将优先生效。"
+        >
+          <Space size={8} align="start" style={{ width: '100%' }}>
+            <Input
+              placeholder="输入工作目录路径（绝对路径）"
+              allowClear
+            />
+            <Button icon={<FolderOpenOutlined />} onClick={pickWorkspaceRoot}>
+              选择目录
+            </Button>
+          </Space>
         </Form.Item>
         <Form.Item
           name="uiApps"

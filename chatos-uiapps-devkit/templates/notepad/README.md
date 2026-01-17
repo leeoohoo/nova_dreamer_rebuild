@@ -53,6 +53,7 @@ npm run dev
 模板内包含 `plugin/apps/__APP_ID__/mcp-server.mjs` 与 `mcp-prompt.*.md`，但默认 **未在** `plugin/plugin.json` 启用 `ai.mcp`（避免打包时遗漏依赖导致运行失败）。
 
 ⚠️ ChatOS 导入插件时会排除 `node_modules/`。因此 MCP server 只要用了第三方依赖（如 `@modelcontextprotocol/sdk`、`zod`），就必须先 bundle 成单文件，或把依赖源码放进插件目录。
+若看到 `Cannot find package '@modelcontextprotocol/sdk'`，说明依赖未被 bundle。
 
 如需启用 MCP：
 
