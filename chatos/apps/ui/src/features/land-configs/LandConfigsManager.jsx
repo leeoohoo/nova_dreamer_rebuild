@@ -275,6 +275,33 @@ export function LandConfigsManager({ admin }) {
     updateFlow(flowKey, { prompts: nextList });
   };
 
+  const applyFlowLanguage = (flowKey, lang) => {
+    const targetLang = lang === 'en' ? 'en' : 'zh';
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const flow = ensureFlow(prev?.[flowKey]);
+      const nextMcpServers = flow.mcpServers.map((item) => ({
+        ...item,
+        promptLang: targetLang,
+      }));
+      const nextPrompts = flow.prompts.map((item) => {
+        const entry = promptIndex.get(item.key);
+        let nextLang = targetLang;
+        if (nextLang === 'en' && !entry?.en && entry?.zh) nextLang = 'zh';
+        if (nextLang === 'zh' && !entry?.zh && entry?.en) nextLang = 'en';
+        return { ...item, lang: nextLang };
+      });
+      return {
+        ...prev,
+        [flowKey]: {
+          ...flow,
+          mcpServers: nextMcpServers,
+          prompts: nextPrompts,
+        },
+      };
+    });
+  };
+
   const handleSave = async () => {
     if (!draft?.id) return;
     if (!hasApi) return;
@@ -346,6 +373,15 @@ export function LandConfigsManager({ admin }) {
         <Title level={5} style={{ marginTop: 0 }}>
           {title}
         </Title>
+        <Space size={8} style={{ marginBottom: 12 }}>
+          <Text type="secondary">一键语言</Text>
+          <Button size="small" onClick={() => applyFlowLanguage(flowKey, 'zh')}>
+            中文
+          </Button>
+          <Button size="small" onClick={() => applyFlowLanguage(flowKey, 'en')}>
+            English
+          </Button>
+        </Space>
 
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <div>

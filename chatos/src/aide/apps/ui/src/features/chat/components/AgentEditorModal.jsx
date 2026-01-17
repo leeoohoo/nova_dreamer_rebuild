@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { Button, Checkbox, Form, Input, Modal, Select, Space, Typography, message } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button, Checkbox, Form, Input, Modal, Select, Segmented, Space, Typography, message } from 'antd';
 import { FolderOpenOutlined } from '@ant-design/icons';
 
 import { api, hasApi } from '../../../lib/api.js';
@@ -8,6 +8,19 @@ const { Text } = Typography;
 
 function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeMcpServerName(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function getMcpPromptNames(serverName) {
+  const base = `mcp_${normalizeMcpServerName(serverName)}`;
+  return { zh: base, en: `${base}__en` };
 }
 
 function toUiAppKey(pluginId, appId) {
@@ -29,6 +42,7 @@ function parseUiAppKey(key) {
 
 export function AgentEditorModal({ open, initialValues, models, mcpServers, prompts, uiApps, onCancel, onSave }) {
   const [form] = Form.useForm();
+  const [mcpPromptLang, setMcpPromptLang] = useState('zh');
   const markdownEditorStyle = useMemo(
     () => ({
       fontFamily:
@@ -71,6 +85,49 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         .sort((a, b) => a.label.localeCompare(b.label)),
     [prompts]
   );
+
+  const uniqueIds = (list) => {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(list) ? list : []).forEach((item) => {
+      const v = normalizeId(item);
+      if (!v || seen.has(v)) return;
+      seen.add(v);
+      out.push(v);
+    });
+    return out;
+  };
+
+  const mcpServerById = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(mcpServers) ? mcpServers : []).forEach((srv) => {
+      const key = normalizeId(srv?.id);
+      if (!key) return;
+      map.set(key, srv);
+    });
+    return map;
+  }, [mcpServers]);
+
+  const promptByName = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(prompts) ? prompts : []).forEach((p) => {
+      const key = normalizeId(p?.name).toLowerCase();
+      if (!key || !normalizeId(p?.id)) return;
+      map.set(key, p);
+    });
+    return map;
+  }, [prompts]);
+
+  const mcpPromptNameById = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(prompts) ? prompts : []).forEach((p) => {
+      const id = normalizeId(p?.id);
+      const name = typeof p?.name === 'string' ? p.name.trim().toLowerCase() : '';
+      if (!id || !name) return;
+      map.set(id, name);
+    });
+    return map;
+  }, [prompts]);
 
   const uiAppMetaByKey = useMemo(() => {
     const map = new Map();
@@ -147,6 +204,19 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
     if (!open) return;
     const rawUiApps = Array.isArray(initialValues?.uiApps) ? initialValues.uiApps : [];
     const normalizedUiApps = rawUiApps.map((ref) => normalizeUiAppRef(ref)).filter(Boolean);
+    const initialMcpIds = Array.isArray(initialValues?.mcpServerIds) ? initialValues.mcpServerIds : [];
+    const initialPromptIds = Array.isArray(initialValues?.promptIds) ? initialValues.promptIds : [];
+    const inferredLang = (() => {
+      const wantEn = initialMcpIds.some((id) => {
+        const server = mcpServerById.get(normalizeId(id));
+        if (!server?.name) return false;
+        const names = getMcpPromptNames(server.name);
+        const enPrompt = promptByName.get(String(names.en).toLowerCase());
+        return enPrompt?.id && initialPromptIds.includes(enPrompt.id);
+      });
+      return wantEn ? 'en' : 'zh';
+    })();
+    setMcpPromptLang(inferredLang);
     form.setFieldsValue({
       name: initialValues?.name || '',
       description: initialValues?.description || '',
@@ -157,10 +227,46 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
       promptIds: Array.isArray(initialValues?.promptIds) ? initialValues.promptIds : [],
       uiApps: normalizedUiApps,
     });
-  }, [open, initialValues, form]);
+  }, [open, initialValues, form, mcpServerById, promptByName]);
 
   const selectedUiApps = Form.useWatch('uiApps', form);
   const selectedUiAppsSafe = Array.isArray(selectedUiApps) ? selectedUiApps.map((ref) => normalizeUiAppRef(ref)).filter(Boolean) : [];
+
+  const selectedMcpServerIds = Form.useWatch('mcpServerIds', form);
+  useEffect(() => {
+    if (!open) return;
+    const selectedIds = Array.isArray(selectedMcpServerIds) ? selectedMcpServerIds : [];
+    const existingPromptIds = Array.isArray(form.getFieldValue('promptIds')) ? form.getFieldValue('promptIds') : [];
+    const mcpPromptIds = [];
+    const mcpPromptNamesAll = new Set();
+    (Array.isArray(mcpServers) ? mcpServers : []).forEach((srv) => {
+      if (!srv?.name) return;
+      const names = getMcpPromptNames(srv.name);
+      mcpPromptNamesAll.add(String(names.zh).toLowerCase());
+      mcpPromptNamesAll.add(String(names.en).toLowerCase());
+    });
+
+    selectedIds.forEach((id) => {
+      const server = mcpServerById.get(normalizeId(id));
+      if (!server?.name) return;
+      const names = getMcpPromptNames(server.name);
+      const targetName = mcpPromptLang === 'en' ? names.en : names.zh;
+      const fallbackName = mcpPromptLang === 'en' ? names.zh : names.en;
+      const targetPrompt = promptByName.get(String(targetName).toLowerCase());
+      const fallbackPrompt = promptByName.get(String(fallbackName).toLowerCase());
+      const picked = targetPrompt || fallbackPrompt;
+      if (picked?.id) {
+        mcpPromptIds.push(picked.id);
+      }
+    });
+
+    const filtered = existingPromptIds.filter((id) => {
+      const name = mcpPromptNameById.get(normalizeId(id));
+      return !name || !mcpPromptNamesAll.has(name);
+    });
+    const merged = uniqueIds([...filtered, ...mcpPromptIds]);
+    form.setFieldsValue({ promptIds: merged });
+  }, [open, selectedMcpServerIds, mcpPromptLang, mcpServerById, promptByName, mcpPromptNameById, mcpServers, form]);
 
   const pickWorkspaceRoot = async () => {
     if (!hasApi) {
@@ -218,6 +324,16 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
             placeholder="选择要启用的 MCP（可多选）"
           />
         </Form.Item>
+        <Form.Item label="MCP Prompt 语言">
+          <Segmented
+            value={mcpPromptLang}
+            options={[
+              { label: '中文', value: 'zh' },
+              { label: 'English', value: 'en' },
+            ]}
+            onChange={(value) => setMcpPromptLang(value === 'en' ? 'en' : 'zh')}
+          />
+        </Form.Item>
         <Form.Item name="promptIds" label="启用的 Prompt">
           <Select
             mode="multiple"
@@ -228,12 +344,13 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
           />
         </Form.Item>
         <Form.Item
-          name="workspaceRoot"
           label="工作目录"
           extra="可选：留空则使用当前对话设置的目录；如果 Agent 自身设置了目录，将优先生效。"
         >
           <Space size={8} align="start" style={{ width: '100%' }}>
-            <Input placeholder="输入工作目录路径（绝对路径）" allowClear />
+            <Form.Item name="workspaceRoot" noStyle>
+              <Input placeholder="输入工作目录路径（绝对路径）" allowClear />
+            </Form.Item>
             <Button icon={<FolderOpenOutlined />} onClick={pickWorkspaceRoot}>
               选择目录
             </Button>
@@ -320,7 +437,7 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         ) : null}
 
         <Space direction="vertical" size={6}>
-          <Text type="secondary">提示：这里不再直接选择全局 MCP/Prompts/Subagents；请通过「应用」来组合能力。</Text>
+          <Text type="secondary">提示：选择 MCP 后会自动补全对应的 MCP Prompt。</Text>
         </Space>
       </Form>
     </Modal>
