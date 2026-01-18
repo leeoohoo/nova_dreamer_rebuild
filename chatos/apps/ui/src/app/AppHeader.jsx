@@ -17,6 +17,7 @@ export function AppHeader({
   onToggleTheme,
   menu,
   onMenuChange,
+  onAdminBack,
   developerMode: _developerMode = false,
 }) {
   const rawMenu = typeof menu === 'string' ? menu : '';
@@ -35,7 +36,8 @@ export function AppHeader({
   const secondaryValue = mode === 'apps' ? 'apps/home' : effectiveMenu.startsWith('chat/') ? effectiveMenu : 'chat/session';
 
   const builtinCliMenu = 'apps/plugin/com.leeoohoo.aideui.builtin/cli';
-  const showCliConsoleShortcut = normalizedMenu.startsWith('admin/');
+  const showAdminBack = normalizedMenu.startsWith('admin/');
+  const handleAdminBack = typeof onAdminBack === 'function' ? onAdminBack : () => setMenu(builtinCliMenu);
 
   const adminMenuItems = [
     { key: 'admin/models', label: '模型' },
@@ -63,9 +65,9 @@ export function AppHeader({
           <span className="ds-app-title">chatos</span>
         </Title>
 
-        {showCliConsoleShortcut ? (
-          <Button size="small" onClick={() => setMenu(builtinCliMenu)}>
-            AIDE 引擎
+        {showAdminBack ? (
+          <Button size="small" onClick={handleAdminBack}>
+            返回
           </Button>
         ) : null}
 

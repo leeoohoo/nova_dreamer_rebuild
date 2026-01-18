@@ -23,6 +23,7 @@ const EMPTY_ADMIN = {
 };
 export default function App({ themeMode = 'light', onToggleTheme }) {
   const [menu, setMenu] = useState('chat/session');
+  const [lastNonAdminMenu, setLastNonAdminMenu] = useState('chat/session');
   const [admin, setAdmin] = useState(EMPTY_ADMIN);
   const [uiFlags, setUiFlags] = useState({});
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,18 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
 
   const developerMode = Boolean(uiFlags?.developerMode);
   const actions = useMemo(() => createAdminActions({ api, hasApi }), []);
+
+  useEffect(() => {
+    if (typeof menu === 'string' && !menu.startsWith('admin/')) {
+      setLastNonAdminMenu(menu);
+    }
+  }, [menu]);
+
+  const handleAdminBack = () => {
+    const target =
+      typeof lastNonAdminMenu === 'string' && lastNonAdminMenu.trim() ? lastNonAdminMenu : 'chat/session';
+    setMenu(target);
+  };
 
   useEffect(() => {
     if (!hasApi) return undefined;
@@ -95,6 +108,7 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
         onToggleTheme={onToggleTheme}
         menu={menu}
         onMenuChange={setMenu}
+        onAdminBack={handleAdminBack}
         developerMode={developerMode}
       />
 
