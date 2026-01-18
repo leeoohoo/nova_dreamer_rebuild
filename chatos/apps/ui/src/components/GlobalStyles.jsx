@@ -6,6 +6,22 @@ const EXTRA_CSS = `
       .ds-seg .ant-segmented-group {
         flex-wrap: nowrap;
       }
+      .ds-nav-merged.ds-nav-fixed {
+        width: 460px;
+        max-width: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        justify-items: center;
+      }
+      .ds-nav-merged.ds-nav-fixed .ds-seg {
+        width: 100%;
+        justify-content: center;
+      }
+      .ds-nav-merged.ds-nav-fixed .ant-segmented-group {
+        width: 100%;
+        justify-content: center;
+      }
       .ds-ui-app-header-slot:empty {
         display: none;
       }

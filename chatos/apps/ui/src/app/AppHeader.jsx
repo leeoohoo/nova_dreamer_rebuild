@@ -72,7 +72,7 @@ export function AppHeader({
         ) : null}
 
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
-          <div className="ds-nav-merged" data-mode={mode}>
+          <div className="ds-nav-merged ds-nav-fixed" data-mode={mode}>
             <Segmented
               className="ds-seg ds-seg-primary"
               value={primaryValue}
