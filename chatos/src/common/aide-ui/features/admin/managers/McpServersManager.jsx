@@ -88,9 +88,6 @@ function McpServersManager({
       ]),
     []
   );
-  const isExternalOnly = useCallback((record) => normalizeServerName(record?.name) === 'aide_island_chat', [
-    normalizeServerName,
-  ]);
   const isLocked = (record) => record?.locked || builtinNames.has(record?.name);
   const showLocked = developerMode || showBuiltins;
   const visible = showLocked ? normalized : normalized.filter((item) => !isLocked(item));
@@ -208,19 +205,19 @@ function McpServersManager({
         dataIndex: 'enabled',
         width: 90,
         render: (enabled, record) => (
-          <Switch
-            size="small"
-            checked={enabled !== false}
-            disabled={!record?.id || loading || isExternalOnly(record)}
-            onChange={async (checked) => {
-              try {
-                await onUpdate(record.id, { enabled: checked });
-                message.success('已更新启用状态');
-              } catch (err) {
-                message.error(err?.message || '更新失败');
-              }
-            }}
-          />
+            <Switch
+              size="small"
+              checked={enabled !== false}
+              disabled={!record?.id || loading}
+              onChange={async (checked) => {
+                try {
+                  await onUpdate(record.id, { enabled: checked });
+                  message.success('已更新启用状态');
+                } catch (err) {
+                  message.error(err?.message || '更新失败');
+                }
+              }}
+            />
         ),
       },
       {
@@ -250,12 +247,11 @@ function McpServersManager({
         title: '内置',
         dataIndex: 'locked',
         width: 100,
-        render: (_locked, record) =>
-          isExternalOnly(record) ? <Tag color="purple">外部调用</Tag> : isLocked(record) ? <Tag color="blue">内置</Tag> : '-',
+        render: (_locked, record) => (isLocked(record) ? <Tag color="blue">内置</Tag> : '-'),
       },
       { title: '更新时间', dataIndex: 'updatedAt', width: 180 },
     ],
-    [classifyEndpoint, isExternalOnly, loading, onUpdate, renderPromptPreview]
+    [classifyEndpoint, loading, onUpdate, renderPromptPreview]
   );
   const fields = useMemo(
     () => [

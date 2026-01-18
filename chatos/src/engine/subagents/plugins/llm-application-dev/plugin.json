@@ -8,7 +8,7 @@
       "id": "ai-engineer",
       "name": "Ai Engineer",
       "description": "Build production-ready LLM applications, advanced RAG systems, and intelligent agents. Implements vector search, multimodal AI, agent orchestration, and enterprise AI integrations. Use PROACTIVELY for LLM features, chatbots, AI agents, or AI-powered applications.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/ai-engineer.md",
       "defaultSkills": [
@@ -23,7 +23,7 @@
       "id": "prompt-engineer",
       "name": "Prompt Engineer",
       "description": "Expert prompt engineer specializing in advanced prompting techniques, LLM optimization, and AI system design. Masters chain-of-thought, constitutional AI, and production prompt strategies. Use when building AI features, improving agent performance, or crafting system prompts.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/prompt-engineer.md",
       "defaultSkills": [
@@ -67,21 +67,21 @@
       "name": "AI Assistant Development",
       "description": "You are an AI assistant development expert specializing in creating intelligent conversational interfaces, chatbots, and AI-powered applications. Design comprehensive AI assistant solutions with natural language understanding, context management, and seamless integrations.",
       "instructionsPath": "commands/ai-assistant.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "langchain-agent",
       "name": "LangChain/LangGraph Agent Development Expert",
       "description": "You are an expert LangChain agent developer specializing in production-grade AI systems using LangChain 0.1+ and LangGraph.",
       "instructionsPath": "commands/langchain-agent.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "prompt-optimize",
       "name": "Prompt Optimization",
       "description": "You are an expert prompt engineer specializing in crafting effective prompts for LLMs through advanced techniques including constitutional AI, chain-of-thought reasoning, and model-specific optimization.",
       "instructionsPath": "commands/prompt-optimize.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

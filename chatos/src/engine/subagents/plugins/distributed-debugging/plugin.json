@@ -8,7 +8,7 @@
       "id": "devops-troubleshooter",
       "name": "Devops Troubleshooter",
       "description": "Expert DevOps troubleshooter specializing in rapid incident response, advanced debugging, and modern observability. Masters log analysis, distributed tracing, Kubernetes debugging, performance optimization, and root cause analysis. Handles production outages, system reliability, and preventive monitoring. Use PROACTIVELY for debugging, incident response, or system troubleshooting.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/devops-troubleshooter.md",
       "defaultSkills": [],
@@ -18,7 +18,7 @@
       "id": "error-detective",
       "name": "Error Detective",
       "description": "Search logs and codebases for error patterns, stack traces, and anomalies. Correlates errors across systems and identifies root causes. Use PROACTIVELY when debugging issues, analyzing logs, or investigating production errors.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/error-detective.md",
       "defaultSkills": [],
@@ -32,7 +32,7 @@
       "name": "Debug and Trace Configuration",
       "description": "You are a debugging expert specializing in setting up comprehensive debugging environments, distributed tracing, and diagnostic tools. Configure debugging workflows, implement tracing solutions, and establish troubleshooting practices for development and production environments.",
       "instructionsPath": "commands/debug-trace.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

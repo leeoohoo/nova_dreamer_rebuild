@@ -1,0 +1,123 @@
+{
+  "landConfigs": [
+    {
+      "id": "220e7e4d-eee0-4a76-902a-9e93b57c88e6",
+      "name": "默认",
+      "description": "",
+      "main": {
+        "mcpServers": [
+          {
+            "id": "bdc91c89-b9d8-44d2-a572-5afa9c0cccb9",
+            "name": "ui_prompter",
+            "promptLang": "en"
+          },
+          {
+            "id": "9efd2c3e-435a-4aa5-8838-e4289f2b616a",
+            "name": "project_journal",
+            "promptLang": "en"
+          },
+          {
+            "id": "8fe4e8f4-b8d1-4f59-967d-374a55f61417",
+            "name": "project_files",
+            "promptLang": "en"
+          },
+          {
+            "id": "56b1ee50-8160-4ec8-89ed-b65c81b8a3fd",
+            "name": "task_manager",
+            "promptLang": "en"
+          },
+          {
+            "id": "36bb1921-66e8-4901-9739-2177349f5dd4",
+            "name": "subagent_router",
+            "promptLang": "en"
+          }
+        ],
+        "apps": [
+          {
+            "pluginId": "com.leeoohoo.notepad",
+            "appId": "manager",
+            "name": "记事本"
+          }
+        ],
+        "prompts": [
+          {
+            "key": "default",
+            "lang": "en"
+          },
+          {
+            "key": "internal_main",
+            "lang": "en"
+          }
+        ]
+      },
+      "sub": {
+        "mcpServers": [
+          {
+            "id": "9efd2c3e-435a-4aa5-8838-e4289f2b616a",
+            "name": "project_journal",
+            "promptLang": "en"
+          },
+          {
+            "id": "8fe4e8f4-b8d1-4f59-967d-374a55f61417",
+            "name": "project_files",
+            "promptLang": "en"
+          },
+          {
+            "id": "56b1ee50-8160-4ec8-89ed-b65c81b8a3fd",
+            "name": "task_manager",
+            "promptLang": "en"
+          },
+          {
+            "id": "a176d672-15f4-43c5-8c5f-6516cad8240f",
+            "name": "shell_tasks",
+            "promptLang": "en"
+          },
+          {
+            "id": "b10599fb-bda3-439f-9143-565fc2a2700c",
+            "name": "code_maintainer",
+            "promptLang": "en"
+          },
+          {
+            "id": "ba246952-8140-4f8e-ab46-33757b209585",
+            "name": "lsp_bridge",
+            "promptLang": "en"
+          },
+          {
+            "id": "bdc91c89-b9d8-44d2-a572-5afa9c0cccb9",
+            "name": "ui_prompter",
+            "promptLang": "en"
+          },
+          {
+            "id": "cb5baaba-ab78-4189-b210-716be799268c",
+            "name": "chrome_devtools",
+            "promptLang": "en"
+          },
+          {
+            "id": "f2d0dbcb-e86e-493a-86b1-05cff71a14cb",
+            "name": "code_writer",
+            "promptLang": "en"
+          }
+        ],
+        "apps": [
+          {
+            "pluginId": "com.leeoohoo.codex_app",
+            "appId": "codex_app",
+            "name": "Codex 控制台"
+          }
+        ],
+        "prompts": [
+          {
+            "key": "default",
+            "lang": "en"
+          },
+          {
+            "key": "internal_subagent",
+            "lang": "en"
+          }
+        ]
+      },
+      "createdAt": "2026-01-16T11:38:04.088Z",
+      "updatedAt": "2026-01-17T03:35:12.639Z"
+    }
+  ]
+}

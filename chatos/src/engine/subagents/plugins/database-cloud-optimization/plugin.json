@@ -8,7 +8,7 @@
       "id": "backend-architect",
       "name": "Backend Architect",
       "description": "Expert backend architect specializing in scalable API design, microservices architecture, and distributed systems. Masters REST/GraphQL/gRPC APIs, event-driven architectures, service mesh patterns, and modern backend frameworks. Handles service boundary definition, inter-service communication, resilience patterns, and observability. Use PROACTIVELY when creating new backend services or APIs.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/backend-architect.md",
       "defaultSkills": [],
@@ -18,7 +18,7 @@
       "id": "cloud-architect",
       "name": "Cloud Architect",
       "description": "Expert cloud architect specializing in AWS/Azure/GCP multi-cloud infrastructure design, advanced IaC (Terraform/OpenTofu/CDK), FinOps cost optimization, and modern architectural patterns. Masters serverless, microservices, security, compliance, and disaster recovery. Use PROACTIVELY for cloud architecture, cost optimization, migration planning, or multi-cloud strategies.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/cloud-architect.md",
       "defaultSkills": [],
@@ -28,7 +28,7 @@
       "id": "database-architect",
       "name": "Database Architect",
       "description": "Expert database architect specializing in data layer design from scratch, technology selection, schema modeling, and scalable database architectures. Masters SQL/NoSQL/TimeSeries database selection, normalization strategies, migration planning, and performance-first design. Handles both greenfield architectures and re-architecture of existing systems. Use PROACTIVELY for database architecture, technology selection, or data modeling decisions.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/database-architect.md",
       "defaultSkills": [],
@@ -38,7 +38,7 @@
       "id": "database-optimizer",
       "name": "Database Optimizer",
       "description": "Expert database optimizer specializing in modern performance tuning, query optimization, and scalable architectures. Masters advanced indexing, N+1 resolution, multi-tier caching, partitioning strategies, and cloud database optimization. Handles complex query analysis, migration strategies, and performance monitoring. Use PROACTIVELY for database optimization, performance issues, or scalability challenges.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/database-optimizer.md",
       "defaultSkills": [],
@@ -52,7 +52,7 @@
       "name": "Cloud Cost Optimization",
       "description": "You are a cloud cost optimization expert specializing in reducing infrastructure expenses while maintaining performance and reliability. Analyze cloud spending, identify savings opportunities, and implement cost-effective architectures across AWS, Azure, and GCP.",
       "instructionsPath": "commands/cost-optimize.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

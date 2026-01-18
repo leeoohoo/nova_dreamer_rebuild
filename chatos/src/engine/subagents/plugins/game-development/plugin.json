@@ -8,7 +8,7 @@
       "id": "minecraft-bukkit-pro",
       "name": "Minecraft Bukkit Pro",
       "description": "Master Minecraft server plugin development with Bukkit, Spigot, and Paper APIs. Specializes in event-driven architecture, command systems, world manipulation, player management, and performance optimization. Use PROACTIVELY for plugin architecture, gameplay mechanics, server-side features, or cross-version compatibility.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/minecraft-bukkit-pro.md",
       "defaultSkills": []
@@ -17,7 +17,7 @@
       "id": "unity-developer",
       "name": "Unity Developer",
       "description": "Build Unity games with optimized C# scripts, efficient rendering, and proper asset management. Masters Unity 6 LTS, URP/HDRP pipelines, and cross-platform deployment. Handles gameplay systems, UI implementation, and platform optimization. Use PROACTIVELY for Unity performance issues, game mechanics, or cross-platform builds.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/unity-developer.md",
       "defaultSkills": []

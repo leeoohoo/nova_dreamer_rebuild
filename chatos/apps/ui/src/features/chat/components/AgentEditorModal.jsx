@@ -539,98 +539,6 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
     }
   };
 
-  const applyAideIslandChatPreset = () => {
-    const pluginId = 'com.leeoohoo.aideui.builtin';
-    const appId = 'cli';
-    const key = toUiAppKey(pluginId, appId);
-    if (!uiAppMetaByKey.has(key)) {
-      message.warning('未发现 AIDE 引擎应用（com.leeoohoo.aideui.builtin/cli），请先在「应用」页确认已安装/启用。');
-    }
-
-    const server = mcpServerByName.get('aide_island_chat') || null;
-    const serverId = normalizeId(server?.id);
-    if (!serverId) {
-      message.warning('未找到 MCP server：aide_island_chat（请先在 Admin → MCP Server 管理确认）');
-    }
-
-    const prompt =
-      promptByName.get('agent_aide_island_chat_bridge') ||
-      promptByName.get('mcp_aide_island_chat') ||
-      null;
-    const promptId = normalizeId(prompt?.id);
-    if (!promptId) {
-      message.warning('未找到 Prompt：agent_aide_island_chat_bridge / mcp_aide_island_chat（请先在 Admin → Prompts 管理确认）');
-    }
-
-    const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
-    const normalized = list.map((ref) => normalizeUiAppRef(ref)).filter(Boolean);
-    const idx = normalized.findIndex((ref) => toUiAppKey(ref.pluginId, ref.appId) === key);
-    const next = normalized.slice();
-    if (idx >= 0) {
-      const prev = next[idx];
-      const merged = normalizeUiAppRef({
-        ...prev,
-        mcp: true,
-        prompt: true,
-        mcpServerIds: uniqueIds([...(Array.isArray(prev?.mcpServerIds) ? prev.mcpServerIds : []), serverId]),
-        promptIds: uniqueIds([...(Array.isArray(prev?.promptIds) ? prev.promptIds : []), promptId]),
-      });
-      if (merged) next[idx] = merged;
-    } else {
-      const created = normalizeUiAppRef({
-        pluginId,
-        appId,
-        mcp: true,
-        prompt: true,
-        mcpServerIds: uniqueIds([serverId]),
-        promptIds: uniqueIds([promptId]),
-      });
-      if (created) next.push(created);
-    }
-    form.setFieldsValue({ uiApps: next });
-  };
-
-  const confirmEnableIslandChat = () =>
-    new Promise((resolve) => {
-      Modal.confirm({
-        title: '启用 aide_island_chat？',
-        content: '你选择了 `aide_island_chat` MCP。该服务默认关闭且主代理不可用；不启用的话，Agent 无法调用其工具。',
-        okText: '启用并允许主代理使用',
-        cancelText: '跳过',
-        onOk: () => resolve(true),
-        onCancel: () => resolve(false),
-      });
-    });
-
-  const maybeEnableIslandChatServer = async (payload) => {
-    if (!hasApi) return;
-    const server = mcpServerByName.get('aide_island_chat') || null;
-    const islandServerId = normalizeId(server?.id);
-    if (!islandServerId) return;
-
-    const selectedIds = new Set();
-    (Array.isArray(payload?.uiApps) ? payload.uiApps : []).forEach((ref) => {
-      if (ref?.mcp === false) return;
-      (Array.isArray(ref?.mcpServerIds) ? ref.mcpServerIds : []).forEach((id) => {
-        const v = normalizeId(id);
-        if (v) selectedIds.add(v);
-      });
-    });
-    if (!selectedIds.has(islandServerId)) return;
-    if (server?.enabled !== false && server?.allowMain === true) return;
-
-    const shouldEnable = await confirmEnableIslandChat();
-    if (!shouldEnable) return;
-
-    try {
-      await api.invoke('admin:mcpServers:update', { id: islandServerId, data: { enabled: true, allowMain: true } });
-      message.success('已开启 aide_island_chat（enabled + allowMain）');
-    } catch (err) {
-      Modal.error({ title: '启用 aide_island_chat 失败', content: err?.message || String(err) });
-      throw err;
-    }
-  };
-
   return (
     <Modal
       open={open}
@@ -641,7 +549,6 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
       onOk={async () => {
         const values = await form.validateFields();
         const payload = { ...(initialValues || {}), ...values };
-        await maybeEnableIslandChatServer(payload);
         onSave?.(payload);
       }}
       width={720}
@@ -733,15 +640,6 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
             placeholder="选择一个或多个应用"
           />
         </Form.Item>
-        <Space size={8} style={{ marginTop: -8, marginBottom: 10, flexWrap: 'wrap' }}>
-          <Button size="small" onClick={applyAideIslandChatPreset}>
-            快捷添加：AIDE 灵动岛聊天
-          </Button>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            自动选择 `aide_island_chat` MCP + `agent_aide_island_chat_bridge` Prompt（若缺失则回退到 `mcp_aide_island_chat`）
-          </Text>
-        </Space>
-
         {selectedUiAppsSafe.length > 0 ? (
           <div style={{ display: 'grid', gap: 8, marginBottom: 8 }}>
             {selectedUiAppsSafe.map((ref) => {

@@ -8,7 +8,7 @@
       "id": "hr-pro",
       "name": "Hr Pro",
       "description": "Professional, ethical HR partner for hiring, onboarding/offboarding, PTO and leave, performance, compliant policies, and employee relations. Ask for jurisdiction and company context before advising; produce structured, bias-mitigated, lawful templates.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/hr-pro.md",
       "defaultSkills": []
@@ -17,7 +17,7 @@
       "id": "legal-advisor",
       "name": "Legal Advisor",
       "description": "Draft privacy policies, terms of service, disclaimers, and legal notices. Creates GDPR-compliant texts, cookie policies, and data processing agreements. Use PROACTIVELY for legal documentation, compliance texts, or regulatory requirements.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/legal-advisor.md",
       "defaultSkills": []

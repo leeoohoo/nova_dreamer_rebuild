@@ -8,7 +8,7 @@
       "id": "performance-engineer",
       "name": "Performance Engineer",
       "description": "Expert performance engineer specializing in modern observability, application optimization, and scalable system performance. Masters OpenTelemetry, distributed tracing, load testing, multi-tier caching, Core Web Vitals, and performance monitoring. Handles end-to-end optimization, real user monitoring, and scalability patterns. Use PROACTIVELY for performance optimization, observability, or scalability challenges.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/performance-engineer.md",
       "defaultSkills": [],
@@ -18,7 +18,7 @@
       "id": "test-automator",
       "name": "Test Automator",
       "description": "Master AI-powered test automation with modern frameworks, self-healing tests, and comprehensive quality engineering. Build scalable testing strategies with advanced CI/CD integration. Use PROACTIVELY for testing automation or quality assurance.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/test-automator.md",
       "defaultSkills": [],
@@ -32,14 +32,14 @@
       "name": "AI Powered Code Review Specialist",
       "description": "You are an expert AI-powered code review specialist combining automated static analysis, intelligent pattern recognition, and modern DevOps practices. Leverage AI tools (GitHub Copilot, Qodo, GPT-5, Claude 4.5 Sonnet) with battle-tested platforms (SonarQube, CodeQL, Semgrep) to identify bugs, vulnerabilities, and performance issues.",
       "instructionsPath": "commands/ai-review.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "multi-agent-review",
       "name": "Multi Agent Code Review Orchestration Tool",
       "description": "## Role: Expert Multi-Agent Review Orchestration Specialist",
       "instructionsPath": "commands/multi-agent-review.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

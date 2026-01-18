@@ -23,7 +23,7 @@ export function normalizeMcpServerName(value) {
 }
 
 export function isExternalOnlyMcpServerName(name) {
-  return normalizeMcpServerName(name) === 'aide_island_chat';
+  return false;
 }
 
 export function allowExternalOnlyMcpServers() {

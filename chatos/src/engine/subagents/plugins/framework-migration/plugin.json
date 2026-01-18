@@ -8,7 +8,7 @@
       "id": "architect-review",
       "name": "Architect Review",
       "description": "Master software architect specializing in modern architecture patterns, clean architecture, microservices, event-driven systems, and DDD. Reviews system designs and code changes for architectural integrity, scalability, and maintainability. Use PROACTIVELY for architectural decisions.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/architect-review.md",
       "defaultSkills": [
@@ -23,7 +23,7 @@
       "id": "legacy-modernizer",
       "name": "Legacy Modernizer",
       "description": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization. Handles technical debt, dependency updates, and backward compatibility. Use PROACTIVELY for legacy system updates, framework migrations, or technical debt reduction.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/legacy-modernizer.md",
       "defaultSkills": [
@@ -67,21 +67,21 @@
       "name": "Code Migration Assistant",
       "description": "You are a code migration expert specializing in transitioning codebases between frameworks, languages, versions, and platforms. Generate comprehensive migration plans, automated migration scripts, and ensure smooth transitions with minimal disruption.",
       "instructionsPath": "commands/code-migrate.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "deps-upgrade",
       "name": "Dependency Upgrade Strategy",
       "description": "You are a dependency management expert specializing in safe, incremental upgrades of project dependencies. Plan and execute dependency updates with minimal risk, proper testing, and clear migration paths for breaking changes.",
       "instructionsPath": "commands/deps-upgrade.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "legacy-modernize",
       "name": "Legacy Code Modernization Workflow",
       "description": "Orchestrate a comprehensive legacy system modernization using the strangler fig pattern, enabling gradual replacement of outdated components while maintaining continuous business operations through expert agent coordination.",
       "instructionsPath": "commands/legacy-modernize.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

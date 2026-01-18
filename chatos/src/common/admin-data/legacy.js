@@ -93,6 +93,7 @@ export function parseMcpServers(raw) {
   const parsed = parseJsonSafe(raw, {});
   if (Array.isArray(parsed?.servers)) {
     return parsed.servers.map((s) => ({
+      id: s.id,
       app_id: s.app_id || s.appId || '',
       name: s.name || '',
       url: s.url || '',
@@ -319,6 +320,7 @@ export function buildAdminSeed(defaultPaths = {}) {
     prompts: [],
     events: [],
     tasks: [],
+    landConfigs: [],
   };
 
   if (defaultPaths.models) {
@@ -357,7 +359,7 @@ export function buildAdminSeed(defaultPaths = {}) {
         ...item,
         app_id: inferredAppId,
         locked: item.locked === true,
-        id: crypto.randomUUID(),
+        id: item?.id || crypto.randomUUID(),
         createdAt: now,
         updatedAt: now,
       };
@@ -428,6 +430,24 @@ export function buildAdminSeed(defaultPaths = {}) {
       : [];
   }
 
+  const landConfigRaw =
+    safeRead(defaultPaths.landConfigs) ||
+    safeRead(path.join(path.resolve(defaultPaths.defaultsRoot || ''), 'shared', 'defaults', 'land-configs.json'));
+  const parsedLandConfigs = parseJsonSafe(landConfigRaw, {});
+  const landConfigList = Array.isArray(parsedLandConfigs?.landConfigs)
+    ? parsedLandConfigs.landConfigs
+    : Array.isArray(parsedLandConfigs)
+      ? parsedLandConfigs
+      : [];
+  seed.landConfigs = landConfigList
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      ...item,
+      id: item.id || crypto.randomUUID(),
+      createdAt: item.createdAt || now,
+      updatedAt: item.updatedAt || now,
+    }));
+
   const builtinPrompts = loadBuiltinPromptFiles(defaultPaths);
   seed.prompts = (Array.isArray(builtinPrompts) ? builtinPrompts : [])
     .filter((prompt) => prompt?.name && prompt.content)
@@ -446,10 +466,23 @@ export function buildAdminSeed(defaultPaths = {}) {
       updatedAt: now,
     }));
 
+  const fallbackLandConfig =
+    seed.landConfigs.find((cfg) => typeof cfg?.name === 'string' && cfg.name.trim() === '默认') ||
+    seed.landConfigs[0] ||
+    null;
+  let landConfigId =
+    typeof DEFAULT_RUNTIME_SETTINGS.landConfigId === 'string' ? DEFAULT_RUNTIME_SETTINGS.landConfigId.trim() : '';
+  if (landConfigId && !seed.landConfigs.some((cfg) => cfg?.id === landConfigId)) {
+    landConfigId = '';
+  }
+  if (!landConfigId && fallbackLandConfig?.id) {
+    landConfigId = fallbackLandConfig.id;
+  }
   seed.settings = [
     {
       ...DEFAULT_RUNTIME_SETTINGS,
       id: 'runtime',
+      landConfigId,
       createdAt: now,
       updatedAt: now,
     },

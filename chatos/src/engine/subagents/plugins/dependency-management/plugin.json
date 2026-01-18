@@ -8,7 +8,7 @@
       "id": "legacy-modernizer",
       "name": "Legacy Modernizer",
       "description": "Refactor legacy codebases, migrate outdated frameworks, and implement gradual modernization. Handles technical debt, dependency updates, and backward compatibility. Use PROACTIVELY for legacy system updates, framework migrations, or technical debt reduction.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/legacy-modernizer.md",
       "defaultSkills": [],
@@ -22,7 +22,7 @@
       "name": "Dependency Audit and Security Analysis",
       "description": "You are a dependency security expert specializing in vulnerability scanning, license compliance, and supply chain security. Analyze project dependencies for known vulnerabilities, licensing issues, outdated packages, and provide actionable remediation strategies.",
       "instructionsPath": "commands/deps-audit.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

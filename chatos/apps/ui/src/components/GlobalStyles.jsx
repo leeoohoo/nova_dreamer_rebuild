@@ -24,6 +24,9 @@ const EXTRA_CSS = `
       }
       .ds-admin-page {
         width: 100%;
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
       }
       .ds-admin-page .ant-card,
       .ds-admin-page .ant-table-wrapper,

@@ -54,7 +54,7 @@ function SubagentsManager({
     const list = Array.isArray(models) ? models : [];
     const preferred = list.find((m) => m?.isDefault && m?.name)?.name;
     const fallback = list.find((m) => m?.name)?.name;
-    return preferred || fallback || 'deepseek_reasoner';
+    return preferred || fallback || 'deepseek_chat';
   }, [models]);
   const configuredModelNames = useMemo(() => {
     const set = new Set();
@@ -65,7 +65,7 @@ function SubagentsManager({
     return set;
   }, [models]);
   const inferredSubagentDefaultModel = useMemo(() => {
-    return configuredModelNames.has('deepseek_reasoner') ? 'deepseek_reasoner' : null;
+    return configuredModelNames.has('deepseek_chat') ? 'deepseek_chat' : null;
   }, [configuredModelNames]);
 
   const handleSetModel = async () => {

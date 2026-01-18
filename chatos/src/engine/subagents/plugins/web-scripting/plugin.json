@@ -8,7 +8,7 @@
       "id": "php-pro",
       "name": "Php Pro",
       "description": "Write idiomatic PHP code with generators, iterators, SPL data structures, and modern OOP features. Use PROACTIVELY for high-performance PHP applications.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/php-pro.md",
       "defaultSkills": []
@@ -17,7 +17,7 @@
       "id": "ruby-pro",
       "name": "Ruby Pro",
       "description": "Write idiomatic Ruby code with metaprogramming, Rails patterns, and performance optimization. Specializes in Ruby on Rails, gem development, and testing frameworks. Use PROACTIVELY for Ruby refactoring, optimization, or complex Ruby features.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/ruby-pro.md",
       "defaultSkills": []

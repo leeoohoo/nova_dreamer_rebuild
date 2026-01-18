@@ -1,4 +1,4 @@
-export const DEFAULT_SUBAGENT_MODEL_NAME = 'deepseek_reasoner';
+export const DEFAULT_SUBAGENT_MODEL_NAME = 'deepseek_chat';
 
 function normalizeApiKey(value) {
   const raw =

@@ -8,7 +8,7 @@
       "id": "seo-authority-builder",
       "name": "Seo Authority Builder",
       "description": "Analyzes content for E-E-A-T signals and suggests improvements to build authority and trust. Identifies missing credibility elements. Use PROACTIVELY for YMYL topics.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/seo-authority-builder.md",
       "defaultSkills": []
@@ -17,7 +17,7 @@
       "id": "seo-cannibalization-detector",
       "name": "Seo Cannibalization Detector",
       "description": "Analyzes multiple provided pages to identify keyword overlap and potential cannibalization issues. Suggests differentiation strategies. Use PROACTIVELY when reviewing similar content.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/seo-cannibalization-detector.md",
       "defaultSkills": []
@@ -26,7 +26,7 @@
       "id": "seo-content-refresher",
       "name": "Seo Content Refresher",
       "description": "Identifies outdated elements in provided content and suggests updates to maintain freshness. Finds statistics, dates, and examples that need updating. Use PROACTIVELY for older content.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/seo-content-refresher.md",
       "defaultSkills": []

@@ -7,7 +7,7 @@
     {
       "id": "react-architect",
       "name": "React Architect",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": true,
       "description": "Owns frontend architecture, tech choices, state management, and routing.",
       "systemPromptPath": "agents/react-architect.md",
@@ -23,7 +23,7 @@
     {
       "id": "react-coder",
       "name": "React Developer",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "description": "Delivers components/pages, API wiring, and unit tests.",
       "systemPromptPath": "agents/react-coder.md",
       "defaultSkills": [

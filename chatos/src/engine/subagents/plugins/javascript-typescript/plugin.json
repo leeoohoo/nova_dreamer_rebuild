@@ -8,7 +8,7 @@
       "id": "javascript-pro",
       "name": "Javascript Pro",
       "description": "Master modern JavaScript with ES6+, async patterns, and Node.js APIs. Handles promises, event loops, and browser/Node compatibility. Use PROACTIVELY for JavaScript optimization, async debugging, or complex JS patterns.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/javascript-pro.md",
       "defaultSkills": [
@@ -23,7 +23,7 @@
       "id": "typescript-pro",
       "name": "Typescript Pro",
       "description": "Master TypeScript with advanced types, generics, and strict type safety. Handles complex type systems, decorators, and enterprise-grade patterns. Use PROACTIVELY for TypeScript architecture, type inference optimization, or advanced typing patterns.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/typescript-pro.md",
       "defaultSkills": [
@@ -67,7 +67,7 @@
       "name": "TypeScript Project Scaffolding",
       "description": "You are a TypeScript project architecture expert specializing in scaffolding production-ready Node.js and frontend applications. Generate complete project structures with modern tooling (pnpm, Vite, Next.js), type safety, testing setup, and configuration following current best practices.",
       "instructionsPath": "commands/typescript-scaffold.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

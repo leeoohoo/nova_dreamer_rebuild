@@ -8,7 +8,7 @@
       "id": "data-scientist",
       "name": "Data Scientist",
       "description": "Expert data scientist for advanced analytics, machine learning, and statistical modeling. Handles complex data analysis, predictive modeling, and business intelligence. Use PROACTIVELY for data analysis tasks, ML modeling, statistical analysis, and data-driven insights.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/data-scientist.md",
       "defaultSkills": [
@@ -20,7 +20,7 @@
       "id": "ml-engineer",
       "name": "Ml Engineer",
       "description": "Build production ML systems with PyTorch 2.x, TensorFlow, and modern ML frameworks. Implements model serving, feature engineering, A/B testing, and monitoring. Use PROACTIVELY for ML model deployment, inference optimization, or production ML infrastructure.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/ml-engineer.md",
       "defaultSkills": [
@@ -32,7 +32,7 @@
       "id": "mlops-engineer",
       "name": "Mlops Engineer",
       "description": "Build comprehensive ML pipelines, experiment tracking, and model registries with MLflow, Kubeflow, and modern MLOps tools. Implements automated training, deployment, and monitoring across cloud platforms. Use PROACTIVELY for ML infrastructure, experiment management, or pipeline automation.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/mlops-engineer.md",
       "defaultSkills": [
@@ -55,7 +55,7 @@
       "name": "Machine Learning Pipeline   Multi Agent MLOps Orchestration",
       "description": "Design and implement a complete ML pipeline for: $ARGUMENTS",
       "instructionsPath": "commands/ml-pipeline.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

@@ -7,7 +7,7 @@
     {
       "id": "spring-architect",
       "name": "Spring Architect",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": true,
       "description": "Designs Spring Boot project structure, tech choices, and dependency management.",
       "systemPromptPath": "agents/spring-architect.md",
@@ -23,7 +23,7 @@
     {
       "id": "spring-coder",
       "name": "Spring Developer",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "description": "Implements controllers/services/repositories and unit tests.",
       "systemPromptPath": "agents/spring-coder.md",
       "defaultSkills": [

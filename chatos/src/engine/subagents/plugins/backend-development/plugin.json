@@ -8,7 +8,7 @@
       "id": "backend-architect",
       "name": "Backend Architect",
       "description": "Expert backend architect specializing in scalable API design, microservices architecture, and distributed systems. Masters REST/GraphQL/gRPC APIs, event-driven architectures, service mesh patterns, and modern backend frameworks. Handles service boundary definition, inter-service communication, resilience patterns, and observability. Use PROACTIVELY when creating new backend services or APIs.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/backend-architect.md",
       "defaultSkills": [
@@ -24,7 +24,7 @@
       "id": "graphql-architect",
       "name": "Graphql Architect",
       "description": "Master modern GraphQL with federation, performance optimization, and enterprise security. Build scalable schemas, implement advanced caching, and design real-time systems. Use PROACTIVELY for GraphQL architecture or performance optimization.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/graphql-architect.md",
       "defaultSkills": [
@@ -40,7 +40,7 @@
       "id": "tdd-orchestrator",
       "name": "Tdd Orchestrator",
       "description": "Master TDD orchestrator specializing in red-green-refactor discipline, multi-agent workflow coordination, and comprehensive test-driven development practices. Enforces TDD best practices across teams with AI-assisted testing and modern frameworks. Use PROACTIVELY for TDD implementation and governance.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/tdd-orchestrator.md",
       "defaultSkills": [
@@ -56,7 +56,7 @@
       "id": "temporal-python-pro",
       "name": "Temporal Python Pro",
       "description": "Master Temporal workflow orchestration with Python SDK. Implements durable workflows, saga patterns, and distributed transactions. Covers async/await, testing strategies, and production deployment. Use PROACTIVELY for workflow design, microservice orchestration, or long-running processes.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/temporal-python-pro.md",
       "defaultSkills": [
@@ -107,7 +107,7 @@
       "name": "Feature Development",
       "description": "Orchestrate end-to-end feature development from requirements to production deployment:",
       "instructionsPath": "commands/feature-development.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

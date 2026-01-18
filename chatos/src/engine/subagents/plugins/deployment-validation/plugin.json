@@ -8,7 +8,7 @@
       "id": "cloud-architect",
       "name": "Cloud Architect",
       "description": "Expert cloud architect specializing in AWS/Azure/GCP multi-cloud infrastructure design, advanced IaC (Terraform/OpenTofu/CDK), FinOps cost optimization, and modern architectural patterns. Masters serverless, microservices, security, compliance, and disaster recovery. Use PROACTIVELY for cloud architecture, cost optimization, migration planning, or multi-cloud strategies.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/cloud-architect.md",
       "defaultSkills": [],
@@ -22,7 +22,7 @@
       "name": "Configuration Validation",
       "description": "You are a configuration management expert specializing in validating, testing, and ensuring the correctness of application configurations. Create comprehensive validation schemas, implement configuration testing strategies, and ensure configurations are secure, consistent, and error-free across all environments.",
       "instructionsPath": "commands/config-validate.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

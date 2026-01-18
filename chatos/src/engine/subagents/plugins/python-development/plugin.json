@@ -8,7 +8,7 @@
       "id": "django-pro",
       "name": "Django Pro",
       "description": "Master Django 5.x with async views, DRF, Celery, and Django Channels. Build scalable web applications with proper architecture, testing, and deployment. Use PROACTIVELY for Django development, ORM optimization, or complex Django patterns.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/django-pro.md",
       "defaultSkills": [
@@ -24,7 +24,7 @@
       "id": "fastapi-pro",
       "name": "Fastapi Pro",
       "description": "Build high-performance async APIs with FastAPI, SQLAlchemy 2.0, and Pydantic V2. Master microservices, WebSockets, and modern Python async patterns. Use PROACTIVELY for FastAPI development, async optimization, or API architecture.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/fastapi-pro.md",
       "defaultSkills": [
@@ -40,7 +40,7 @@
       "id": "python-pro",
       "name": "Python Pro",
       "description": "Master Python 3.12+ with modern features, async programming, performance optimization, and production-ready practices. Expert in the latest Python ecosystem including uv, ruff, pydantic, and FastAPI. Use PROACTIVELY for Python development, optimization, or advanced Python patterns.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/python-pro.md",
       "defaultSkills": [
@@ -91,7 +91,7 @@
       "name": "Python Project Scaffolding",
       "description": "You are a Python project architecture expert specializing in scaffolding production-ready Python applications. Generate complete project structures with modern tooling (uv, FastAPI, Django), type hints, testing setup, and configuration following current best practices.",
       "instructionsPath": "commands/python-scaffold.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

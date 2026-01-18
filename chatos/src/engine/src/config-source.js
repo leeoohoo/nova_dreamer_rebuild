@@ -226,7 +226,7 @@ function refreshBuiltinMcpServers(adminDb, services, defaultPaths) {
         allowSub: typeof prev?.allowSub === 'boolean' ? prev.allowSub : srv.allowSub !== false,
         enabled: typeof prev?.enabled === 'boolean' ? prev.enabled : srv.enabled !== false,
         locked: true,
-        id: prev?.id,
+        id: prev?.id || srv.id,
         createdAt: prev?.createdAt || now,
         updatedAt: now,
       };

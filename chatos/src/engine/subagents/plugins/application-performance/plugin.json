@@ -8,7 +8,7 @@
       "id": "frontend-developer",
       "name": "Frontend Developer",
       "description": "Build React components, implement responsive layouts, and handle client-side state management. Masters React 19, Next.js 15, and modern frontend architecture. Optimizes performance and ensures accessibility. Use PROACTIVELY when creating UI components or fixing frontend issues.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/frontend-developer.md",
       "defaultSkills": [],
@@ -18,7 +18,7 @@
       "id": "observability-engineer",
       "name": "Observability Engineer",
       "description": "Build production-ready monitoring, logging, and tracing systems. Implements comprehensive observability strategies, SLI/SLO management, and incident response workflows. Use PROACTIVELY for monitoring infrastructure, performance optimization, or production reliability.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/observability-engineer.md",
       "defaultSkills": [],
@@ -28,7 +28,7 @@
       "id": "performance-engineer",
       "name": "Performance Engineer",
       "description": "Expert performance engineer specializing in modern observability, application optimization, and scalable system performance. Masters OpenTelemetry, distributed tracing, load testing, multi-tier caching, Core Web Vitals, and performance monitoring. Handles end-to-end optimization, real user monitoring, and scalability patterns. Use PROACTIVELY for performance optimization, observability, or scalability challenges.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/performance-engineer.md",
       "defaultSkills": [],
@@ -42,7 +42,7 @@
       "name": "Performance Optimization",
       "description": "Optimize application performance end-to-end using specialized performance and optimization agents:",
       "instructionsPath": "commands/performance-optimization.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

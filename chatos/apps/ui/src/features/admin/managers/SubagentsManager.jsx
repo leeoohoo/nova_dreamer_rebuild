@@ -25,6 +25,7 @@ function SubagentsManager({
   const [pluginSearch, setPluginSearch] = useState('');
   const [pluginFilter, setPluginFilter] = useState('all');
   const [installingId, setInstallingId] = useState('');
+  const [installingAll, setInstallingAll] = useState(false);
   const [uninstallingId, setUninstallingId] = useState('');
   const [addingSource, setAddingSource] = useState(false);
   const allowMarketplace = developerMode || showMarketplace;
@@ -54,7 +55,7 @@ function SubagentsManager({
     const list = Array.isArray(models) ? models : [];
     const preferred = list.find((m) => m?.isDefault && m?.name)?.name;
     const fallback = list.find((m) => m?.name)?.name;
-    return preferred || fallback || 'deepseek_reasoner';
+    return preferred || fallback || 'deepseek_chat';
   }, [models]);
   const configuredModelNames = useMemo(() => {
     const set = new Set();
@@ -65,7 +66,7 @@ function SubagentsManager({
     return set;
   }, [models]);
   const inferredSubagentDefaultModel = useMemo(() => {
-    return configuredModelNames.has('deepseek_reasoner') ? 'deepseek_reasoner' : null;
+    return configuredModelNames.has('deepseek_chat') ? 'deepseek_chat' : null;
   }, [configuredModelNames]);
 
   const handleSetModel = async () => {
@@ -164,6 +165,61 @@ function SubagentsManager({
     }
   };
 
+  const handleInstallAll = async () => {
+    if (!onInstallPlugin) return;
+    if (!allowMarketplace) {
+      message.warning('Marketplace 未启用');
+      return;
+    }
+    const targets = installablePluginIds;
+    if (targets.length === 0) {
+      message.info('暂无可安装插件');
+      return;
+    }
+    setInstallingAll(true);
+    let success = 0;
+    const failed = [];
+    const key = 'subagents-install-all';
+    message.open({ key, type: 'loading', content: `正在安装 0/${targets.length}`, duration: 0 });
+    for (const id of targets) {
+      try {
+        setInstallingId(id);
+        const result = await onInstallPlugin(id);
+        if (result?.ok === false) {
+          throw new Error(result?.message || '安装失败');
+        }
+        success += 1;
+      } catch (err) {
+        failed.push({ id, error: err?.message || '安装失败' });
+      }
+      message.open({
+        key,
+        type: 'loading',
+        content: `正在安装 ${success + failed.length}/${targets.length}`,
+        duration: 0,
+      });
+    }
+    setInstallingId('');
+    setInstallingAll(false);
+    if (failed.length > 0) {
+      const first = failed[0];
+      const head = [first?.id, first?.error].filter(Boolean).join(': ');
+      message.open({
+        key,
+        type: 'warning',
+        content: `安装完成：成功 ${success}，失败 ${failed.length}${head ? `（${head}）` : ''}`,
+        duration: 4,
+      });
+    } else {
+      message.open({
+        key,
+        type: 'success',
+        content: `安装完成：已安装 ${success} 个插件`,
+        duration: 3,
+      });
+    }
+  };
+
   const handleUninstall = async (pluginId) => {
     if (!onUninstallPlugin) return;
     const id = String(pluginId || '').trim();
@@ -236,6 +292,13 @@ function SubagentsManager({
     });
     return combined;
   }, [allowMarketplace, data, marketplace]);
+
+  const installablePluginIds = useMemo(() => {
+    return mergedPlugins
+      .filter((entry) => entry && !entry.installed && entry.fromMarketplace)
+      .map((entry) => entry.id)
+      .filter(Boolean);
+  }, [mergedPlugins]);
 
   const pluginRows = useMemo(() => {
     const filter = String(pluginFilter || 'all');
@@ -445,6 +508,17 @@ function SubagentsManager({
             {allowMarketplace ? (
               <Button onClick={refreshMarketplace} loading={marketLoading} size="small">
                 刷新
+              </Button>
+            ) : null}
+            {allowMarketplace ? (
+              <Button
+                type="primary"
+                size="small"
+                onClick={handleInstallAll}
+                loading={installingAll}
+                disabled={!onInstallPlugin || installablePluginIds.length === 0}
+              >
+                一键安装全部{installablePluginIds.length > 0 ? ` (${installablePluginIds.length})` : ''}
               </Button>
             ) : null}
           </Space>

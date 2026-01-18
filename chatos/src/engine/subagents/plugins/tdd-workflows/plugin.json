@@ -8,7 +8,7 @@
       "id": "code-reviewer",
       "name": "Code Reviewer",
       "description": "Elite code review expert specializing in modern AI-powered code analysis, security vulnerabilities, performance optimization, and production reliability. Masters static analysis tools, security scanning, and configuration review with 2024/2025 best practices. Use PROACTIVELY for code quality assurance.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/code-reviewer.md",
       "defaultSkills": [],
@@ -18,7 +18,7 @@
       "id": "tdd-orchestrator",
       "name": "Tdd Orchestrator",
       "description": "Master TDD orchestrator specializing in red-green-refactor discipline, multi-agent workflow coordination, and comprehensive test-driven development practices. Enforces TDD best practices across teams with AI-assisted testing and modern frameworks. Use PROACTIVELY for TDD implementation and governance.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/tdd-orchestrator.md",
       "defaultSkills": [],
@@ -32,28 +32,28 @@
       "name": "Tdd Cycle",
       "description": "Execute a comprehensive Test-Driven Development (TDD) workflow with strict red-green-refactor discipline:",
       "instructionsPath": "commands/tdd-cycle.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "tdd-green",
       "name": "Tdd Green",
       "description": "Implement minimal code to make failing tests pass in TDD green phase:",
       "instructionsPath": "commands/tdd-green.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "tdd-red",
       "name": "Tdd Red",
       "description": "Write comprehensive failing tests following TDD red phase principles.",
       "instructionsPath": "commands/tdd-red.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     },
     {
       "id": "tdd-refactor",
       "name": "Tdd Refactor",
       "description": "Refactor code with confidence using comprehensive test safety net:",
       "instructionsPath": "commands/tdd-refactor.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }

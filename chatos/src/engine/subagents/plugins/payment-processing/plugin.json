@@ -8,7 +8,7 @@
       "id": "payment-integration",
       "name": "Payment Integration",
       "description": "Integrate Stripe, PayPal, and payment processors. Handles checkout flows, subscriptions, webhooks, and PCI compliance. Use PROACTIVELY when implementing payments, billing, or subscription features.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/payment-integration.md",
       "defaultSkills": [

@@ -8,7 +8,7 @@
       "id": "debugger",
       "name": "Debugger",
       "description": "Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/debugger.md",
       "defaultSkills": [],
@@ -18,7 +18,7 @@
       "id": "test-automator",
       "name": "Test Automator",
       "description": "Master AI-powered test automation with modern frameworks, self-healing tests, and comprehensive quality engineering. Build scalable testing strategies with advanced CI/CD integration. Use PROACTIVELY for testing automation or quality assurance.",
-      "model": "glm-4.7",
+      "model": "deepseek_chat",
       "reasoning": false,
       "systemPromptPath": "agents/test-automator.md",
       "defaultSkills": [],
@@ -32,7 +32,7 @@
       "name": "Automated Unit Test Generation",
       "description": "You are a test automation expert specializing in generating comprehensive, maintainable unit tests across multiple languages and frameworks. Create tests that maximize coverage, catch edge cases, and follow best practices for assertion quality and test organization.",
       "instructionsPath": "commands/test-generate.md",
-      "model": "glm-4.7"
+      "model": "deepseek_chat"
     }
   ]
 }
