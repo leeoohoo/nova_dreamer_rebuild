@@ -19,6 +19,7 @@ function getLegacyMarkerPath(homeDir, baseDir = STATE_ROOT_DIRNAME) {
 export function resolveSessionRoot(options = {}) {
   const env = options?.env && typeof options.env === 'object' ? options.env : process.env;
   const preferCwd = options?.preferCwd === true;
+  const preferHome = options?.preferHome === true;
   const explicit = typeof env.MODEL_CLI_SESSION_ROOT === 'string' ? env.MODEL_CLI_SESSION_ROOT.trim() : '';
   if (explicit) {
     return path.resolve(explicit);
@@ -41,7 +42,7 @@ export function resolveSessionRoot(options = {}) {
     }
   };
 
-  if (!preferCwd) {
+  if (!preferCwd && !preferHome) {
     const raw =
       readMarker(markerPath) ||
       readMarker(compatMarkerPath) ||
@@ -72,6 +73,7 @@ export function resolveSessionRoot(options = {}) {
   }
 
   if (preferCwd) return process.cwd();
+  if (preferHome) return home ? path.resolve(home) : process.cwd();
   if (home) return path.resolve(home);
   return process.cwd();
 }

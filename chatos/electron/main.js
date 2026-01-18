@@ -43,10 +43,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
 process.env.MODEL_CLI_HOST_APP = 'chatos';
-// 会话根：优先环境变量，其次读取 CLI 持久化的 last-session-root；若都没有则回退 home/cwd
-const sessionRoot = resolveSessionRoot();
+// 会话根：桌面端默认使用 home（可通过环境变量显式覆盖），避免被 CLI 的 last-session-root 影响。
+const explicitSessionRoot =
+  typeof process.env.MODEL_CLI_SESSION_ROOT === 'string' && process.env.MODEL_CLI_SESSION_ROOT.trim()
+    ? process.env.MODEL_CLI_SESSION_ROOT.trim()
+    : '';
+const sessionRoot = resolveSessionRoot({ preferHome: true });
 process.env.MODEL_CLI_SESSION_ROOT = sessionRoot;
-persistSessionRoot(sessionRoot);
+if (explicitSessionRoot) {
+  persistSessionRoot(sessionRoot);
+}
 
 const engineRoot = resolveEngineRoot({ projectRoot });
 if (!engineRoot) {
