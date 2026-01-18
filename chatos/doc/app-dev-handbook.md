@@ -47,8 +47,9 @@ ChatOS 做了两件事：
 - **sessionRoot**（会话根目录）
   - 默认：用户主目录（Home）
   - 覆盖：`MODEL_CLI_SESSION_ROOT=/path/to/root`
-  - 桌面端/CLI 会把“上次使用的 sessionRoot”记录到 `<home>/.chatos/last-session-root.txt`（未设置 env 时会优先读取）
-- **stateDir**：`<home>/.chatos/<hostApp>`（ChatOS 的 `hostApp=chatos`）
+  - 桌面端/CLI 会把“上次使用的 sessionRoot”记录到 `<home>/.deepseek_cli/last-session-root.txt`（未设置 env 时会优先读取）
+- **stateDir**：`<home>/.deepseek_cli/<hostApp>`（ChatOS 的 `hostApp=chatos`）
+  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `.deepseek_cli`
 
 ### 2.2 全局配置落盘位置（宿主维护，应用只读取）
 
@@ -69,7 +70,7 @@ ChatOS 做了两件事：
 宿主会扫描两个目录：
 
 - **内置/开发目录**：`<projectRoot>/ui_apps/plugins`（本仓库：`chatos/ui_apps/plugins`）
-- **用户插件目录**：`<stateDir>/ui_apps/plugins`（即 `~/.chatos/chatos/ui_apps/plugins`）
+- **用户插件目录**：`<stateDir>/ui_apps/plugins`（即 `~/.deepseek_cli/chatos/ui_apps/plugins`）
 
 每个插件一个文件夹，根目录必须包含 `plugin.json`：
 

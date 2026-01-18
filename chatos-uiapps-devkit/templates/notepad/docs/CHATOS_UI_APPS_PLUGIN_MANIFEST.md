@@ -19,7 +19,8 @@
 - 每个插件一个目录，目录根部必须包含 `plugin.json`。
 - 插件目录可放在：
   - `chatos/ui_apps/plugins`（内置/开发）
-  - `~/.chatos/chatos/ui_apps/plugins`（用户插件目录）
+  - `~/.deepseek_cli/chatos/ui_apps/plugins`（用户插件目录）
+  - 兼容旧路径：若存在 `~/.chatos/chatos/ui_apps/plugins`，启动时会自动迁移到 `.deepseek_cli`
 - 也可通过桌面端 UI：`应用` → `导入应用包`（目录或 `.zip`）安装到用户插件目录。
 
 ## 2. 顶层 schema（`uiAppsPluginSchema`）

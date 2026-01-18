@@ -11,7 +11,7 @@
 
 本仓库的“应用间完全隔离”目标包含两点：
 
-1. **数据隔离**：每个应用只读写自己的 stateDir 与 admin DB（`~/.chatos/<app>/`）。
+1. **数据隔离**：每个应用只读写自己的 stateDir 与 admin DB（`~/.deepseek_cli/<app>/`，旧路径 `~/.chatos/<app>/` 会自动迁移）。
 2. **能力隔离**：默认**不做跨应用授权**；尤其是 **AIDE 永不调用其他应用的 MCP server**。
 
 ChatOS 作为注册中心，只负责：
@@ -135,7 +135,7 @@ await registry.hasMcpServerAccess(appId, serverId);
 2. 需要把 git/wsl UI plugin embed 到 `chatos/ui_apps/plugins/`（见 `npm run git:embed` / `npm run wsl:embed`）。
 3. 打包后（asar）：
    - built-in plugins 在 asar 内可读（扫描/读取 prompt 文件 OK）
-   - registry 数据始终写入用户目录的 `~/.chatos/chatos/`（不写 asar）
+   - registry 数据始终写入用户目录的 `~/.deepseek_cli/chatos/`（不写 asar）
 
 ---
 

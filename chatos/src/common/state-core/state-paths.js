@@ -37,13 +37,15 @@ const DEFAULT_MIGRATION_CANDIDATES = [
 
 const LEGACY_DB_BASENAME = 'admin.db.sqlite';
 const LEGACY_DB_JSON_BASENAME = 'admin.db.json';
+const STATE_ROOT_DIRNAME = '.deepseek_cli';
+const COMPAT_STATE_ROOT_DIRNAME = '.chatos';
 
 export function resolveLegacyStateDir(sessionRoot) {
   const base =
     typeof sessionRoot === 'string' && sessionRoot.trim()
       ? sessionRoot.trim()
       : process.cwd();
-  return path.join(path.resolve(base), '.deepseek_cli');
+  return path.join(path.resolve(base), STATE_ROOT_DIRNAME);
 }
 
 export function resolveAppDbFileName(hostApp) {
@@ -77,7 +79,7 @@ export function resolveAppStateDir(sessionRoot, options = {}) {
   }
 
   if (home && hostApp) {
-    return path.join(home, '.deepseek_cli', hostApp);
+    return path.join(home, STATE_ROOT_DIRNAME, hostApp);
   }
   const legacy = resolveLegacyStateDir(sessionRootRaw);
   if (hostApp) {
@@ -109,6 +111,66 @@ function isAppStatePopulated(appDir, options = {}) {
       return false;
     }
   });
+}
+
+function maybeMigrateCompatStateDir(sessionRoot, options = {}) {
+  const env = options?.env && typeof options.env === 'object' ? options.env : process.env;
+  const hostApp = resolveHostApp({ env, hostApp: options.hostApp, fallbackHostApp: options.fallbackHostApp });
+  const home = getHomeDir(env);
+  const appDir = typeof options.appDir === 'string' && options.appDir.trim()
+    ? options.appDir.trim()
+    : resolveAppStateDir(sessionRoot, { ...options, env, hostApp });
+
+  if (!home || !hostApp || !appDir) {
+    return { migrated: false, legacyDir: '', legacyAppDir: '', appDir };
+  }
+
+  const desiredRoot = path.join(home, STATE_ROOT_DIRNAME);
+  const resolvedAppDir = path.resolve(appDir);
+  const resolvedDesiredRoot = path.resolve(desiredRoot);
+  if (
+    resolvedAppDir !== resolvedDesiredRoot &&
+    !resolvedAppDir.startsWith(`${resolvedDesiredRoot}${path.sep}`)
+  ) {
+    return { migrated: false, legacyDir: '', legacyAppDir: '', appDir };
+  }
+
+  if (isAppStatePopulated(appDir, options)) {
+    return { migrated: false, legacyDir: '', legacyAppDir: '', appDir };
+  }
+
+  const legacyDir = path.join(home, COMPAT_STATE_ROOT_DIRNAME);
+  const legacyAppDir = path.join(legacyDir, hostApp);
+  if (!isDirectory(legacyAppDir)) {
+    return { migrated: false, legacyDir, legacyAppDir, appDir };
+  }
+
+  ensureDir(appDir);
+  copyTree({ src: legacyAppDir, dest: appDir });
+  try {
+    const markerPath = path.join(appDir, '.migrated-from-chatos.json');
+    if (!fs.existsSync(markerPath)) {
+      ensureDir(path.dirname(markerPath));
+      fs.writeFileSync(
+        markerPath,
+        JSON.stringify(
+          {
+            version: 1,
+            migratedAt: new Date().toISOString(),
+            legacyDir,
+            legacyAppDir,
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+    }
+  } catch {
+    // ignore marker write errors
+  }
+
+  return { migrated: true, legacyDir, legacyAppDir, appDir };
 }
 
 export function maybeMigrateLegacyDbFiles(stateDir, options = {}) {
@@ -296,6 +358,11 @@ export function maybeMigrateLegacyStateDir(sessionRoot, options = {}) {
 
 export function ensureAppStateDir(sessionRoot, options = {}) {
   const appDir = resolveAppStateDir(sessionRoot, options);
+  try {
+    maybeMigrateCompatStateDir(sessionRoot, { ...options, appDir });
+  } catch {
+    // ignore compat migration errors
+  }
   try {
     maybeMigrateLegacyStateDir(sessionRoot, { ...options, appDir });
   } catch {

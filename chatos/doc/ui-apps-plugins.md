@@ -8,7 +8,7 @@
 
 宿主会扫描两个目录（在 UI「应用」页也会展示实际路径）：
 
-- **用户插件目录**：`<stateDir>/ui_apps/plugins`（即 `~/.chatos/chatos/ui_apps/plugins`）
+- **用户插件目录**：`<stateDir>/ui_apps/plugins`（即 `~/.deepseek_cli/chatos/ui_apps/plugins`）
 - **内置/开发目录**：`<projectRoot>/ui_apps/plugins`
 
 每个插件一个文件夹，根目录必须包含 `plugin.json`。

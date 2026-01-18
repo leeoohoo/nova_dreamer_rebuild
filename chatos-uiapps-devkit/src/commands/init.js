@@ -128,7 +128,7 @@ export async function cmdInit({ positionals, flags }) {
   // Ensure a helpful note exists even if template is edited later.
   writeText(
     path.join(destDir, '.gitignore'),
-    `node_modules/\n.DS_Store\n.chatos/\n*.log\n\n# build outputs (if you add bundling later)\ndist/\n`
+    `node_modules/\n.DS_Store\n.deepseek_cli/\n.chatos/\n*.log\n\n# build outputs (if you add bundling later)\ndist/\n`
   );
 
   // eslint-disable-next-line no-console

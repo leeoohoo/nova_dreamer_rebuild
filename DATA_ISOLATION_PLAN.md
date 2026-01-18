@@ -6,14 +6,16 @@
 
 本次方案目标是把“数据所有权”做到物理隔离：**按应用分目录 + 按应用分库**，并建立一套可复用的存储框架（common 包），让每个应用基于该框架实现自己的数据层。
 
+> 说明：当前实现以 `~/.deepseek_cli/<app>/` 为准；若存在旧路径 `~/.chatos/<app>/` 会在启动时自动迁移。
+
 ## 总目标（验收口径）
-- `~/.chatos/` 下固定存在（或按需创建）四个应用目录：
-  - `~/.chatos/chatos/`
-  - `~/.chatos/aide/`
-  - `~/.chatos/git/`
-  - `~/.chatos/wsl/`
+- `~/.deepseek_cli/` 下固定存在（或按需创建）四个应用目录：
+  - `~/.deepseek_cli/chatos/`
+  - `~/.deepseek_cli/aide/`
+  - `~/.deepseek_cli/git/`
+  - `~/.deepseek_cli/wsl/`
 - 任一应用：
-  - **只读写**自己的 `~/.chatos/<app>/` 目录与数据库。
+  - **只读写**自己的 `~/.deepseek_cli/<app>/` 目录与数据库。
   - 不会因为扫描/插件/迁移把别的应用的 MCP/Prompt 写入自己的 DB。
 - AIDE 的“配置选项 → MCP Servers”只出现 AIDE 自己的 MCP。
 - ChatOS 的“配置选项 → MCP Servers”只出现 ChatOS 自己的 MCP（以及它自己明确聚合/引用的外部项，但不写入别的应用的数据）。
@@ -34,7 +36,7 @@
 每个应用目录结构一致（允许按应用裁剪）：
 
 ```
-~/.chatos/
+~/.deepseek_cli/
   chatos/
     chatos.db.sqlite
     auth/
@@ -74,9 +76,9 @@
 
 ### state-core 应提供的能力
 - **路径与目录**：
-  - `resolveStateDir(hostApp)`：返回 `~/.chatos/<hostApp>`
+  - `resolveStateDir(hostApp)`：返回 `~/.deepseek_cli/<hostApp>`
   - `ensureStateDir(hostApp)`：创建目录
-  - sessionRoot/marker 处理（若保留“会话根”概念，需保证最终落盘仍在 `~/.chatos/<app>` 语义下）
+  - sessionRoot/marker 处理（若保留“会话根”概念，需保证最终落盘仍在 `~/.deepseek_cli/<app>` 语义下）
 - **DB 封装**（sql.js/SQLite）：
   - `createDb(dbPath, schemaVersion, migrations, seed)`
   - 文件锁/原子写入/并发安全
@@ -116,7 +118,7 @@
 - `chatos` 只在自己 DB 里保存“引用/启用状态”（例如 `selectedMcp = [{ hostApp:'git', name:'git_manager', enabled:true }]`），不复制定义。
 
 **方案 B（更规范，满足“每个应用都有自己的数据库”字面要求）**：
-- `git`/`wsl` 应用在 `~/.chatos/git|wsl/<app>.db.sqlite` 中维护：
+- `git`/`wsl` 应用在 `~/.deepseek_cli/git|wsl/<app>.db.sqlite` 中维护：
   - 自己的 mcpServers（locked、定义类数据）
   - 自己的 prompts（locked、定义类数据）
   - 自己的 settings/凭据（如需要）
@@ -129,7 +131,7 @@
 - 把历史遗留/误写的数据搬到正确应用目录，避免“看似分库但内容已混入”。
 
 ### 迁移步骤（建议分阶段）
-1. **备份**：对现有 `~/.chatos/*` 做整目录备份（或至少备份 `*.db.sqlite`，含历史遗留 `admin.db.sqlite`）。
+1. **备份**：对现有 `~/.deepseek_cli/*` 做整目录备份（或至少备份 `*.db.sqlite`，含历史遗留 `admin.db.sqlite`）。
 2. **建立目录**：确保 `chatos/aide/git/wsl` 四个目录存在。
 3. **识别归属**：
    - 依据 `record.app_id`（若存在且可信）
@@ -148,14 +150,14 @@
 
 ## 里程碑（建议）
 - M0：确定采用方案 A 还是 B（本方案文档评审结论）。
-- M1：落地 state-core（路径/DB/migration 基建）并让 `chatos/aide` 都只写自己的 `~/.chatos/<app>`。
+- M1：落地 state-core（路径/DB/migration 基建）并让 `chatos/aide` 都只写自己的 `~/.deepseek_cli/<app>`。
 - M2：改造 UI Apps 扫描：禁止“扫描即写入 host admin DB”，改为 registry-only 或写入所属应用 DB。
 - M3：引入 `git/wsl` 的独立 stateDir 与 DB（若选方案 B），并补齐跨应用只读引用加载。
 - M4：迁移工具 + 备份/回滚策略 + 验收脚本（手动/自动）。
 
 ## 验收清单（最小可验证项）
-- AIDE 启动/配置变更只影响 `~/.chatos/aide/`。
-- ChatOS 启动/配置变更只影响 `~/.chatos/chatos/`。
-- git/wsl 的任何配置/状态只影响 `~/.chatos/git|wsl/`。
+- AIDE 启动/配置变更只影响 `~/.deepseek_cli/aide/`。
+- ChatOS 启动/配置变更只影响 `~/.deepseek_cli/chatos/`。
+- git/wsl 的任何配置/状态只影响 `~/.deepseek_cli/git|wsl/`。
 - AIDE 的 MCP 列表不出现 git/wsl；即便 git/wsl 插件存在，也不会被写入 AIDE DB。
-- 删除 `~/.chatos/aide/` 不会破坏 chatos/git/wsl 的配置与运行。
+- 删除 `~/.deepseek_cli/aide/` 不会破坏 chatos/git/wsl 的配置与运行。

@@ -3,9 +3,12 @@ import os from 'os';
 import path from 'path';
 import { createRequire } from 'module';
 import { createDb as createDbCore } from '../state-core/db.js';
+import { resolveSessionRoot } from '../state-core/session-root.js';
+import { ensureAppStateDir, resolveAppDbFileName, resolveAppDbJsonFileName } from '../state-core/state-paths.js';
 import { getHomeDir, resolveHostApp } from '../state-core/utils.js';
 
-const LEGACY_DEFAULT_DB_PATH = path.join(os.homedir(), '.deepseek_cli', 'admin.db.sqlite');
+const STATE_ROOT_DIRNAME = '.deepseek_cli';
+const LEGACY_DEFAULT_DB_PATH = path.join(os.homedir(), STATE_ROOT_DIRNAME, 'admin.db.sqlite');
 
 const require = createRequire(import.meta.url);
 
@@ -49,12 +52,14 @@ if (!driver) {
 export function getDefaultDbPath(env = process.env) {
   const home = getHomeDir(env) || os.homedir();
   const hostApp = resolveHostApp({ env, fallbackHostApp: 'chatos' }) || 'chatos';
-  if (home && hostApp) {
-    const dir = path.join(home, '.deepseek_cli', hostApp);
-    const desired = path.join(dir, `${hostApp}.db.sqlite`);
-    const legacy = path.join(dir, 'admin.db.sqlite');
-    const desiredJson = path.join(dir, `${hostApp}.db.json`);
-    const legacyJson = path.join(dir, 'admin.db.json');
+  const sessionRoot = resolveSessionRoot({ env, hostApp, fallbackHostApp: 'chatos' });
+  const stateDir = ensureAppStateDir(sessionRoot, { env, hostApp, fallbackHostApp: 'chatos', homeDir: home });
+
+  if (stateDir && hostApp) {
+    const desired = path.join(stateDir, resolveAppDbFileName(hostApp));
+    const legacy = path.join(stateDir, 'admin.db.sqlite');
+    const desiredJson = path.join(stateDir, resolveAppDbJsonFileName(hostApp));
+    const legacyJson = path.join(stateDir, 'admin.db.json');
 
     if (!fs.existsSync(desired) && fs.existsSync(legacy)) {
       try {
