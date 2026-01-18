@@ -33,7 +33,7 @@ export function useConfigSwitch() {
 
   useEffect(() => {
     if (!hasApi) return undefined;
-    const unsubscribe = api.on('config:switched', (_event, data) => {
+    const unsubscribe = api.on('config:switched', (data) => {
       if (data?.success) {
         setCurrentConfig(data.configId);
       } else {

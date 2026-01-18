@@ -116,7 +116,7 @@ const isMainFrame = () => {
   try {
     return window.top === window;
   } catch {
-    return true;
+    return false;
   }
 };
 
@@ -145,7 +145,12 @@ if (isMainFrame()) {
       if (typeof listener !== 'function') {
         throw new Error('listener must be a function');
       }
-      const subscription = (_event, data) => listener(data);
+      const subscription = (_event, data) => {
+        if (listener.length >= 2) {
+          return listener(_event, data);
+        }
+        return listener(data);
+      };
       ipcRenderer.on(name, subscription);
       return () => ipcRenderer.removeListener(name, subscription);
     },

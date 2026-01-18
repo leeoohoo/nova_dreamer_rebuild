@@ -723,9 +723,10 @@ class UiAppsManager {
   }
 
   #syncAiContributes(pluginsInternal, errors) {
+    const trustedPlugins = (Array.isArray(pluginsInternal) ? pluginsInternal : []).filter((plugin) => plugin?.trusted === true);
     return syncUiAppsAiContributes(
       { adminServices: this.adminServices, maxPromptBytes: this.maxPromptBytes },
-      pluginsInternal,
+      trustedPlugins,
       errors
     );
   }
