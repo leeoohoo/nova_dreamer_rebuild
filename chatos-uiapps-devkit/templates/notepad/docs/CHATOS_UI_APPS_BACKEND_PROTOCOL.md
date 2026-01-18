@@ -55,8 +55,8 @@ export async function createUiAppsBackend(ctx) {
 - `pluginId`：插件 ID
 - `pluginDir`：插件安装目录（只读引用；用于读取插件资源）
 - `dataDir`：`<stateDir>/ui_apps/data/<pluginId>`（插件可写数据目录；宿主会确保存在）
-- `stateDir`：`<home>/.deepseek_cli/<hostApp>`（ChatOS 的 `hostApp=chatos`）
-  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `.deepseek_cli`
+- `stateDir`：每个应用的状态根目录（默认 `<home>/.deepseek_cli/<hostApp>`；ChatOS 的 `hostApp=chatos`）
+  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `stateDir`
 - `sessionRoot`：会话根
 - `projectRoot`：宿主工程根（开发态下有用）
 - `llm`：可选（共享模型调用接口）

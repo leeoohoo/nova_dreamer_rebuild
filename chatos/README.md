@@ -39,7 +39,7 @@ Common in-chat commands:
 - Shell MCP: `mcp_shell_tasks_run_shell_command` (short), `mcp_shell_tasks_session_run`, `mcp_shell_tasks_session_capture_output`.
 
 ## Sub-Agents
-- Plugins live in the AIDE engine: `subagents/plugins/*`, listed in `subagents/marketplace.json` (desktop installs default to `~/.deepseek_cli/chatos/aide`).
+- Plugins live in the AIDE engine: `subagents/plugins/*`, listed in `subagents/marketplace.json` (desktop installs default to `<stateDir>/aide`).
 - Each plugin: `plugin.json` + `agents/*.md` (prompts) + `skills/*.md` (instructions).
 - `invoke_sub_agent` injects task-tracking rules (add/update/complete) into sub-agent prompts automatically.
 
@@ -53,20 +53,21 @@ Common in-chat commands:
 - On trigger, history becomes: system prompt + latest summary + current user message (main and sub-agents).
 
 ## Config Paths
-- Models: `~/.deepseek_cli/chatos/auth/models.yaml`
+- `stateDir`: per-app state root (default `~/.deepseek_cli/<hostApp>`, legacy `~/.chatos/<hostApp>` auto-migrated).
+- Models: `<stateDir>/auth/models.yaml`
 - Main prompts:
-  - `~/.deepseek_cli/chatos/auth/system-prompt.yaml` (`internal_main`, built-in read-only)
-  - `~/.deepseek_cli/chatos/auth/system-default-prompt.yaml` (`default`, built-in read-only)
-  - `~/.deepseek_cli/chatos/auth/system-user-prompt.yaml` (`user_prompt`, editable)
+  - `<stateDir>/auth/system-prompt.yaml` (`internal_main`, built-in read-only)
+  - `<stateDir>/auth/system-default-prompt.yaml` (`default`, built-in read-only)
+  - `<stateDir>/auth/system-user-prompt.yaml` (`user_prompt`, editable)
 - Sub-agent prompts:
-  - `~/.deepseek_cli/chatos/auth/subagent-system-prompt.yaml` (`internal_subagent`, built-in read-only)
-  - `~/.deepseek_cli/chatos/auth/subagent-user-prompt.yaml` (`subagent_user_prompt`, editable)
-- MCP servers: `~/.deepseek_cli/chatos/auth/mcp.config.json`
-- Admin DB (models/MCP/prompts/tasks): `~/.deepseek_cli/chatos/chatos.db.sqlite`
-- Sub-agent install state: `~/.deepseek_cli/chatos/subagents.json`
+  - `<stateDir>/auth/subagent-system-prompt.yaml` (`internal_subagent`, built-in read-only)
+  - `<stateDir>/auth/subagent-user-prompt.yaml` (`subagent_user_prompt`, editable)
+- MCP servers: `<stateDir>/auth/mcp.config.json`
+- Admin DB (models/MCP/prompts/tasks): `<stateDir>/chatos.db.sqlite`
+- Sub-agent install state: `<stateDir>/subagents.json`
 
 ## Troubleshooting
-- Permission errors writing reports: fix `~/.deepseek_cli/chatos` ownership.
+- Permission errors writing reports: fix `<stateDir>` ownership.
 - Missing tool: main agent intentionally disallows shell; use sub-agent or add prefix to whitelist.
 - Long commands timing out: use session tools.
 - MCP tool timeout (~60s) errors (e.g., `mcp_subagent_router_run_sub_agent`): default MCP request timeout is now 10m (max total 20m); override via `MODEL_CLI_MCP_TIMEOUT_MS` / `MODEL_CLI_MCP_MAX_TIMEOUT_MS` if needed.
@@ -94,9 +95,10 @@ node src/cli.js chat
 - 子代理：全部工具；Shell 提供 `run_shell_command`、`session_run`、`session_capture_output`
 
 自动总结：超过阈值（默认 60000 估算 token 或 `MODEL_CLI_SUMMARY_TOKENS`）后，历史裁剪为「系统 prompt + 最新总结 + 当前用户消息」，子代理同样适用。
-自动总结 prompt：`~/.deepseek_cli/chatos/auth/summary-prompt.yaml`（支持 `{{history}}`；可用 `/summary prompt` 查看）。
+stateDir 默认 `~/.deepseek_cli/<hostApp>`（旧 `~/.chatos/<hostApp>` 自动迁移）。
+自动总结 prompt：`<stateDir>/auth/summary-prompt.yaml`（支持 `{{history}}`；可用 `/summary prompt` 查看）。
 
-配置位置：`~/.deepseek_cli/chatos/auth/models.yaml`、`~/.deepseek_cli/chatos/auth/system-*-prompt.yaml`、`~/.deepseek_cli/chatos/auth/subagent-*-prompt.yaml`、`~/.deepseek_cli/chatos/auth/mcp.config.json`、`~/.deepseek_cli/chatos/chatos.db.sqlite`、`~/.deepseek_cli/chatos/subagents.json`
+配置位置：`<stateDir>/auth/models.yaml`、`<stateDir>/auth/system-*-prompt.yaml`、`<stateDir>/auth/subagent-*-prompt.yaml`、`<stateDir>/auth/mcp.config.json`、`<stateDir>/chatos.db.sqlite`、`<stateDir>/subagents.json`
 
 更多细节与完整指南请看 `README.en.md` / `README.zh.md`。   
 

@@ -25,7 +25,7 @@ ChatOS 把“模型配置（Models）”与“密钥（API Keys / Secrets）”�
   - 可通过环境变量覆盖：`MODEL_CLI_SESSION_ROOT=/path/to/root`
   - 桌面端/CLI 会把“上次使用的 sessionRoot”记录到 `<home>/.deepseek_cli/last-session-root.txt`（未设置 env 时会优先读取）
 - **stateDir**：`<home>/.deepseek_cli/<hostApp>`（ChatOS 的 `hostApp=chatos`）
-  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `.deepseek_cli`
+  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `stateDir`
 
 ### 1.2 关键文件/数据库
 
@@ -74,7 +74,7 @@ UI Apps 插件用于把“小应用”注入到 ChatOS 桌面 UI 的「应用」
 
 宿主会扫描两个目录：
 
-- **用户插件目录**：`<stateDir>/ui_apps/plugins`（即 `~/.deepseek_cli/chatos/ui_apps/plugins`）
+- **用户插件目录**：`<stateDir>/ui_apps/plugins`（`stateDir` 默认 `~/.deepseek_cli/<hostApp>`）
 - **内置/开发目录**：`<projectRoot>/ui_apps/plugins`
 
 每个插件一个目录，必须包含 `plugin.json`。

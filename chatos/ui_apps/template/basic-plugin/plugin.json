@@ -3,7 +3,7 @@
   "id": "com.example.aideui.template",
   "name": "AIDE UI Apps Template",
   "version": "0.1.0",
-  "description": "插件模板（复制到 ui_apps/plugins 或 ~/.deepseek_cli/chatos/ui_apps/plugins 后即可在「应用」中看到）",
+  "description": "插件模板（复制到 ui_apps/plugins 或 <stateDir>/ui_apps/plugins 后即可在「应用」中看到）",
   "backend": { "entry": "backend/index.mjs" },
   "apps": [
     {

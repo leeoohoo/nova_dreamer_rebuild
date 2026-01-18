@@ -3,7 +3,7 @@
 English guide. For Chinese see `README.zh.md`.
 
 ## What this fork adds
-- **Sub-agent marketplace**: install plugins from the AIDE engine `subagents/marketplace.json` (desktop installs default to `~/.deepseek_cli/chatos/aide`). Default plugins: Python, Spring Boot, React.
+- **Sub-agent marketplace**: install plugins from the AIDE engine `subagents/marketplace.json` (desktop installs default to `<stateDir>/aide`). Default plugins: Python, Spring Boot, React.
 - **Orchestrator prompt**: main agent delegates only; sub-agents get full tool access (filesystem, shell, tasks, etc.).
 - **Task tracking**: `invoke_sub_agent` injects a rule to log tasks via `mcp_task_manager_*` (add/update/complete with a completion note) on every sub-agent call.
 - **Config/session reports**: auto-write `config-report.html` (models/MCP/prompts/sub-agents) and `session-report.html` (messages, tasks, tool history). Session report uses drawers for tasks/tools and full-width chat with Markdown render.
@@ -78,7 +78,8 @@ CI: `.github/workflows/desktop-build.yml` (supports `workflow_dispatch`; pushing
 - Sub-agents: all registered tools (filesystem, shell, sessions, task_manager, subagent_router, etc.).
 
 ## MCP server configuration
-- File: `~/.deepseek_cli/chatos/auth/mcp.config.json`
+- `stateDir`: per-app state root (default `~/.deepseek_cli/<hostApp>`, legacy `~/.chatos/<hostApp>` auto-migrated)
+- File: `<stateDir>/auth/mcp.config.json`
 - In chat: `/mcp` (show), `/mcp_set` (edit), `/mcp_tools` (enable tools per model)
 - Built-in: `chrome_devtools` (disabled by default, sub-agent-only). Enable it in the UI (Admin → MCP Server 管理) if you want browser automation/debugging.
 - Endpoint formats:
@@ -95,10 +96,10 @@ CI: `.github/workflows/desktop-build.yml` (supports `workflow_dispatch`; pushing
 - Threshold (approx tokens): default 60000 or `MODEL_CLI_SUMMARY_TOKENS`.
 - When triggered, history is pruned to: system prompt + latest summary + current user message.
 - Sub-agents also prune with same pattern.
-- Summary prompt file: `~/.deepseek_cli/chatos/auth/summary-prompt.yaml` (supports `{{history}}`; use `/summary prompt` to view).
+- Summary prompt file: `<stateDir>/auth/summary-prompt.yaml` (supports `{{history}}`; use `/summary prompt` to view).
 
 ## Structure
-Paths are relative to the AIDE engine root (desktop installs default to `~/.deepseek_cli/chatos/aide`):
+Paths are relative to the AIDE engine root (desktop installs default to `<stateDir>/aide`):
 ```
 src/engine/src/           # CLI core, chat loop, prompts, MCP runtime
 src/engine/subagents/     # marketplace + plugins (python, spring-boot, frontend-react)
@@ -108,22 +109,22 @@ README.en.md / README.zh.md
 
 ## Customize system prompt
 - Main prompts:
-  - `~/.deepseek_cli/chatos/auth/system-prompt.yaml` (`internal_main`, built-in read-only)
-  - `~/.deepseek_cli/chatos/auth/system-default-prompt.yaml` (`default`, built-in read-only)
-  - `~/.deepseek_cli/chatos/auth/system-user-prompt.yaml` (`user_prompt`, editable)
+  - `<stateDir>/auth/system-prompt.yaml` (`internal_main`, built-in read-only)
+  - `<stateDir>/auth/system-default-prompt.yaml` (`default`, built-in read-only)
+  - `<stateDir>/auth/system-user-prompt.yaml` (`user_prompt`, editable)
 - Sub-agent prompts:
-  - `~/.deepseek_cli/chatos/auth/subagent-system-prompt.yaml` (`internal_subagent`, built-in read-only)
-  - `~/.deepseek_cli/chatos/auth/subagent-user-prompt.yaml` (`subagent_user_prompt`, editable)
+  - `<stateDir>/auth/subagent-system-prompt.yaml` (`internal_subagent`, built-in read-only)
+  - `<stateDir>/auth/subagent-user-prompt.yaml` (`subagent_user_prompt`, editable)
 
 ## Environment hints
-- Recommended: set `DEEPSEEK_API_KEY` in the Desktop UI (Admin → API Keys). It is stored in `~/.deepseek_cli/chatos/chatos.db.sqlite`.
+- Recommended: set `DEEPSEEK_API_KEY` in the Desktop UI (Admin → API Keys). It is stored in `<stateDir>/chatos.db.sqlite`.
 - Model API keys are resolved from the UI-managed secrets only (Admin → API Keys); shell/system env vars are ignored for model calls.
 - For request logging: `MODEL_CLI_LOG_REQUEST=1`.
 - For retries: `MODEL_CLI_RETRY=<n>`.
 - MCP tool timeout override: `MODEL_CLI_MCP_TIMEOUT_MS` (default 600000) / `MODEL_CLI_MCP_MAX_TIMEOUT_MS` (default 1200000, max 30m).
 
 ## Troubleshooting
-- **Permission errors writing reports**: fix `~/.deepseek_cli/chatos` ownership (`chown -R $(whoami) ~/.deepseek_cli/chatos`) or run in a writable env.
+- **Permission errors writing reports**: fix `<stateDir>` ownership or run in a writable env.
 - **Tool not registered**: ensure main agent tool whitelist has the MCP prefix you expect (shell tools are intentionally blocked on main).
 - **`mcp_*` request timed out**: long MCP tools (sub-agents, shell) now allow 10m by default; bump via the env vars above if a task still cancels early.
 - **Long commands timing out**: use `session_run` + `session_capture_output`.

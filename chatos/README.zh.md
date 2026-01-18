@@ -79,7 +79,8 @@ CI 构建：`.github/workflows/desktop-build.yml`（支持 `workflow_dispatch`�
 - 子代理：继承全部已注册工具（文件、shell、sessions、task_manager、subagent_router 等）。
 
 ## MCP 服务配置
-- 配置文件：`~/.deepseek_cli/chatos/auth/mcp.config.json`
+- `stateDir`：每个应用的状态根目录（默认 `~/.deepseek_cli/<hostApp>`，旧 `~/.chatos/<hostApp>` 自动迁移）
+- 配置文件：`<stateDir>/auth/mcp.config.json`
 - 聊天内管理：`/mcp`（查看）、`/mcp_set`（编辑）、`/mcp_tools`（为当前模型启用工具）
 - 内置：`chrome_devtools`（默认禁用、仅子代理可用）。如需浏览器自动化/调试，请在 UI（Admin → MCP Server 管理）里启用。
 - 端点格式：
@@ -96,10 +97,10 @@ CI 构建：`.github/workflows/desktop-build.yml`（支持 `workflow_dispatch`�
 - 阈值（粗估 token）：默认 60000，可用 `MODEL_CLI_SUMMARY_TOKENS` 调整。
 - 触发后历史被裁剪为：系统 prompt + 最新总结 + 当前轮用户消息。
 - 子代理也使用同样模式裁剪。
-- 自动总结 prompt：`~/.deepseek_cli/chatos/auth/summary-prompt.yaml`（支持 `{{history}}`；可用 `/summary prompt` 查看当前内容）。
+- 自动总结 prompt：`<stateDir>/auth/summary-prompt.yaml`（支持 `{{history}}`；可用 `/summary prompt` 查看当前内容）。
 
 ## 目录结构
-下列路径以 AIDE 引擎根目录为基准（默认在 `~/.deepseek_cli/chatos/aide`）：
+下列路径以 AIDE 引擎根目录为基准（默认在 `<stateDir>/aide`）：
 ```
 src/engine/src/           # CLI Core、聊天循环、prompt、MCP runtime
 src/engine/subagents/     # 子代理管理、marketplace、插件（python / spring-boot / frontend-react）
@@ -109,22 +110,22 @@ README.en.md / README.zh.md
 
 ## 自定义系统 Prompt
 - 主程序 prompts：
-  - `~/.deepseek_cli/chatos/auth/system-prompt.yaml`（`internal_main`，内置只读）
-  - `~/.deepseek_cli/chatos/auth/system-default-prompt.yaml`（`default`，内置只读）
-  - `~/.deepseek_cli/chatos/auth/system-user-prompt.yaml`（`user_prompt`，可编辑）
+  - `<stateDir>/auth/system-prompt.yaml`（`internal_main`，内置只读）
+  - `<stateDir>/auth/system-default-prompt.yaml`（`default`，内置只读）
+  - `<stateDir>/auth/system-user-prompt.yaml`（`user_prompt`，可编辑）
 - 子代理 prompts：
-  - `~/.deepseek_cli/chatos/auth/subagent-system-prompt.yaml`（`internal_subagent`，内置只读）
-  - `~/.deepseek_cli/chatos/auth/subagent-user-prompt.yaml`（`subagent_user_prompt`，可编辑）
+  - `<stateDir>/auth/subagent-system-prompt.yaml`（`internal_subagent`，内置只读）
+  - `<stateDir>/auth/subagent-user-prompt.yaml`（`subagent_user_prompt`，可编辑）
 
 ## 环境与调试
-- 推荐：在桌面 App 管理台 → `API Keys` 配置 `DEEPSEEK_API_KEY`（写入 `~/.deepseek_cli/chatos/chatos.db.sqlite`，CLI 启动时自动注入进程环境）。
+- 推荐：在桌面 App 管理台 → `API Keys` 配置 `DEEPSEEK_API_KEY`（写入 `<stateDir>/chatos.db.sqlite`，CLI 启动时自动注入进程环境）。
 - 模型调用只从 UI 管理台保存的 `API Keys` 读取密钥；不再读取系统/终端环境变量。
 - 请求日志：`MODEL_CLI_LOG_REQUEST=1`
 - 模型重试：`MODEL_CLI_RETRY=<n>`
 - MCP 超时可调：`MODEL_CLI_MCP_TIMEOUT_MS`（默认 600000）/ `MODEL_CLI_MCP_MAX_TIMEOUT_MS`（默认 1200000，最大 30 分钟）
 
 ## 常见问题
-- **报告写入权限**：修复 `~/.deepseek_cli/chatos` 权限（如 `chown -R $(whoami) ~/.deepseek_cli/chatos`）或在可写环境运行。
+- **报告写入权限**：修复 `<stateDir>` 权限或在可写环境运行。
 - **工具未注册**：主代理仅允许任务/子代理工具，shell 工具需在子代理内使用。
 - **`mcp_*` 请求超时**：长耗时 MCP 工具（子代理、shell）现默认 10 分钟，仍提前被取消可提升上述环境变量。
 - **长命令超时**：改用 `session_run` + `session_capture_output`。

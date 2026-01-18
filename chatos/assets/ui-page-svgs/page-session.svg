@@ -70,7 +70,7 @@
     <!-- Content: top controls -->
     <rect x="104" y="184" width="1392" height="110" rx="14" class="card" />
     <text class="font h2" x="124" y="214" dominant-baseline="middle">主页</text>
-    <text class="font muted" x="124" y="240" dominant-baseline="middle">回溯对话、工具调用与文件改动记录（来自 .deepseek_cli）</text>
+    <text class="font muted" x="124" y="240" dominant-baseline="middle">回溯对话、工具调用与文件改动记录（来自 stateDir）</text>
     <rect x="964" y="205" width="260" height="36" rx="10" class="control" />
     <text class="font muted" x="984" y="223" dominant-baseline="middle">按终端(runId)过滤</text>
     <rect x="1234" y="205" width="72" height="36" rx="10" class="btnGhost" />

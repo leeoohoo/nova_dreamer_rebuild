@@ -5,7 +5,7 @@
 - 生成 UI Apps 插件工程（脚手架）
 - 在本地沙箱里运行/调试 `module` 应用（Host API mock）
 - 校验 `plugin.json` 与路径边界
-- 打包/安装到本机 ChatOS（`~/.deepseek_cli/chatos/ui_apps/plugins`）
+- 打包/安装到本机 ChatOS（用户插件目录：`<stateDir>/ui_apps/plugins`；`stateDir` 默认 `~/.deepseek_cli/<hostApp>`）
 
 ## 安装
 

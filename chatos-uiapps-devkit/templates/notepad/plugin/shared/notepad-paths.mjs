@@ -2,6 +2,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+const STATE_ROOT_DIRNAME = '.deepseek_cli';
+const COMPAT_STATE_ROOT_DIRNAME = '.chatos';
+
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -41,6 +44,12 @@ function tryEnsureWritableDir(dirPath) {
   }
 }
 
+function pushDataDir(list, baseDir, rootDirName, hostApp, pluginId) {
+  const base = normalizeString(baseDir);
+  if (!base) return;
+  list.push(path.join(base, rootDirName, hostApp, 'ui_apps', 'data', pluginId));
+}
+
 export function resolveUiAppDataDir({ pluginId, env } = {}) {
   const id = normalizeString(pluginId);
   if (!id) throw new Error('pluginId is required');
@@ -50,9 +59,18 @@ export function resolveUiAppDataDir({ pluginId, env } = {}) {
   const sessionRoot = resolveSessionRoot(resolvedEnv);
 
   const candidates = [];
-  if (home) candidates.push(path.join(home, '.deepseek_cli', hostApp, 'ui_apps', 'data', id));
-  if (sessionRoot) candidates.push(path.join(path.resolve(sessionRoot), '.deepseek_cli', hostApp, 'ui_apps', 'data', id));
-  candidates.push(path.join(path.resolve(process.cwd()), '.deepseek_cli', hostApp, 'ui_apps', 'data', id));
+  if (home) {
+    pushDataDir(candidates, home, STATE_ROOT_DIRNAME, hostApp, id);
+    pushDataDir(candidates, home, COMPAT_STATE_ROOT_DIRNAME, hostApp, id);
+  }
+  if (sessionRoot) {
+    const root = path.resolve(sessionRoot);
+    pushDataDir(candidates, root, STATE_ROOT_DIRNAME, hostApp, id);
+    pushDataDir(candidates, root, COMPAT_STATE_ROOT_DIRNAME, hostApp, id);
+  }
+  const cwd = path.resolve(process.cwd());
+  pushDataDir(candidates, cwd, STATE_ROOT_DIRNAME, hostApp, id);
+  pushDataDir(candidates, cwd, COMPAT_STATE_ROOT_DIRNAME, hostApp, id);
 
   for (const candidate of candidates) {
     if (tryEnsureWritableDir(candidate)) return candidate;
