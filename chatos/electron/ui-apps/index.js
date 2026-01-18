@@ -436,7 +436,7 @@ class UiAppsManager {
         const plugin = uiAppsPluginSchema.parse(parsed);
         const apps = this.#resolveApps(pluginDir, plugin, errors);
         const backend = this.#resolveBackend(pluginDir, plugin, errors);
-        const trusted = this.#isPluginTrusted({ id: plugin.id, source });
+        const trusted = this.#isPluginTrusted({ id: plugin.id, source, pluginDir });
         plugins.push({
           id: plugin.id,
           providerAppId: plugin.providerAppId || '',
