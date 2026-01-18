@@ -79,7 +79,7 @@ export function LspServersManager() {
   const platformLabel = typeof state?.data?.platform?.osLabel === 'string' ? state.data.platform.osLabel : '';
 
   return (
-    <div style={{ maxWidth: 980 }}>
+    <div style={{ width: '100%' }}>
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space align="baseline" wrap>
           <Title level={4} style={{ margin: 0 }}>

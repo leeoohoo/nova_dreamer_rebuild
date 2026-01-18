@@ -32,6 +32,7 @@ export function AppHeader({
     normalizedMenu.startsWith('cli/');
   const effectiveMenu = legacyCliMenu ? 'chat/session' : normalizedMenu;
   const mode = effectiveMenu.startsWith('apps/') ? 'apps' : 'chat';
+  const showMainNav = !normalizedMenu.startsWith('admin/');
   const primaryValue = mode;
   const secondaryValue = mode === 'apps' ? 'apps/home' : effectiveMenu.startsWith('chat/') ? effectiveMenu : 'chat/session';
 
@@ -71,80 +72,84 @@ export function AppHeader({
           </Button>
         ) : null}
 
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
-          <div className="ds-nav-merged ds-nav-fixed" data-mode={mode}>
-            <Segmented
-              className="ds-seg ds-seg-primary"
-              value={primaryValue}
-              options={[
-                {
-                  label: (
-                    <Space size={6}>
-                      <MessageOutlined />
-                      chatos
-                    </Space>
-                  ),
-                  value: 'chat',
-                },
-                {
-                  label: (
-                    <Space size={6}>
-                      <AppstoreOutlined />
-                      应用
-                    </Space>
-                  ),
-                  value: 'apps',
-                },
-              ]}
-              onChange={(value) => {
-                const v = String(value || '');
-                setMenu(v === 'apps' ? 'apps/home' : 'chat/session');
-              }}
-            />
+        {showMainNav ? (
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
+            <div className="ds-nav-merged ds-nav-fixed" data-mode={mode}>
+              <Segmented
+                className="ds-seg ds-seg-primary"
+                value={primaryValue}
+                options={[
+                  {
+                    label: (
+                      <Space size={6}>
+                        <MessageOutlined />
+                        chatos
+                      </Space>
+                    ),
+                    value: 'chat',
+                  },
+                  {
+                    label: (
+                      <Space size={6}>
+                        <AppstoreOutlined />
+                        应用
+                      </Space>
+                    ),
+                    value: 'apps',
+                  },
+                ]}
+                onChange={(value) => {
+                  const v = String(value || '');
+                  setMenu(v === 'apps' ? 'apps/home' : 'chat/session');
+                }}
+              />
 
-            <div className="ds-nav-divider" />
+              <div className="ds-nav-divider" />
 
-            <Segmented
-              className="ds-seg ds-seg-secondary"
-              value={secondaryValue}
-              options={
-                mode === 'apps'
-                  ? [
-                      {
-                        label: (
-                          <Space size={6}>
-                            <AppstoreOutlined />
-                            应用中心
-                          </Space>
-                        ),
-                        value: 'apps/home',
-                      },
-                    ]
-                  : [
-                      {
-                        label: (
-                          <Space size={6}>
-                            <MessageOutlined />
-                            对话
-                          </Space>
-                        ),
-                        value: 'chat/session',
-                      },
-                      {
-                        label: (
-                          <Space size={6}>
-                            <RobotOutlined />
-                            Agent
-                          </Space>
-                        ),
-                        value: 'chat/agents',
-                      },
-                    ]
-              }
-              onChange={(value) => setMenu(String(value))}
-            />
+              <Segmented
+                className="ds-seg ds-seg-secondary"
+                value={secondaryValue}
+                options={
+                  mode === 'apps'
+                    ? [
+                        {
+                          label: (
+                            <Space size={6}>
+                              <AppstoreOutlined />
+                              应用中心
+                            </Space>
+                          ),
+                          value: 'apps/home',
+                        },
+                      ]
+                    : [
+                        {
+                          label: (
+                            <Space size={6}>
+                              <MessageOutlined />
+                              对话
+                            </Space>
+                          ),
+                          value: 'chat/session',
+                        },
+                        {
+                          label: (
+                            <Space size={6}>
+                              <RobotOutlined />
+                              Agent
+                            </Space>
+                          ),
+                          value: 'chat/agents',
+                        },
+                      ]
+                }
+                onChange={(value) => setMenu(String(value))}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ flex: 1 }} />
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Button

@@ -22,6 +22,14 @@ const EXTRA_CSS = `
         width: 100%;
         justify-content: center;
       }
+      .ds-admin-page {
+        width: 100%;
+      }
+      .ds-admin-page .ant-card,
+      .ds-admin-page .ant-table-wrapper,
+      .ds-admin-page .ant-table {
+        width: 100%;
+      }
       .ds-ui-app-header-slot:empty {
         display: none;
       }

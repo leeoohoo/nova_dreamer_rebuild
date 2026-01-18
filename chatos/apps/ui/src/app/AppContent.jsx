@@ -44,53 +44,61 @@ export function AppContent({
   if (currentMenu.startsWith('admin')) {
     if (currentMenu === 'admin/models' || currentMenu === 'admin/settings') {
       return (
-        <ModelsManager
-          data={admin?.models}
-          onCreate={modelActions?.create}
-          onUpdate={modelActions?.update}
-          onDelete={modelActions?.delete}
-          onSetDefault={modelActions?.setDefault}
-          loading={loading}
-          developerMode={developerMode}
-        />
+        <div className="ds-admin-page">
+          <ModelsManager
+            data={admin?.models}
+            onCreate={modelActions?.create}
+            onUpdate={modelActions?.update}
+            onDelete={modelActions?.delete}
+            onSetDefault={modelActions?.setDefault}
+            loading={loading}
+            developerMode={developerMode}
+          />
+        </div>
       );
     }
     if (currentMenu === 'admin/secrets') {
       return (
-        <SecretsManager
-          data={admin?.secrets}
-          onCreate={secretsActions?.create}
-          onUpdate={secretsActions?.update}
-          onDelete={secretsActions?.delete}
-          loading={loading}
-        />
+        <div className="ds-admin-page">
+          <SecretsManager
+            data={admin?.secrets}
+            onCreate={secretsActions?.create}
+            onUpdate={secretsActions?.update}
+            onDelete={secretsActions?.delete}
+            loading={loading}
+          />
+        </div>
       );
     }
     if (currentMenu === 'admin/advanced') {
       return (
-        <AdvancedSettingsManager
-          admin={admin}
-          loading={loading}
-          mcpActions={mcpActions}
-          promptActions={promptActions}
-          subagentActions={subagentActions}
-          onSetSubagentModel={onSetSubagentModel}
-          developerMode={developerMode}
-        />
+        <div className="ds-admin-page">
+          <AdvancedSettingsManager
+            admin={admin}
+            loading={loading}
+            mcpActions={mcpActions}
+            promptActions={promptActions}
+            subagentActions={subagentActions}
+            onSetSubagentModel={onSetSubagentModel}
+            developerMode={developerMode}
+          />
+        </div>
       );
     }
     if (advancedTabMap[currentMenu]) {
       return (
-        <AdvancedSettingsManager
-          activeTab={advancedTabMap[currentMenu]}
-          admin={admin}
-          loading={loading}
-          mcpActions={mcpActions}
-          promptActions={promptActions}
-          subagentActions={subagentActions}
-          onSetSubagentModel={onSetSubagentModel}
-          developerMode={developerMode}
-        />
+        <div className="ds-admin-page">
+          <AdvancedSettingsManager
+            activeTab={advancedTabMap[currentMenu]}
+            admin={admin}
+            loading={loading}
+            mcpActions={mcpActions}
+            promptActions={promptActions}
+            subagentActions={subagentActions}
+            onSetSubagentModel={onSetSubagentModel}
+            developerMode={developerMode}
+          />
+        </div>
       );
     }
   }
