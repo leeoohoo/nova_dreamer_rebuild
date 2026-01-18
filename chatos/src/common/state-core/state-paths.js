@@ -3,15 +3,49 @@ import path from 'path';
 import { COMPAT_STATE_ROOT_DIRNAME, STATE_ROOT_DIRNAME } from './state-constants.js';
 import { copyTree, ensureDir, getHomeDir, isDirectory, isFile, normalizeHostApp, resolveHostApp } from './utils.js';
 
+export const STATE_FILE_NAMES = Object.freeze({
+  events: 'events.jsonl',
+  runs: 'runs.jsonl',
+  uiPrompts: 'ui-prompts.jsonl',
+  fileChanges: 'file-changes.jsonl',
+  projectExecLog: 'project-exec-log.jsonl',
+  projectInfo: 'project-info.json',
+});
+
+export const STATE_DIR_NAMES = Object.freeze({
+  auth: 'auth',
+  terminals: 'terminals',
+  sessions: 'sessions',
+  uiApps: 'ui_apps',
+  subagents: 'subagents',
+});
+
+const {
+  events: EVENTS_FILE,
+  runs: RUNS_FILE,
+  uiPrompts: UI_PROMPTS_FILE,
+  fileChanges: FILE_CHANGES_FILE,
+  projectExecLog: PROJECT_EXEC_LOG_FILE,
+  projectInfo: PROJECT_INFO_FILE,
+} = STATE_FILE_NAMES;
+
+const {
+  auth: AUTH_DIR,
+  terminals: TERMINALS_DIR,
+  sessions: SESSIONS_DIR,
+  uiApps: UI_APPS_DIR,
+  subagents: SUBAGENTS_DIR,
+} = STATE_DIR_NAMES;
+
 const DEFAULT_SIGNAL_FILES = [
   'admin.db.sqlite',
   'subagents.json',
-  'events.jsonl',
-  'runs.jsonl',
-  'ui-prompts.jsonl',
-  'file-changes.jsonl',
-  'project-exec-log.jsonl',
-  'project-info.json',
+  EVENTS_FILE,
+  RUNS_FILE,
+  UI_PROMPTS_FILE,
+  FILE_CHANGES_FILE,
+  PROJECT_EXEC_LOG_FILE,
+  PROJECT_INFO_FILE,
   'auth',
   'terminals',
   'sessions',
@@ -26,12 +60,12 @@ const DEFAULT_MIGRATION_CANDIDATES = [
   'ui_apps',
   'subagents',
   'subagents.json',
-  'events.jsonl',
-  'file-changes.jsonl',
-  'ui-prompts.jsonl',
-  'runs.jsonl',
-  'project-exec-log.jsonl',
-  'project-info.json',
+  EVENTS_FILE,
+  FILE_CHANGES_FILE,
+  UI_PROMPTS_FILE,
+  RUNS_FILE,
+  PROJECT_EXEC_LOG_FILE,
+  PROJECT_INFO_FILE,
   'admin.db.sqlite',
   'admin.db.json',
 ];
@@ -54,6 +88,81 @@ export function resolveCompatStateRootDir(options = {}) {
   const home = homeRaw || getHomeDir(env);
   if (!home) return '';
   return path.join(home, COMPAT_STATE_ROOT_DIRNAME);
+}
+
+export function resolveStateDirPath(stateDir, ...parts) {
+  const dir = typeof stateDir === 'string' ? stateDir.trim() : '';
+  if (!dir) return '';
+  const segments = [];
+  parts.forEach((part) => {
+    if (Array.isArray(part)) {
+      part.forEach((entry) => segments.push(entry));
+      return;
+    }
+    segments.push(part);
+  });
+  const normalized = segments
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : String(entry ?? '').trim()))
+    .filter(Boolean);
+  if (normalized.length === 0) return dir;
+  return path.join(dir, ...normalized);
+}
+
+export function resolveAppStatePath(sessionRoot, parts, options = {}) {
+  const appDir = resolveAppStateDir(sessionRoot, options);
+  return resolveStateDirPath(appDir, parts);
+}
+
+export function resolveStateDirFile(stateDir, filename) {
+  return resolveStateDirPath(stateDir, filename);
+}
+
+export function resolveAppStateFile(sessionRoot, filename, options = {}) {
+  return resolveAppStatePath(sessionRoot, filename, options);
+}
+
+export function resolveEventsPath(sessionRoot, options = {}) {
+  return resolveAppStateFile(sessionRoot, EVENTS_FILE, options);
+}
+
+export function resolveRunsPath(sessionRoot, options = {}) {
+  return resolveAppStateFile(sessionRoot, RUNS_FILE, options);
+}
+
+export function resolveUiPromptsPath(sessionRoot, options = {}) {
+  return resolveAppStateFile(sessionRoot, UI_PROMPTS_FILE, options);
+}
+
+export function resolveFileChangesPath(sessionRoot, options = {}) {
+  return resolveAppStateFile(sessionRoot, FILE_CHANGES_FILE, options);
+}
+
+export function resolveProjectExecLogPath(sessionRoot, options = {}) {
+  return resolveAppStateFile(sessionRoot, PROJECT_EXEC_LOG_FILE, options);
+}
+
+export function resolveProjectInfoPath(sessionRoot, options = {}) {
+  return resolveAppStateFile(sessionRoot, PROJECT_INFO_FILE, options);
+}
+
+export function resolveAuthDir(sessionRoot, options = {}) {
+  return resolveAppStatePath(sessionRoot, AUTH_DIR, options);
+}
+
+export function resolveTerminalsDir(sessionRoot, options = {}) {
+  return resolveAppStatePath(sessionRoot, TERMINALS_DIR, options);
+}
+
+export function resolveSessionsDir(sessionRoot, options = {}) {
+  return resolveAppStatePath(sessionRoot, SESSIONS_DIR, options);
+}
+
+export function resolveUiAppsDir(sessionRoot, options = {}) {
+  return resolveAppStatePath(sessionRoot, UI_APPS_DIR, options);
+}
+
+export function resolveSubagentsDir(sessionRoot, options = {}) {
+  return resolveAppStatePath(sessionRoot, SUBAGENTS_DIR, options);
 }
 
 export function resolveLegacyStateDir(sessionRoot) {

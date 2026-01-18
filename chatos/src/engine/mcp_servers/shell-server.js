@@ -14,7 +14,7 @@ import { SettingsService } from '../shared/data/services/settings-service.js';
 import { createFilesystemOps } from './filesystem/ops.js';
 import { createSessionManager } from './shell/session-manager.js';
 import { registerShellTools } from './shell/register-tools.js';
-import { ensureAppDbPath, resolveAppStateDir } from '../shared/state-paths.js';
+import { ensureAppDbPath, resolveFileChangesPath, resolveUiPromptsPath } from '../shared/state-paths.js';
 import { resolveSessionRoot } from '../shared/session-root.js';
 
 const execAsync = promisify(exec);
@@ -39,10 +39,10 @@ const sessions = createSessionManager({ execAsync, root, defaultShell, serverNam
 const runId = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
 const promptLogPath =
   process.env.MODEL_CLI_UI_PROMPTS ||
-  path.join(resolveAppStateDir(sessionRoot), 'ui-prompts.jsonl');
+  resolveUiPromptsPath(sessionRoot);
 const fileChangeLogPath =
   process.env.MODEL_CLI_FILE_CHANGES ||
-  path.join(resolveAppStateDir(sessionRoot), 'file-changes.jsonl');
+  resolveFileChangesPath(sessionRoot);
 const adminDbPath =
   process.env.MODEL_CLI_TASK_DB ||
   ensureAppDbPath(sessionRoot);

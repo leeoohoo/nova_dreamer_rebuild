@@ -9,7 +9,7 @@ import { createDb } from '../shared/data/storage.js';
 import { TaskService } from '../shared/data/services/task-service.js';
 import { SettingsService } from '../shared/data/services/settings-service.js';
 import { createTtyPrompt } from './tty-prompt.js';
-import { ensureAppDbPath, resolveAppStateDir } from '../shared/state-paths.js';
+import { ensureAppDbPath, resolveUiPromptsPath } from '../shared/state-paths.js';
 import { resolveSessionRoot } from '../shared/session-root.js';
 
 const args = parseArgs(process.argv.slice(2));
@@ -27,7 +27,7 @@ const adminDbPath =
 const runId = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
 const promptLogPath =
   process.env.MODEL_CLI_UI_PROMPTS ||
-  path.join(resolveAppStateDir(sessionRoot), 'ui-prompts.jsonl');
+  resolveUiPromptsPath(sessionRoot);
 const callerKind = normalizeCallerKind(process.env.MODEL_CLI_CALLER);
 
 ensureDir(root);

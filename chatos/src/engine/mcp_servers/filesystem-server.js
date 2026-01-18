@@ -10,7 +10,12 @@ import { SettingsService } from '../shared/data/services/settings-service.js';
 import { createFilesystemOps, resolveSessionRoot } from './filesystem/ops.js';
 import { registerFilesystemTools } from './filesystem/register-tools.js';
 import { createTtyPrompt } from './tty-prompt.js';
-import { ensureAppDbPath, resolveAppStateDir } from '../shared/state-paths.js';
+import {
+  ensureAppDbPath,
+  resolveFileChangesPath,
+  resolveTerminalsDir,
+  resolveUiPromptsPath,
+} from '../shared/state-paths.js';
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help || args.h) {
@@ -28,9 +33,9 @@ const workspaceNote = `Workspace root: ${root}. Paths must stay inside this dire
 const sessionRoot = resolveSessionRoot();
 const runId = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
 const fileChangeLogPath =
-  process.env.MODEL_CLI_FILE_CHANGES || path.join(resolveAppStateDir(sessionRoot), 'file-changes.jsonl');
+  process.env.MODEL_CLI_FILE_CHANGES || resolveFileChangesPath(sessionRoot);
 const promptLogPath =
-  process.env.MODEL_CLI_UI_PROMPTS || path.join(resolveAppStateDir(sessionRoot), 'ui-prompts.jsonl');
+  process.env.MODEL_CLI_UI_PROMPTS || resolveUiPromptsPath(sessionRoot);
 const adminDbPath = process.env.MODEL_CLI_TASK_DB || ensureAppDbPath(sessionRoot);
 
 let settingsDb = null;
@@ -63,7 +68,7 @@ function appendRunPid({ pid, kind, name } = {}) {
   if (!rid || !rootDir || !Number.isFinite(num) || num <= 0) {
     return;
   }
-  const dir = path.join(resolveAppStateDir(rootDir), 'terminals');
+  const dir = resolveTerminalsDir(rootDir);
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch {

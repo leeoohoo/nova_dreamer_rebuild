@@ -9,7 +9,7 @@ import {
   parseFriendlyPatch,
 } from './ops/friendly-patch.js';
 import { createWorkspaceResolver, preprocessPatchText, resolvePatchPayload, resolveWritePayload } from './ops/helpers.js';
-import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveFileChangesPath } from '../../shared/state-paths.js';
 import { resolveSessionRoot as resolveSessionRootCore } from '../../shared/session-root.js';
 
 const fsp = fs.promises;
@@ -27,7 +27,10 @@ export function createFilesystemOps({
 } = {}) {
   const root = path.resolve(rootArg || process.cwd());
   const serverName = typeof serverNameArg === 'string' && serverNameArg.trim() ? serverNameArg.trim() : 'project_files';
-  const fileChangeLogPath = typeof logPathArg === 'string' && logPathArg.trim() ? logPathArg.trim() : path.join(resolveAppStateDir(resolveSessionRoot()), 'file-changes.jsonl');
+  const fileChangeLogPath =
+    typeof logPathArg === 'string' && logPathArg.trim()
+      ? logPathArg.trim()
+      : resolveFileChangesPath(resolveSessionRoot());
 
   const logProgress = typeof logProgressArg === 'function' ? logProgressArg : (msg) => console.error(`[${serverName}] ${msg}`);
   const appendRunPid = typeof appendRunPidArg === 'function' ? appendRunPidArg : () => {};

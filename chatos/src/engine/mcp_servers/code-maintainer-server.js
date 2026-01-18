@@ -7,7 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { createFilesystemOps, resolveSessionRoot } from './filesystem/ops.js';
 import { registerFilesystemTools } from './filesystem/register-tools.js';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveFileChangesPath } from '../shared/state-paths.js';
 
 const fsp = fs.promises;
 
@@ -28,7 +28,7 @@ ensureDir(root, allowWrites);
 
 const sessionRoot = resolveSessionRoot();
 const fileChangeLogPath =
-  process.env.MODEL_CLI_FILE_CHANGES || path.join(resolveAppStateDir(sessionRoot), 'file-changes.jsonl');
+  process.env.MODEL_CLI_FILE_CHANGES || resolveFileChangesPath(sessionRoot);
 
 const server = new McpServer({
   name: serverName,

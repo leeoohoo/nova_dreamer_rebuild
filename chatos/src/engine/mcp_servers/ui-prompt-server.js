@@ -7,7 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { clampNumber, parseArgs } from './cli-utils.js';
 import { createTtyPrompt } from './tty-prompt.js';
-import { resolveAppStateDir, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
+import { resolveUiPromptsPath, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
 import { resolveSessionRoot } from '../shared/session-root.js';
 
 const args = parseArgs(process.argv.slice(2));
@@ -21,7 +21,7 @@ const sessionRoot = resolveSessionRoot();
 const runId = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
 const promptLogPath =
   process.env.MODEL_CLI_UI_PROMPTS ||
-  path.join(resolveAppStateDir(sessionRoot), 'ui-prompts.jsonl');
+  resolveUiPromptsPath(sessionRoot);
 const MAX_WAIT_MS = 2_147_483_647; // ~24.8 days (max safe setTimeout)
 
 ensureFileExists(promptLogPath);

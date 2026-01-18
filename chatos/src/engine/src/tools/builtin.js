@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveTerminalsDir } from '../../shared/state-paths.js';
 
 import { registerTool, listTools } from './registry.js';
 import { ChatSession, generateSessionId } from '../session.js';
@@ -451,7 +451,7 @@ function createRunInboxListener({ runId, sessionRoot, consumerId, onEntry, skipE
   const cb = typeof onEntry === 'function' ? onEntry : null;
   if (!cb) return null;
   const consumer = typeof consumerId === 'string' && consumerId.trim() ? consumerId.trim() : String(process.pid);
-  const dir = path.join(resolveAppStateDir(root), 'terminals');
+  const dir = resolveTerminalsDir(root);
   const inboxPath = path.join(dir, `${rid}.inbox.jsonl`);
   const cursorPath = path.join(dir, `${rid}.inbox.${consumer}.cursor`);
   ensureDir(dir);

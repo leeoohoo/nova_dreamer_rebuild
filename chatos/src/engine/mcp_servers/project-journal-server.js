@@ -5,7 +5,8 @@ import crypto from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveAppStateDir, STATE_FILE_NAMES } from '../shared/state-paths.js';
+import { resolveSessionRoot as resolveSessionRootCore } from '../shared/session-root.js';
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help || args.h) {
@@ -13,25 +14,22 @@ if (args.help || args.h) {
   process.exit(0);
 }
 
-const sessionRoot =
-  (typeof process.env.MODEL_CLI_SESSION_ROOT === 'string' && process.env.MODEL_CLI_SESSION_ROOT.trim()
+const envSessionRoot =
+  typeof process.env.MODEL_CLI_SESSION_ROOT === 'string' && process.env.MODEL_CLI_SESSION_ROOT.trim()
     ? process.env.MODEL_CLI_SESSION_ROOT.trim()
-    : typeof args.root === 'string' && args.root.trim()
-      ? args.root.trim()
-      : process.cwd());
-const explicitSessionRoot = Boolean(
-  (typeof process.env.MODEL_CLI_SESSION_ROOT === 'string' && process.env.MODEL_CLI_SESSION_ROOT.trim()) ||
-    (typeof args.root === 'string' && args.root.trim())
-);
+    : '';
+const argSessionRoot = typeof args.root === 'string' && args.root.trim() ? args.root.trim() : '';
+const sessionRoot = envSessionRoot || argSessionRoot || resolveSessionRootCore({ preferCwd: true });
+const explicitSessionRoot = Boolean(envSessionRoot || argSessionRoot);
 const root = resolveAppStateDir(sessionRoot, { preferSessionRoot: explicitSessionRoot });
 const serverName = args.name || 'project_journal';
 const execLogPath = resolveStorePath(
   args['exec-log'] || args.exec_log || args.execLog,
-  'project-exec-log.jsonl'
+  STATE_FILE_NAMES.projectExecLog
 );
 const projectInfoPath = resolveStorePath(
   args['project-info'] || args.project_info || args.projectInfo,
-  'project-info.json'
+  STATE_FILE_NAMES.projectInfo
 );
 
 ensureDir(root);
@@ -716,8 +714,8 @@ function printHelp() {
       'Options:',
       '  --root <path>          Legacy session root hint (fallback when MODEL_CLI_SESSION_ROOT is not set)',
       '  --name <id>            MCP server name (default project_journal)',
-      '  --exec-log <path>      Exec log JSONL path (default project-exec-log.jsonl under per-app stateDir)',
-      '  --project-info <path>  Project info JSON path (default project-info.json under per-app stateDir)',
+      `  --exec-log <path>      Exec log JSONL path (default ${STATE_FILE_NAMES.projectExecLog} under per-app stateDir)`,
+      `  --project-info <path>  Project info JSON path (default ${STATE_FILE_NAMES.projectInfo} under per-app stateDir)`,
       '  --help                 Show help',
     ].join('\n')
   );

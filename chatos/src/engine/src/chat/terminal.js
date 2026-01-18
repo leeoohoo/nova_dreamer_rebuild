@@ -4,7 +4,7 @@ import readline from 'readline';
 import { StringDecoder } from 'string_decoder';
 import * as colors from '../colors.js';
 import { terminalPlatform } from '../terminal/platform/index.js';
-import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveTerminalsDir } from '../../shared/state-paths.js';
 
 function createTerminalControl({ runId, sessionRoot, rl, onStop, onAction } = {}) {
   const rid = typeof runId === 'string' ? runId.trim() : '';
@@ -17,7 +17,7 @@ function createTerminalControl({ runId, sessionRoot, rl, onStop, onAction } = {}
   }
   const stop = typeof onStop === 'function' ? onStop : null;
   const actionHandler = typeof onAction === 'function' ? onAction : null;
-  const dir = path.join(resolveAppStateDir(root), 'terminals');
+  const dir = resolveTerminalsDir(root);
   const statusPath = path.join(dir, `${rid}.status.json`);
   const controlPath = path.join(dir, `${rid}.control.jsonl`);
   const cursorPath = path.join(dir, `${rid}.cursor`);
@@ -234,7 +234,7 @@ function appendRunPid({ runId, sessionRoot, pid, kind } = {}) {
   if (!rid || !root || !Number.isFinite(num) || num <= 0) {
     return;
   }
-  const dir = path.join(resolveAppStateDir(root), 'terminals');
+  const dir = resolveTerminalsDir(root);
   ensureDir(dir);
   const pidsPath = path.join(dir, `${rid}.pids.jsonl`);
   const payload = {
@@ -270,7 +270,7 @@ function hardKillCurrentRunFromSignal() {
 
   // Fall back to killing known PIDs registered for this run.
   if (!rid) return;
-  const terminalsDir = path.join(resolveAppStateDir(root), 'terminals');
+  const terminalsDir = resolveTerminalsDir(root);
   const pidsPath = path.join(terminalsDir, `${rid}.pids.jsonl`);
   let pids = [];
   try {

@@ -5,7 +5,7 @@ import { execFileSync } from 'child_process';
 import { getHomeDir } from '../utils.js';
 import { loadSystemPromptConfig, DEFAULT_INTERNAL_SYSTEM_PROMPT } from '../prompts.js';
 import { importClaudeCodePlugin, indexClaudeCodeMarketplace } from './marketplace-import.js';
-import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveAppStateDir, resolveStateDirPath, STATE_DIR_NAMES } from '../../shared/state-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,12 +37,12 @@ class SubAgentManager {
     const resolvedSessionRoot = explicitSessionRoot || envSessionRoot || home;
     const stateDir = explicitStateDir || resolveAppStateDir(resolvedSessionRoot);
     this.stateDir = stateDir;
-    this.statePath = path.join(stateDir, 'subagents.json');
-    this.userBaseDir = path.join(stateDir, 'subagents');
-    this.userMarketplacePath = path.join(this.userBaseDir, 'marketplace.json');
-    this.userPluginsDir = path.join(this.userBaseDir, 'plugins');
-    this.userSourcesDir = path.join(this.userBaseDir, 'sources');
-    this.userSourcesPath = path.join(this.userBaseDir, 'sources.json');
+    this.statePath = resolveStateDirPath(stateDir, 'subagents.json');
+    this.userBaseDir = resolveStateDirPath(stateDir, STATE_DIR_NAMES.subagents);
+    this.userMarketplacePath = resolveStateDirPath(this.userBaseDir, 'marketplace.json');
+    this.userPluginsDir = resolveStateDirPath(this.userBaseDir, 'plugins');
+    this.userSourcesDir = resolveStateDirPath(this.userBaseDir, 'sources');
+    this.userSourcesPath = resolveStateDirPath(this.userBaseDir, 'sources.json');
     this.marketplaceCache = null;
     this.userMarketplaceCache = null;
     this.sourcesCache = null;

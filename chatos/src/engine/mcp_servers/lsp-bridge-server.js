@@ -8,7 +8,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { createFilesystemOps, resolveSessionRoot } from './filesystem/ops.js';
-import { resolveAppStateDir, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
+import { resolveAppStateDir, resolveAppStatePath, resolveFileChangesPath, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
 
 const fsp = fs.promises;
 
@@ -29,7 +29,7 @@ ensureDir(root);
 
 const sessionRoot = resolveSessionRoot();
 const fileChangeLogPath =
-  process.env.MODEL_CLI_FILE_CHANGES || path.join(resolveAppStateDir(sessionRoot), 'file-changes.jsonl');
+  process.env.MODEL_CLI_FILE_CHANGES || resolveFileChangesPath(sessionRoot);
 
 const workspaceNote = `Workspace root: ${root}. Paths must stay inside this directory; absolute or relative paths resolving outside will be rejected.`;
 
@@ -1221,7 +1221,7 @@ function loadLspConfig({ root, configPathRaw }) {
   if (typeof configPathRaw === 'string' && configPathRaw.trim()) {
     candidatePaths.push(path.isAbsolute(configPathRaw) ? configPathRaw : path.resolve(root, configPathRaw));
   } else {
-    candidatePaths.push(path.join(resolveAppStateDir(root), 'lsp-servers.json'));
+    candidatePaths.push(resolveAppStatePath(root, 'lsp-servers.json'));
   }
 
   for (const p of candidatePaths) {

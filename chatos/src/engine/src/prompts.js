@@ -3,7 +3,7 @@ import path from 'path';
 import os from 'os';
 import YAML from 'yaml';
 import { resolveSessionRoot } from '../shared/session-root.js';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveAuthDir } from '../shared/state-paths.js';
 
 const DEFAULT_PROMPTS = {
   daily_coding: `你是终端内的资深全栈开发助手，帮助我实现功能、解释思路，输出风格：
@@ -147,7 +147,8 @@ function normalizePromptMap(input) {
 
 function getDefaultConfigDir() {
   const sessionRoot = resolveSessionRoot();
-  return path.join(resolveAppStateDir(sessionRoot || os.homedir() || process.cwd()), 'auth');
+  const root = sessionRoot || os.homedir() || process.cwd();
+  return resolveAuthDir(root);
 }
 
 function resolveSystemPromptPath(configPath) {

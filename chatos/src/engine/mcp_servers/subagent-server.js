@@ -7,7 +7,8 @@ import { performance } from 'perf_hooks';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveAppStateDir, resolveEventsPath, resolveTerminalsDir } from '../shared/state-paths.js';
+import { resolveSessionRoot } from '../shared/session-root.js';
 import {
   filterAgents,
   jsonTextResponse,
@@ -147,7 +148,7 @@ const mcpConfigPath =
   args.config ||
   defaultPaths?.mcpConfig ||
   path.join(defaultPaths?.defaultsRoot || process.cwd(), 'shared', 'defaults', 'mcp.config.json');
-const SESSION_ROOT = process.env.MODEL_CLI_SESSION_ROOT || process.cwd();
+const SESSION_ROOT = resolveSessionRoot({ preferCwd: true });
 const WORKSPACE_ROOT = process.env.MODEL_CLI_WORKSPACE_ROOT || process.env.MODEL_CLI_SESSION_ROOT || process.cwd();
 const RUN_ID = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
 const TOOL_ALLOW_LIST = ['invoke_sub_agent', 'get_current_time', 'echo_text'];
@@ -156,7 +157,7 @@ const TOOL_DENY_PREFIXES = ['mcp_subagent_router_']; // block recursive routing;
 const eventLogPath =
   process.env.MODEL_CLI_EVENT_LOG ||
   defaultPaths?.events ||
-  path.join(resolveAppStateDir(SESSION_ROOT), 'events.jsonl');
+  resolveEventsPath(SESSION_ROOT);
 const eventLogger = createEventLogger(eventLogPath);
 const HEARTBEAT_INTERVAL_MS = 10000;
 const HEARTBEAT_STALE_MS = 120000;
@@ -219,7 +220,7 @@ function createRunInboxListener({ runId, sessionRoot, consumerId, onEntry, skipE
   const cb = typeof onEntry === 'function' ? onEntry : null;
   if (!cb) return null;
   const consumer = typeof consumerId === 'string' && consumerId.trim() ? consumerId.trim() : String(process.pid);
-  const dir = path.join(resolveAppStateDir(root), 'terminals');
+  const dir = resolveTerminalsDir(root);
   const inboxPath = path.join(dir, `${rid}.inbox.jsonl`);
   const cursorPath = path.join(dir, `${rid}.inbox.${consumer}.cursor`);
   ensureDir(dir);
@@ -966,7 +967,7 @@ function appendRunPid({ pid, kind, name } = {}) {
   const root = typeof SESSION_ROOT === 'string' && SESSION_ROOT.trim() ? SESSION_ROOT.trim() : '';
   const num = Number(pid);
   if (!root || !Number.isFinite(num) || num <= 0) return;
-  const dir = path.join(resolveAppStateDir(root), 'terminals');
+  const dir = resolveTerminalsDir(root);
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch {

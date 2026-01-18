@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
-import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveSessionsDir } from '../../shared/state-paths.js';
 
 function ensureDir(dirPath) {
   try {
@@ -143,7 +143,7 @@ export function createSessionManager({ execAsync, root, defaultShell, serverName
   const name = typeof serverName === 'string' && serverName.trim() ? serverName.trim() : 'shell_tasks';
   const baseSessionRoot =
     typeof sessionRoot === 'string' && sessionRoot.trim() ? path.resolve(sessionRoot.trim()) : process.cwd();
-  const sessionsDir = path.join(resolveAppStateDir(baseSessionRoot), 'sessions');
+  const sessionsDir = resolveSessionsDir(baseSessionRoot);
 
   const sessions = new Map();
   let cleanupPromise = null;

@@ -7,7 +7,7 @@ import * as colors from '../colors.js';
 import { ChatSession } from '../session.js';
 import { ModelClient } from '../client.js';
 import { resolveSessionRoot } from '../../shared/session-root.js';
-import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveAuthDir } from '../../shared/state-paths.js';
 
 const DEFAULT_SUMMARY_PROMPT = {
   system:
@@ -436,7 +436,8 @@ function expandHomePath(filePath) {
 
 function getDefaultConfigDir() {
   const sessionRoot = resolveSessionRoot();
-  return path.join(resolveAppStateDir(sessionRoot || os.homedir() || process.cwd()), 'auth');
+  const root = sessionRoot || os.homedir() || process.cwd();
+  return resolveAuthDir(root);
 }
 
 function renderHistoryForSummary(messages, maxBytes = 60000) {

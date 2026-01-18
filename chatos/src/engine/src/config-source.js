@@ -13,7 +13,13 @@ import {
 } from '../shared/data/legacy.js';
 import { syncAdminToFiles } from '../shared/data/sync.js';
 import { getHostApp } from '../shared/host-app.js';
-import { ensureAppStateDir } from '../shared/state-paths.js';
+import {
+  ensureAppStateDir,
+  resolveStateDirFile,
+  resolveStateDirPath,
+  STATE_DIR_NAMES,
+  STATE_FILE_NAMES,
+} from '../shared/state-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +31,7 @@ export function getAdminServices() {
   process.env.MODEL_CLI_SESSION_ROOT = sessionRoot;
   const defaultsRoot = projectRoot;
   const stateDir = ensureAppStateDir(sessionRoot);
-  const authDir = path.join(stateDir, 'auth');
+  const authDir = resolveStateDirPath(stateDir, STATE_DIR_NAMES.auth);
   const legacyAdminDb = getDefaultDbPath();
 
   const legacySeed = readLegacyState(legacyAdminDb);
@@ -39,13 +45,13 @@ export function getAdminServices() {
     subagentUserPrompt: path.join(authDir, 'subagent-user-prompt.yaml'),
     mcpConfig: path.join(authDir, 'mcp.config.json'),
     tasks: null,
-    events: path.join(stateDir, 'events.jsonl'),
+    events: resolveStateDirFile(stateDir, STATE_FILE_NAMES.events),
     marketplace: path.join(projectRoot, 'subagents', 'marketplace.json'),
-    marketplaceUser: path.join(stateDir, 'subagents', 'marketplace.json'),
+    marketplaceUser: resolveStateDirPath(stateDir, STATE_DIR_NAMES.subagents, 'marketplace.json'),
     pluginsDir: path.join(projectRoot, 'subagents', 'plugins'),
-    pluginsDirUser: path.join(stateDir, 'subagents', 'plugins'),
-    installedSubagents: path.join(stateDir, 'subagents.json'),
-    adminDb: path.join(stateDir, `${getHostApp() || 'chatos'}.db.sqlite`),
+    pluginsDirUser: resolveStateDirPath(stateDir, STATE_DIR_NAMES.subagents, 'plugins'),
+    installedSubagents: resolveStateDirPath(stateDir, 'subagents.json'),
+    adminDb: resolveStateDirPath(stateDir, `${getHostApp() || 'chatos'}.db.sqlite`),
   };
   const seed = legacySeed || buildAdminSeed(defaultPaths);
   const adminDb = createDb({
@@ -76,7 +82,7 @@ function maybePurgeUiAppsSyncedAdminData({ stateDir, services } = {}) {
   if (host !== 'chatos') return;
   if (!stateDir || !services?.mcpServers || !services?.prompts) return;
 
-  const markerPath = path.join(stateDir, '.uiapps-ai-sync-purged.json');
+  const markerPath = resolveStateDirPath(stateDir, '.uiapps-ai-sync-purged.json');
   try {
     if (fs.existsSync(markerPath)) {
       return;

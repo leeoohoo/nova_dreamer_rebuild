@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
 import { resolveSessionRoot } from '../shared/session-root.js';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveAuthDir, resolveStateDirPath } from '../shared/state-paths.js';
 
 class ConfigError extends Error {
   constructor(message) {
@@ -194,7 +194,7 @@ function resolveDefaultConfigPath() {
   }
   const sessionRoot = resolveSessionRoot();
   if (sessionRoot) {
-    return path.join(resolveAppStateDir(sessionRoot), 'auth', 'models.yaml');
+    return resolveStateDirPath(resolveAuthDir(sessionRoot), 'models.yaml');
   }
   const search = findModelsUpwards(process.cwd());
   if (search) {

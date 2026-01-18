@@ -18,6 +18,7 @@ function getLegacyMarkerPath(homeDir, baseDir = STATE_ROOT_DIRNAME) {
 
 export function resolveSessionRoot(options = {}) {
   const env = options?.env && typeof options.env === 'object' ? options.env : process.env;
+  const preferCwd = options?.preferCwd === true;
   const explicit = typeof env.MODEL_CLI_SESSION_ROOT === 'string' ? env.MODEL_CLI_SESSION_ROOT.trim() : '';
   if (explicit) {
     return path.resolve(explicit);
@@ -40,34 +41,37 @@ export function resolveSessionRoot(options = {}) {
     }
   };
 
-  const raw =
-    readMarker(markerPath) ||
-    readMarker(compatMarkerPath) ||
-    readMarker(legacyMarkerPath) ||
-    readMarker(legacyCompatMarkerPath);
-  if (raw) {
-    const resolved = path.resolve(raw);
-    let valid = true;
-    try {
-      if (fs.existsSync(resolved)) {
-        valid = fs.statSync(resolved).isDirectory();
-      }
-    } catch {
-      valid = false;
-    }
-    if (valid) {
+  if (!preferCwd) {
+    const raw =
+      readMarker(markerPath) ||
+      readMarker(compatMarkerPath) ||
+      readMarker(legacyMarkerPath) ||
+      readMarker(legacyCompatMarkerPath);
+    if (raw) {
+      const resolved = path.resolve(raw);
+      let valid = true;
       try {
-        if (markerPath && !fs.existsSync(markerPath)) {
-          ensureDir(path.dirname(markerPath));
-          fs.writeFileSync(markerPath, raw, 'utf8');
+        if (fs.existsSync(resolved)) {
+          valid = fs.statSync(resolved).isDirectory();
         }
       } catch {
-        // ignore migration errors
+        valid = false;
       }
-      return resolved;
+      if (valid) {
+        try {
+          if (markerPath && !fs.existsSync(markerPath)) {
+            ensureDir(path.dirname(markerPath));
+            fs.writeFileSync(markerPath, raw, 'utf8');
+          }
+        } catch {
+          // ignore migration errors
+        }
+        return resolved;
+      }
     }
   }
 
+  if (preferCwd) return process.cwd();
   if (home) return path.resolve(home);
   return process.cwd();
 }

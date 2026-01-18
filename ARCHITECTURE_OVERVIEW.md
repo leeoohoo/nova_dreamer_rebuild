@@ -35,6 +35,8 @@ This document is a concise, code‑oriented map of the system. It focuses on res
   - Plugins: `<stateDir>/ui_apps/plugins`
   - Data: `<stateDir>/ui_apps/data/<pluginId>`
 
+Note: file/dir names are centralized in `STATE_FILE_NAMES` / `STATE_DIR_NAMES` and resolved via helpers in `state-core/state-paths.js` (avoid hardcoded strings in code).
+
 Compatibility: legacy `legacyStateRoot/<hostApp>/` is auto‑migrated on startup.
 
 ## 4) Core Data Flows (Simplified)

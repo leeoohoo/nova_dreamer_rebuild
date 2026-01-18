@@ -9,7 +9,13 @@ import { performance } from 'perf_hooks';
 import { adjustCommandArgs, parseMcpEndpoint } from './runtime/endpoints.js';
 import { mapAllSettledWithConcurrency, resolveConcurrency } from './runtime/concurrency.js';
 import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../shared/host-app.js';
-import { ensureAppDbPath, resolveAppStateDir } from '../../shared/state-paths.js';
+import {
+  ensureAppDbPath,
+  resolveAppStateDir,
+  resolveStateDirPath,
+  resolveTerminalsDir,
+  STATE_DIR_NAMES,
+} from '../../shared/state-paths.js';
 import { createRuntimeLogger } from '../../shared/runtime-log.js';
 import {
   getDefaultToolMaxTimeoutMs,
@@ -88,7 +94,7 @@ function isUiAppMcpServer(entry, options = {}) {
   const sessionRoot = typeof options?.sessionRoot === 'string' ? options.sessionRoot.trim() : '';
   const stateDir = resolveAppStateDir(sessionRoot || process.cwd());
   if (!stateDir) return false;
-  const uiAppsRoot = path.join(stateDir, 'ui_apps', 'plugins');
+  const uiAppsRoot = resolveStateDirPath(stateDir, STATE_DIR_NAMES.uiApps, 'plugins');
   const args = Array.isArray(endpoint.args) ? endpoint.args : [];
   for (const arg of args) {
     const candidate = normalizeCommandPath(arg, options?.baseDir);
@@ -110,7 +116,7 @@ function ensureUiAppNodeModules(sessionRoot, runtimeLogger) {
   const hostNodeModules = resolveHostNodeModulesDir();
   if (!hostNodeModules) return;
 
-  const target = path.join(stateDir, 'node_modules');
+  const target = resolveStateDirPath(stateDir, 'node_modules');
   try {
     if (fs.existsSync(target)) return;
   } catch {
@@ -1002,7 +1008,7 @@ function appendRunPid({ runId, sessionRoot, pid, kind, name } = {}) {
   if (!rid || !root || !Number.isFinite(num) || num <= 0) {
     return;
   }
-  const dir = path.join(resolveAppStateDir(root), 'terminals');
+  const dir = resolveTerminalsDir(root);
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch {
