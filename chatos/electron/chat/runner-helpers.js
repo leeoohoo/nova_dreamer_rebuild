@@ -129,18 +129,15 @@ export function buildSystemPrompt({
   const skills = Array.isArray(agentRecord.skills) ? agentRecord.skills.map((s) => String(s).trim()).filter(Boolean) : [];
 
   const mcpById = new Map((Array.isArray(mcpServers) ? mcpServers : []).filter((s) => s?.id).map((s) => [s.id, s]));
-  const legacyAllowedServers = new Set(['subagent_router', 'task_manager', 'project_files']);
-  const serverAllowsMain = (server) => {
+  const serverAllowed = (server) => {
     if (isExternalOnlyMcpServerName(server?.name) && !allowExternalOnlyMcpServers()) {
       return false;
     }
-    const explicit = server?.allowMain;
-    if (explicit === true || explicit === false) return explicit;
-    return legacyAllowedServers.has(normalizeMcpServerName(server?.name));
+    return true;
   };
   const selectedMcp = (Array.isArray(agentRecord.mcpServerIds) ? agentRecord.mcpServerIds : [])
     .map((id) => mcpById.get(id))
-    .filter((srv) => srv && srv.enabled !== false && serverAllowsMain(srv));
+    .filter((srv) => srv && srv.enabled !== false && serverAllowed(srv));
 
   const mcpPromptTexts = [];
   if (autoMcpPrompts && selectedMcp.length > 0) {

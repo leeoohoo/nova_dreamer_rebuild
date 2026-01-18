@@ -322,7 +322,7 @@ class UiAppsManager {
       return { ok: false, message: `Plugin not found: ${pluginId}` };
     }
 
-    setUiAppsPluginTrust({ pluginId, stateDir: this.stateDir, trusted });
+    setUiAppsPluginTrust({ pluginId, stateDir: this.stateDir, trusted, pluginDir: plugin?.pluginDir });
     await this.listRegistry();
     return { ok: true, trusted };
   }
@@ -390,6 +390,7 @@ class UiAppsManager {
     return isUiAppsPluginTrusted({
       pluginId,
       source: plugin?.source,
+      pluginDir: plugin?.pluginDir,
       stateDir: this.stateDir,
       env: process.env,
     });

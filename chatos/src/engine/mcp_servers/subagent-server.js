@@ -75,15 +75,17 @@ const CURRENT_FILE = fileURLToPath(import.meta.url);
 function readRegistrySnapshot(services) {
   const db = services?.mcpServers?.db || services?.prompts?.db || null;
   if (!db || typeof db.list !== 'function') {
-    return { mcpServers: [], prompts: [] };
+    return { mcpServers: [], prompts: [], mcpGrants: [], promptGrants: [] };
   }
   try {
     return {
       mcpServers: db.list('registryMcpServers') || [],
       prompts: db.list('registryPrompts') || [],
+      mcpGrants: db.list('mcpServerGrants') || [],
+      promptGrants: db.list('promptGrants') || [],
     };
   } catch {
-    return { mcpServers: [], prompts: [] };
+    return { mcpServers: [], prompts: [], mcpGrants: [], promptGrants: [] };
   }
 }
 
@@ -111,6 +113,8 @@ const landSelection = selectedLandConfig
       mcpServers: mcpServerRecords,
       registryMcpServers: registrySnapshot.mcpServers,
       registryPrompts: registrySnapshot.prompts,
+      registryMcpGrants: registrySnapshot.mcpGrants,
+      registryPromptGrants: registrySnapshot.promptGrants,
       promptLanguage,
     })
   : null;
@@ -483,13 +487,6 @@ async function ensureMcpRuntime() {
           servers.forEach((srv) => {
             if (!srv?.name) return;
             if (!allowed.has(String(srv.name || '').toLowerCase())) {
-              skip.add(srv.name);
-            }
-          });
-        } else {
-          servers.forEach((srv) => {
-            if (!srv?.name) return;
-            if (srv.allowSub === false) {
               skip.add(srv.name);
             }
           });

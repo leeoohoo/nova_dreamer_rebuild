@@ -168,18 +168,15 @@ function buildSystemPrompt({ agent, prompts, subagents, mcpServers, language, ex
   const skills = Array.isArray(agentRecord.skills) ? agentRecord.skills.map((s) => String(s).trim()).filter(Boolean) : [];
 
   const mcpById = new Map((Array.isArray(mcpServers) ? mcpServers : []).filter((s) => s?.id).map((s) => [s.id, s]));
-  const legacyAllowedServers = new Set(['subagent_router', 'task_manager', 'project_files']);
-  const serverAllowsMain = (server) => {
+  const serverAllowed = (server) => {
     if (isExternalOnlyMcpServerName(server?.name) && !allowExternalOnlyMcpServers()) {
       return false;
     }
-    const explicit = server?.allowMain;
-    if (explicit === true || explicit === false) return explicit;
-    return legacyAllowedServers.has(normalizeMcpServerName(server?.name));
+    return true;
   };
   const selectedMcp = (Array.isArray(agentRecord.mcpServerIds) ? agentRecord.mcpServerIds : [])
     .map((id) => mcpById.get(id))
-    .filter((srv) => srv && srv.enabled !== false && serverAllowsMain(srv));
+    .filter((srv) => srv && srv.enabled !== false && serverAllowed(srv));
 
   const mcpPromptTexts = [];
   if (autoMcpPrompts && selectedMcp.length > 0) {
@@ -671,8 +668,8 @@ export function createChatRunner({
                 description: typeof record?.description === 'string' ? record.description : '',
                 tags: Array.isArray(record?.tags) ? record.tags : [],
                 enabled: record?.enabled !== false,
-                allowMain: typeof record?.allowMain === 'boolean' ? record.allowMain : true,
-                allowSub: typeof record?.allowSub === 'boolean' ? record.allowSub : true,
+                allowMain: true,
+                allowSub: true,
                 auth: record?.auth || undefined,
                 callMeta: record?.callMeta || undefined,
               });
@@ -682,8 +679,8 @@ export function createChatRunner({
                 description: typeof record?.description === 'string' ? record.description : '',
                 tags: Array.isArray(record?.tags) ? record.tags : [],
                 enabled: record?.enabled !== false,
-                allowMain: typeof record?.allowMain === 'boolean' ? record.allowMain : true,
-                allowSub: typeof record?.allowSub === 'boolean' ? record.allowSub : true,
+                allowMain: true,
+                allowSub: true,
                 auth: record?.auth || undefined,
                 callMeta: record?.callMeta || undefined,
               });
@@ -714,18 +711,6 @@ export function createChatRunner({
                 `uiapp:${pluginId}:${appId}`,
                 `uiapp:${pluginId}.${appId}`,
               ];
-              const allowMain =
-                typeof registryAllowed?.allowMain === 'boolean'
-                  ? registryAllowed.allowMain
-                  : typeof mcp?.allowMain === 'boolean'
-                    ? mcp.allowMain
-                    : true;
-              const allowSub =
-                typeof registryAllowed?.allowSub === 'boolean'
-                  ? registryAllowed.allowSub
-                  : typeof mcp?.allowSub === 'boolean'
-                    ? mcp.allowSub
-                    : true;
               const enabled =
                 typeof registryAllowed?.enabled === 'boolean'
                   ? registryAllowed.enabled
@@ -745,8 +730,8 @@ export function createChatRunner({
                     : '',
                 tags: Array.isArray(registryAllowed?.tags) ? registryAllowed.tags : mergedTags,
                 enabled,
-                allowMain,
-                allowSub,
+                allowMain: true,
+                allowSub: true,
                 auth,
                 callMeta: registryAllowed?.callMeta || mcp?.callMeta || undefined,
               });
@@ -760,8 +745,8 @@ export function createChatRunner({
                     : '',
                 tags: Array.isArray(registryAllowed?.tags) ? registryAllowed.tags : mergedTags,
                 enabled,
-                allowMain,
-                allowSub,
+                allowMain: true,
+                allowSub: true,
                 auth,
                 callMeta: registryAllowed?.callMeta || mcp?.callMeta || undefined,
               });
@@ -807,8 +792,8 @@ export function createChatRunner({
                   title: typeof record?.title === 'string' ? record.title : '',
                   type: 'system',
                   content: String(record.content || '').trim(),
-                  allowMain: typeof record?.allowMain === 'boolean' ? record.allowMain : true,
-                  allowSub: typeof record?.allowSub === 'boolean' ? record.allowSub : true,
+                  allowMain: true,
+                  allowSub: true,
                   tags: Array.isArray(record?.tags) ? record.tags : [],
                 });
               }
@@ -851,8 +836,8 @@ export function createChatRunner({
               title: typeof allowedPrompt?.title === 'string' ? allowedPrompt.title : '',
               type: 'system',
               content: registryContent,
-              allowMain: typeof allowedPrompt?.allowMain === 'boolean' ? allowedPrompt.allowMain : true,
-              allowSub: typeof allowedPrompt?.allowSub === 'boolean' ? allowedPrompt.allowSub : true,
+              allowMain: true,
+              allowSub: true,
               tags: Array.isArray(allowedPrompt?.tags) ? allowedPrompt.tags : [],
             });
             derivedPromptNames.push(allowedName);

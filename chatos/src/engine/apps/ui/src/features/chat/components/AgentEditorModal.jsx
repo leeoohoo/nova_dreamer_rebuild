@@ -80,7 +80,6 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         .map((p) => ({
           value: p.id,
           label: `${p.name}${p.title ? ` · ${p.title}` : ''}`,
-          disabled: p.allowMain === false,
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [prompts]

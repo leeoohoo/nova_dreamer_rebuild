@@ -348,8 +348,8 @@ function loadSystemPromptFromDb(promptsList = [], options = {}) {
   };
   const language = normalizePromptLanguage(options?.language);
   const promptList = Array.isArray(promptsList) ? promptsList : [];
-  const resolveUseInMain = (prompt) => prompt?.allowMain === true;
-  const resolveUseInSubagent = (prompt) => prompt?.allowSub === true;
+  const resolveUseInMain = (_prompt) => true;
+  const resolveUseInSubagent = (_prompt) => true;
 
   const normalizeContent = (value) => (typeof value === 'string' ? value.trim() : '');
 

@@ -33,6 +33,35 @@ function buildPromptMap(prompts) {
   return map;
 }
 
+function buildPromptRecordMap(prompts) {
+  const map = new Map();
+  (Array.isArray(prompts) ? prompts : []).forEach((prompt) => {
+    if (!prompt) return;
+    const id = typeof prompt?.id === 'string' ? prompt.id.trim() : '';
+    if (!id) return;
+    map.set(id, prompt);
+  });
+  return map;
+}
+
+function buildGrantMap(grants, idKey) {
+  const list = Array.isArray(grants) ? grants : [];
+  if (list.length === 0) return null;
+  const map = new Map();
+  list.forEach((record) => {
+    const appId = normalizeKey(record?.app_id);
+    const id = typeof record?.[idKey] === 'string' ? record[idKey].trim() : '';
+    if (!appId || !id) return;
+    let set = map.get(appId);
+    if (!set) {
+      set = new Set();
+      map.set(appId, set);
+    }
+    set.add(id);
+  });
+  return map;
+}
+
 function resolvePromptContent(names, promptMap, registryPromptMap) {
   const candidates = Array.isArray(names) ? names : [];
   for (const name of candidates) {
@@ -55,7 +84,7 @@ function matchAppServer(server, appKey, appKeyAlt) {
   return match.some((tag) => tag === `uiapp:${appKey}` || tag === `uiapp:${appKeyAlt}`);
 }
 
-function findServerByApp({ pluginId, appId, mcpServers, registryMcpServers }) {
+function findServerByApp({ pluginId, appId, mcpServers, registryMcpServers, allowedRegistryServerIds }) {
   const pid = typeof pluginId === 'string' ? pluginId.trim() : '';
   const aid = typeof appId === 'string' ? appId.trim() : '';
   if (!pid || !aid) return null;
@@ -69,21 +98,30 @@ function findServerByApp({ pluginId, appId, mcpServers, registryMcpServers }) {
     return { server: fromAdmin, source: 'admin' };
   }
 
-  const fromRegistry = registryList.find((server) => matchAppServer(server, appKey, appKeyAlt)) || null;
+  const registryCandidates =
+    allowedRegistryServerIds instanceof Set
+      ? registryList.filter((server) => server?.id && allowedRegistryServerIds.has(String(server.id)))
+      : registryList;
+  const fromRegistry = registryCandidates.find((server) => matchAppServer(server, appKey, appKeyAlt)) || null;
   if (fromRegistry) {
     return { server: fromRegistry, source: 'registry' };
   }
   return null;
 }
 
-function addSelectedServer({ server, source, promptLang, selected, seenNames, allowExternalOnly }) {
+function addSelectedServer({ server, source, promptLang, selected, seenNames, allowExternalOnly, consumerAppId }) {
   if (!server || !server.name) return;
   if (server.enabled === false) return;
   if (!allowExternalOnly && isExternalOnlyMcpServerName(server.name)) return;
   const nameKey = normalizeKey(server.name);
   if (!nameKey || seenNames.has(nameKey)) return;
   seenNames.add(nameKey);
-  selected.push({ server, source, promptLang });
+  selected.push({
+    server,
+    source,
+    promptLang,
+    ...(consumerAppId ? { consumerAppId } : null),
+  });
 }
 
 function buildFlowSelection(flow, options) {
@@ -92,6 +130,9 @@ function buildFlowSelection(flow, options) {
     registryMcpServers,
     promptMap,
     registryPromptMap,
+    registryPromptById,
+    registryMcpGrantsByApp,
+    registryPromptGrantsByApp,
     defaultPromptLang,
     allowExternalOnly,
   } = options;
@@ -99,6 +140,32 @@ function buildFlowSelection(flow, options) {
   const selectedServers = [];
   const seenNames = new Set();
   const missingAppServers = [];
+  const registryPromptMapCache = new Map();
+
+  const resolveRegistryPromptMapForApp = (appIdRaw) => {
+    if (!registryPromptGrantsByApp || !registryPromptById) return registryPromptMap;
+    const appId = normalizeKey(appIdRaw);
+    if (!appId) return registryPromptMap;
+    if (registryPromptMapCache.has(appId)) return registryPromptMapCache.get(appId);
+    const allowed = registryPromptGrantsByApp.get(appId);
+    if (!allowed || allowed.size === 0) {
+      const empty = new Map();
+      registryPromptMapCache.set(appId, empty);
+      return empty;
+    }
+    const map = new Map();
+    allowed.forEach((id) => {
+      const prompt = registryPromptById.get(id);
+      if (!prompt) return;
+      const name = normalizeKey(prompt?.name);
+      if (!name) return;
+      const content = typeof prompt?.content === 'string' ? prompt.content.trim() : '';
+      if (!content) return;
+      map.set(name, content);
+    });
+    registryPromptMapCache.set(appId, map);
+    return map;
+  };
 
   const serverById = new Map(
     (Array.isArray(mcpServers) ? mcpServers : []).filter((srv) => srv?.id).map((srv) => [String(srv.id), srv])
@@ -111,11 +178,18 @@ function buildFlowSelection(flow, options) {
   });
 
   normalizedFlow.apps.forEach((app) => {
+    const pid = typeof app?.pluginId === 'string' ? app.pluginId.trim() : '';
+    const aid = typeof app?.appId === 'string' ? app.appId.trim() : '';
+    const consumerAppId = pid && aid ? normalizeKey(`${pid}.${aid}`) : '';
+    const allowedRegistryServerIds = registryMcpGrantsByApp
+      ? registryMcpGrantsByApp.get(consumerAppId) || new Set()
+      : null;
     const resolved = findServerByApp({
-      pluginId: app?.pluginId,
-      appId: app?.appId,
+      pluginId: pid,
+      appId: aid,
       mcpServers,
       registryMcpServers,
+      allowedRegistryServerIds,
     });
     if (!resolved?.server) {
       const key =
@@ -130,6 +204,7 @@ function buildFlowSelection(flow, options) {
       selected: selectedServers,
       seenNames,
       allowExternalOnly,
+      consumerAppId: resolved.source === 'registry' ? consumerAppId : '',
     });
   });
 
@@ -163,7 +238,11 @@ function buildFlowSelection(flow, options) {
     const lang = normalizePromptLanguage(entry?.promptLang, defaultPromptLang);
     const preferred = getMcpPromptNameForServer(serverName, lang);
     const fallback = getMcpPromptNameForServer(serverName, 'zh');
-    const resolved = resolvePromptContent([preferred, fallback], promptMap, registryPromptMap);
+    const effectiveRegistryPromptMap =
+      entry?.source === 'registry' && entry?.consumerAppId
+        ? resolveRegistryPromptMapForApp(entry.consumerAppId)
+        : registryPromptMap;
+    const resolved = resolvePromptContent([preferred, fallback], promptMap, effectiveRegistryPromptMap);
     if (resolved.content) {
       mcpPromptTextParts.push(resolved.content);
       mcpPromptNames.push(resolved.name);
@@ -198,6 +277,8 @@ export function buildLandConfigSelection({
   mcpServers,
   registryMcpServers,
   registryPrompts,
+  registryMcpGrants,
+  registryPromptGrants,
   promptLanguage,
 } = {}) {
   if (!landConfig) return null;
@@ -205,11 +286,17 @@ export function buildLandConfigSelection({
   const allowExternalOnly = allowExternalOnlyMcpServers();
   const promptMap = buildPromptMap(prompts);
   const registryPromptMap = buildPromptMap(registryPrompts);
+  const registryPromptById = buildPromptRecordMap(registryPrompts);
+  const registryMcpGrantsByApp = buildGrantMap(registryMcpGrants, 'server_id');
+  const registryPromptGrantsByApp = buildGrantMap(registryPromptGrants, 'prompt_id');
   const main = buildFlowSelection(landConfig.main, {
     mcpServers,
     registryMcpServers,
     promptMap,
     registryPromptMap,
+    registryPromptById,
+    registryMcpGrantsByApp,
+    registryPromptGrantsByApp,
     defaultPromptLang,
     allowExternalOnly,
   });
@@ -218,6 +305,9 @@ export function buildLandConfigSelection({
     registryMcpServers,
     promptMap,
     registryPromptMap,
+    registryPromptById,
+    registryMcpGrantsByApp,
+    registryPromptGrantsByApp,
     defaultPromptLang,
     allowExternalOnly,
   });

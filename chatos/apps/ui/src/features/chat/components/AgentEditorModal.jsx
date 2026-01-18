@@ -95,7 +95,6 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
           value: p.id,
           label: p.name,
           title: p.title || '',
-          disabled: p.allowMain === false,
           searchText: `${p.name} ${p.title || ''}`.trim(),
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),

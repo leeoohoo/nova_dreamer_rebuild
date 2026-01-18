@@ -34,16 +34,11 @@ export function resolveAllowedTools({ agent, mcpServers = [], allowedMcpPrefixes
   const agentRecord = agent && typeof agent === 'object' ? agent : {};
   const allowSubagents = Array.isArray(agentRecord.subagentIds) && agentRecord.subagentIds.length > 0;
 
-  const legacyAllowedServers = new Set(['subagent_router', 'task_manager', 'project_files']);
-  const serverAllowsMain = (server) => {
+  const serverAllowed = (server) => {
     if (isExternalOnlyMcpServerName(server?.name) && !allowExternalOnlyMcpServers()) {
       return false;
     }
-    const explicit = server?.allowMain;
-    if (explicit === true || explicit === false) {
-      return explicit;
-    }
-    return legacyAllowedServers.has(normalize(server?.name));
+    return true;
   };
 
   const toolNames = listTools();
@@ -71,7 +66,7 @@ export function resolveAllowedTools({ agent, mcpServers = [], allowedMcpPrefixes
   const allowedMcpNames = new Set(
     (Array.isArray(agentRecord.mcpServerIds) ? agentRecord.mcpServerIds : [])
       .map((id) => mcpServers.find((srv) => srv?.id === id))
-      .filter((srv) => srv && srv.enabled !== false && serverAllowsMain(srv))
+      .filter((srv) => srv && srv.enabled !== false && serverAllowed(srv))
       .map((srv) => srv.name)
       .filter(Boolean)
       .map((name) => normalize(name))

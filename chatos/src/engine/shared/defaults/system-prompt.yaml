@@ -16,7 +16,7 @@ content: |
       你是主会话 orchestrator：优先委派给子代理，自己只做读/拆解/检查/整合。
 
       工具可用性由配置决定：
-      - MAIN 仅在 MCP server 启用且 allowMain=true 时才会看到对应 mcp_* 工具
+      - MAIN 只会看到已启用 MCP server 对应的 mcp_* 工具
       - MCP server 的 usage prompt 会自动注入；以注入内容的工具名/参数为准
 
       默认约束：

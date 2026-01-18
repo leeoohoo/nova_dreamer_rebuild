@@ -1,7 +1,11 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
 const TRUST_FILE_NAME = 'trust.json';
+const FINGERPRINT_VERSION = 1;
+const IGNORED_DIRS = new Set(['node_modules', '.git']);
+const IGNORED_FILES = new Set(['.DS_Store']);
 
 function resolveBoolEnv(value, fallback = false) {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -15,6 +19,63 @@ export function resolveUiAppsTrustPath(stateDir) {
   const base = typeof stateDir === 'string' ? stateDir.trim() : '';
   if (!base) return '';
   return path.join(base, 'ui_apps', TRUST_FILE_NAME);
+}
+
+function shouldIgnoreEntry(entry) {
+  const name = typeof entry?.name === 'string' ? entry.name : '';
+  if (!name) return true;
+  if (entry.isDirectory() && IGNORED_DIRS.has(name)) return true;
+  if (entry.isFile() && (IGNORED_FILES.has(name) || name.endsWith('.map'))) return true;
+  return false;
+}
+
+function computePluginFingerprint(pluginDir) {
+  const root = typeof pluginDir === 'string' ? pluginDir.trim() : '';
+  if (!root) return '';
+  let stat;
+  try {
+    stat = fs.statSync(root);
+  } catch {
+    return '';
+  }
+  if (!stat.isDirectory()) return '';
+
+  const hash = crypto.createHash('sha256');
+
+  const walk = (dir) => {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    entries.forEach((entry) => {
+      if (!entry) return;
+      if (entry.isSymbolicLink && entry.isSymbolicLink()) return;
+      if (shouldIgnoreEntry(entry)) return;
+      const fullPath = path.join(dir, entry.name);
+      const relative = path.relative(root, fullPath).replace(/\\/g, '/');
+      if (!relative) return;
+      if (entry.isDirectory()) {
+        hash.update(`dir:${relative}\n`);
+        walk(fullPath);
+        return;
+      }
+      if (entry.isFile()) {
+        let fileStat;
+        try {
+          fileStat = fs.statSync(fullPath);
+        } catch {
+          return;
+        }
+        hash.update(`file:${relative}:${fileStat.size}:${fileStat.mtimeMs}\n`);
+      }
+    });
+  };
+
+  walk(root);
+  return `${FINGERPRINT_VERSION}:${hash.digest('hex')}`;
 }
 
 export function loadUiAppsTrustStore(stateDir) {
@@ -44,15 +105,17 @@ export function saveUiAppsTrustStore(stateDir, store) {
   }
 }
 
-export function setUiAppsPluginTrust({ pluginId, stateDir, trusted }) {
+export function setUiAppsPluginTrust({ pluginId, stateDir, trusted, pluginDir }) {
   const id = typeof pluginId === 'string' ? pluginId.trim() : '';
   if (!id) return null;
   const store = loadUiAppsTrustStore(stateDir);
   if (!store.plugins || typeof store.plugins !== 'object') {
     store.plugins = {};
   }
+  const fingerprint = trusted && pluginDir ? computePluginFingerprint(pluginDir) : '';
   store.plugins[id] = {
     trusted: Boolean(trusted),
+    fingerprint: fingerprint || undefined,
     updatedAt: new Date().toISOString(),
   };
   saveUiAppsTrustStore(stateDir, store);
@@ -67,13 +130,13 @@ export function ensureUiAppsPluginTrustRecord({ pluginId, stateDir }) {
     store.plugins = {};
   }
   if (!store.plugins[id]) {
-    store.plugins[id] = { trusted: false, updatedAt: new Date().toISOString() };
+    store.plugins[id] = { trusted: false, fingerprint: undefined, updatedAt: new Date().toISOString() };
     saveUiAppsTrustStore(stateDir, store);
   }
   return store;
 }
 
-export function isUiAppsPluginTrusted({ pluginId, source, stateDir, env = process.env } = {}) {
+export function isUiAppsPluginTrusted({ pluginId, source, stateDir, pluginDir, env = process.env } = {}) {
   const id = typeof pluginId === 'string' ? pluginId.trim() : '';
   if (!id) return false;
   if (source === 'builtin') return true;
@@ -81,6 +144,10 @@ export function isUiAppsPluginTrusted({ pluginId, source, stateDir, env = proces
   if (trustAll) return true;
   const store = loadUiAppsTrustStore(stateDir);
   const record = store?.plugins && store.plugins[id] ? store.plugins[id] : null;
-  return record?.trusted === true;
+  if (record?.trusted !== true) return false;
+  const expected = typeof record?.fingerprint === 'string' ? record.fingerprint.trim() : '';
+  if (!expected) return true;
+  const current = pluginDir ? computePluginFingerprint(pluginDir) : '';
+  if (!current) return false;
+  return current === expected;
 }
-

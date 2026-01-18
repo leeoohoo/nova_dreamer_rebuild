@@ -78,9 +78,10 @@ export function buildMcpPromptBundles({ prompts = [], mcpServers = [], language 
     };
   };
 
+  const isEnabled = (srv) => srv.enabled !== false;
   return {
-    main: buildFor((srv) => srv.enabled !== false && srv.allowMain === true),
-    subagent: buildFor((srv) => srv.enabled !== false && srv.allowSub !== false),
+    main: buildFor(isEnabled),
+    subagent: buildFor(isEnabled),
   };
 }
 

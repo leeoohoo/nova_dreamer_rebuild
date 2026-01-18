@@ -121,7 +121,7 @@ function McpServersManager({
     [normalizePromptText]
   );
   const upsertPrompt = useCallback(
-    async ({ existing, name, serverName, content, lang, allowMain, allowSub }) => {
+    async ({ existing, name, serverName, content, lang }) => {
       if (!canManagePrompts) return;
       const trimmed = normalizePromptText(content);
       if (!trimmed) return;
@@ -136,8 +136,8 @@ function McpServersManager({
         name,
         title: resolvePromptTitle(existing, serverName, lang),
         content: trimmed,
-        allowMain: allowMain === true,
-        allowSub: allowSub !== false,
+        allowMain: true,
+        allowSub: true,
       };
       if (existing?.id) {
         await promptActions.update(existing.id, payload);
@@ -152,8 +152,6 @@ function McpServersManager({
       if (!canManagePrompts) return;
       const serverName = typeof values?.name === 'string' ? values.name.trim() : '';
       if (!serverName) return;
-      const allowMain = existing?.allowMain === true;
-      const allowSub = existing?.allowSub !== false;
       const { zh: promptZhName, en: promptEnName } = getPromptNames(serverName);
       const previous = existing?.name || '';
       const { zh: prevZhName, en: prevEnName } = getPromptNames(previous);
@@ -165,8 +163,6 @@ function McpServersManager({
         serverName,
         content: values?.promptZh,
         lang: 'zh',
-        allowMain,
-        allowSub,
       });
       await upsertPrompt({
         existing: enPrompt,
@@ -174,8 +170,6 @@ function McpServersManager({
         serverName,
         content: values?.promptEn,
         lang: 'en',
-        allowMain,
-        allowSub,
       });
     },
     [canManagePrompts, getPromptNames, resolvePromptRecord, upsertPrompt]

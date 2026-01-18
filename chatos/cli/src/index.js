@@ -333,15 +333,17 @@ function runListModels() {
 function readRegistrySnapshot(services) {
   const db = services?.mcpServers?.db || services?.prompts?.db || null;
   if (!db || typeof db.list !== 'function') {
-    return { mcpServers: [], prompts: [] };
+    return { mcpServers: [], prompts: [], mcpGrants: [], promptGrants: [] };
   }
   try {
     return {
       mcpServers: db.list('registryMcpServers') || [],
       prompts: db.list('registryPrompts') || [],
+      mcpGrants: db.list('mcpServerGrants') || [],
+      promptGrants: db.list('promptGrants') || [],
     };
   } catch {
-    return { mcpServers: [], prompts: [] };
+    return { mcpServers: [], prompts: [], mcpGrants: [], promptGrants: [] };
   }
 }
 
@@ -389,6 +391,8 @@ async function runChat(options) {
         mcpServers: mcpServerRecords,
         registryMcpServers: registrySnapshot.mcpServers,
         registryPrompts: registrySnapshot.prompts,
+        registryMcpGrants: registrySnapshot.mcpGrants,
+        registryPromptGrants: registrySnapshot.promptGrants,
         promptLanguage,
       })
     : null;
@@ -455,17 +459,7 @@ async function runChat(options) {
             .filter((srv) => srv?.name && !selectedServerKeys.has(normalizeServerKey(srv.name)))
             .map((srv) => srv.name)
         : []
-      : Array.isArray(mcpSummary?.servers)
-        ? mcpSummary.servers
-            .filter(
-              (srv) =>
-                srv?.name &&
-                srv.enabled !== false &&
-                srv.allowMain !== true &&
-                srv.allowSub === false
-            )
-            .map((srv) => srv.name)
-        : [];
+      : [];
     mcpRuntime = await initializeMcpRuntime(
       resolvedConfigPath,
       process.env.MODEL_CLI_SESSION_ROOT,
@@ -488,29 +482,22 @@ async function runChat(options) {
   const targetSettings = config.getModel(resolvedOptions.model || null);
 
   const mainAllowed = ['invoke_sub_agent', 'get_current_time'];
-  const legacyAllowedServers = new Set(['subagent_router', 'task_manager', 'project_files']);
   const normalizeServerName = (value) =>
     String(value || '')
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9_-]+/g, '_');
   const allowExternalOnly = allowExternalOnlyMcpServers();
-  const serverAllowsMain = (server) => {
-    if (isExternalOnlyMcpServerName(server?.name) && !allowExternalOnly) {
-      return false;
-    }
-    const explicit = server?.allowMain;
-    if (explicit === true || explicit === false) {
-      return explicit;
-    }
-    const name = normalizeServerName(server?.name);
-    return legacyAllowedServers.has(name);
-  };
   const allowPrefixes = landSelection
     ? Array.from(new Set((landSelection.main?.selectedServerNames || []).map((name) => `mcp_${name}_`)))
     : Array.isArray(mcpSummary?.servers)
       ? mcpSummary.servers
-          .filter((srv) => srv?.name && serverAllowsMain(srv))
+          .filter(
+            (srv) =>
+              srv?.name &&
+              srv.enabled !== false &&
+              (allowExternalOnly || !isExternalOnlyMcpServerName(srv.name))
+          )
           .map((srv) => `mcp_${normalizeServerName(srv.name)}_`)
       : ['mcp_subagent_router_', 'mcp_task_manager_', 'mcp_project_files_'];
   const subagentAllowPrefixes = landSelection
@@ -520,16 +507,7 @@ async function runChat(options) {
         );
         return prefixes.length > 0 ? prefixes : ['__none__'];
       })()
-    : Array.isArray(mcpSummary?.servers)
-      ? mcpSummary.servers
-          .filter(
-            (srv) =>
-              srv?.name &&
-              srv.allowSub !== false &&
-              (allowExternalOnly || !isExternalOnlyMcpServerName(srv.name))
-          )
-          .map((srv) => `mcp_${normalizeServerName(srv.name)}_`)
-      : null;
+    : null;
   const registeredTools = new Set(listTools());
   const filterMainTools = (modelName) => {
     const settings = config.getModel(modelName || targetSettings.name);
