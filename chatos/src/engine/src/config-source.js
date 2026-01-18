@@ -45,7 +45,7 @@ export function getAdminServices() {
     pluginsDir: path.join(projectRoot, 'subagents', 'plugins'),
     pluginsDirUser: path.join(stateDir, 'subagents', 'plugins'),
     installedSubagents: path.join(stateDir, 'subagents.json'),
-    adminDb: path.join(stateDir, `${getHostApp() || 'aide'}.db.sqlite`),
+    adminDb: path.join(stateDir, `${getHostApp() || 'chatos'}.db.sqlite`),
   };
   const seed = legacySeed || buildAdminSeed(defaultPaths);
   const adminDb = createDb({
@@ -72,8 +72,8 @@ export function getAdminServices() {
 }
 
 function maybePurgeUiAppsSyncedAdminData({ stateDir, services } = {}) {
-  const host = getHostApp() || 'aide';
-  if (host !== 'chatos' && host !== 'aide') return;
+  const host = getHostApp() || 'chatos';
+  if (host !== 'chatos') return;
   if (!stateDir || !services?.mcpServers || !services?.prompts) return;
 
   const markerPath = path.join(stateDir, '.uiapps-ai-sync-purged.json');
@@ -207,7 +207,7 @@ function readLegacyState(filePath) {
 
 function refreshBuiltinMcpServers(adminDb, services, defaultPaths) {
   const now = new Date().toISOString();
-  const hostApp = getHostApp() || 'aide';
+  const hostApp = getHostApp() || 'chatos';
   try {
     const raw =
       safeRead(path.join(path.resolve(defaultPaths.defaultsRoot || ''), 'shared', 'defaults', 'mcp.config.json')) ||

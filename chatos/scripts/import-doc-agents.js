@@ -7,10 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const cliRoot = path.resolve(projectRoot, 'src', 'aide');
+const engineRoot = path.resolve(projectRoot, 'src', 'engine');
 const docRoot = path.join(projectRoot, 'doc', 'agents');
 const sourcePluginsDir = path.join(docRoot, 'plugins');
-const destinationRoot = path.join(cliRoot, 'subagents');
+const destinationRoot = path.join(engineRoot, 'subagents');
 const destinationPluginsDir = path.join(destinationRoot, 'plugins');
 const marketplacePath = path.join(destinationRoot, 'marketplace.json');
 const pluginDocsPath = path.join(docRoot, 'docs', 'plugins.md');

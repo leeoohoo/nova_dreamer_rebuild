@@ -38,7 +38,7 @@ export const TABLE_SCHEMAS = {
     description: 'MCP 服务器注册表',
     columns: [
       { name: 'id', type: 'string', required: true, note: 'UUID 主键' },
-      { name: 'app_id', type: 'string', required: true, note: '归属应用（按 host/app 隔离，例如 aide/chatos）' },
+      { name: 'app_id', type: 'string', required: true, note: '归属应用（按 host/app 隔离，例如 chatos/git_app）' },
       { name: 'name', type: 'string', required: true },
       { name: 'url', type: 'string', required: true, note: 'ws/wss/http 入口' },
       { name: 'description', type: 'string', required: false },

@@ -4,29 +4,29 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ConfigError, createAppConfigFromModels } from './config.js';
-import { ChatSession } from './session.js';
-import { ModelClient } from './client.js';
-import * as colors from './colors.js';
-import { createLogger } from './logger.js';
-import { runStartupWizard } from './ui/index.js';
-import { initializeMcpRuntime } from './mcp/runtime.js';
-import { loadPromptProfilesFromDb } from './prompts.js';
-import { chatLoop } from './chat-loop.js';
-import { loadMcpConfig } from './mcp.js';
-import { buildLandConfigSelection, resolveLandConfig } from './land-config.js';
-import { createSubAgentManager } from './subagents/index.js';
-import { generateConfigReport, writeReport } from './report.js';
-import { writeSessionReport } from './session-report.js';
-import { createEventLogger } from './event-log.js';
-import { getAdminServices } from './config-source.js';
-import { listTools } from './tools/index.js';
-import { terminalPlatform } from './terminal/platform/index.js';
-import { resolveSessionRoot, persistSessionRoot } from '../shared/session-root.js';
-import { applySecretsToProcessEnv } from '../shared/secrets-env.js';
-import { ensureAppStateDir, resolveAppStateDir } from '../shared/state-paths.js';
-import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../shared/host-app.js';
-import { createRuntimeLogger } from '../shared/runtime-log.js';
+import { ConfigError, createAppConfigFromModels } from '../../src/engine/src/config.js';
+import { ChatSession } from '../../src/engine/src/session.js';
+import { ModelClient } from '../../src/engine/src/client.js';
+import * as colors from '../../src/engine/src/colors.js';
+import { createLogger } from '../../src/engine/src/logger.js';
+import { runStartupWizard } from '../../src/engine/src/ui/index.js';
+import { initializeMcpRuntime } from '../../src/engine/src/mcp/runtime.js';
+import { loadPromptProfilesFromDb } from '../../src/engine/src/prompts.js';
+import { chatLoop } from '../../src/engine/src/chat-loop.js';
+import { loadMcpConfig } from '../../src/engine/src/mcp.js';
+import { buildLandConfigSelection, resolveLandConfig } from '../../src/engine/src/land-config.js';
+import { createSubAgentManager } from '../../src/engine/src/subagents/index.js';
+import { generateConfigReport, writeReport } from '../../src/engine/src/report.js';
+import { writeSessionReport } from '../../src/engine/src/session-report.js';
+import { createEventLogger } from '../../src/engine/src/event-log.js';
+import { getAdminServices } from '../../src/engine/src/config-source.js';
+import { listTools } from '../../src/engine/src/tools/index.js';
+import { terminalPlatform } from '../../src/engine/src/terminal/platform/index.js';
+import { resolveSessionRoot, persistSessionRoot } from '../../src/engine/shared/session-root.js';
+import { applySecretsToProcessEnv } from '../../src/engine/shared/secrets-env.js';
+import { ensureAppStateDir, resolveAppStateDir } from '../../src/engine/shared/state-paths.js';
+import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../src/engine/shared/host-app.js';
+import { createRuntimeLogger } from '../../src/engine/shared/runtime-log.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,7 +41,7 @@ const COMMANDS = {
 };
 
 if (!process.env.MODEL_CLI_HOST_APP) {
-  process.env.MODEL_CLI_HOST_APP = 'aide';
+  process.env.MODEL_CLI_HOST_APP = 'chatos';
 }
 
 main().catch((err) => {

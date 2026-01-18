@@ -5,7 +5,7 @@ import { getHostApp } from '../../host-app.js';
 export class McpService extends BaseService {
   constructor(db) {
     super(db, 'mcpServers', mcpServerSchema);
-    this.appId = getHostApp() || 'aide';
+    this.appId = getHostApp() || 'chatos';
     this.#maybeBackfillAppId();
   }
 
@@ -69,7 +69,7 @@ export class McpService extends BaseService {
     const host = this.#normalizeAppId(this.appId);
     if (!host) return true;
     // UI Apps 暴露的 MCP servers 只应在 ChatOS(host=chatos) 里可见/可用；
-    // AIDE 等独立 host 只使用内置/用户自定义的 MCP，不接纳 UIApp 的 MCP 列表。
+    // 独立 host 只使用内置/用户自定义的 MCP，不接纳 UIApp 的 MCP 列表。
     if (host !== 'chatos' && this.#isUiAppServer(record)) {
       return false;
     }

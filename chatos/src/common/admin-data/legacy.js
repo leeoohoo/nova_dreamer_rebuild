@@ -311,7 +311,7 @@ export function parseEvents(content = '') {
 
 export function buildAdminSeed(defaultPaths = {}) {
   const now = new Date().toISOString();
-  const hostApp = getHostApp() || 'aide';
+  const hostApp = getHostApp() || 'chatos';
   const seed = {
     models: [],
     mcpServers: [],

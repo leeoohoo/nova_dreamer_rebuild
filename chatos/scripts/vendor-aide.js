@@ -7,9 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const internalAideRoot = path.resolve(projectRoot, 'src', 'aide');
+const internalEngineRoot = path.resolve(projectRoot, 'src', 'engine');
 const externalAideRoot = [path.resolve(projectRoot, '..', 'aide')].find(
-  (candidate) => isDirectory(candidate) && path.resolve(candidate) !== internalAideRoot
+  (candidate) => isDirectory(candidate) && path.resolve(candidate) !== internalEngineRoot
 );
 
 const INCLUDE_DIRS = ['src', 'shared', 'subagents', 'mcp_servers', 'electron', 'cli-ui'];
@@ -63,8 +63,8 @@ function listFilesRecursive(dirPath) {
   return results;
 }
 
-function patchEmbeddedAideCommonImports(aideRoot) {
-  const root = typeof aideRoot === 'string' ? aideRoot.trim() : '';
+function patchEmbeddedEngineCommonImports(engineRoot) {
+  const root = typeof engineRoot === 'string' ? engineRoot.trim() : '';
   if (!root) return;
   const sharedRoot = path.join(root, 'shared');
   if (!isDirectory(sharedRoot)) return;
@@ -96,33 +96,33 @@ function patchEmbeddedAideCommonImports(aideRoot) {
 
 function main() {
   if (!externalAideRoot) {
-    if (isDirectory(internalAideRoot)) {
-      patchEmbeddedAideCommonImports(internalAideRoot);
-      console.log('[sync:aide] No external aide sources found; using bundled aide.');
+    if (isDirectory(internalEngineRoot)) {
+      patchEmbeddedEngineCommonImports(internalEngineRoot);
+      console.log('[sync:engine] No external aide sources found; using bundled engine.');
       return;
     }
-    console.error('[sync:aide] External aide directory not found.');
-    console.error('[sync:aide] Expected monorepo layout: <repo>/chatos (with src/aide/) or <repo>/aide.');
+    console.error('[sync:engine] External aide directory not found.');
+    console.error('[sync:engine] Expected monorepo layout: <repo>/chatos (with src/engine/) or <repo>/aide.');
     process.exit(1);
   }
 
   try {
-    fs.rmSync(internalAideRoot, { recursive: true, force: true });
+    fs.rmSync(internalEngineRoot, { recursive: true, force: true });
   } catch {
     // ignore
   }
 
-  fs.mkdirSync(internalAideRoot, { recursive: true });
+  fs.mkdirSync(internalEngineRoot, { recursive: true });
   INCLUDE_DIRS.forEach((name) => {
     const src = path.join(externalAideRoot, name);
     if (!isDirectory(src)) return;
-    const dest = path.join(internalAideRoot, name);
+    const dest = path.join(internalEngineRoot, name);
     copyDir(src, dest);
   });
 
-  patchEmbeddedAideCommonImports(internalAideRoot);
+  patchEmbeddedEngineCommonImports(internalEngineRoot);
 
-  console.log(`[sync:aide] Vendored aide into: ${internalAideRoot}`);
+  console.log(`[sync:engine] Vendored aide into: ${internalEngineRoot}`);
 }
 
 main();

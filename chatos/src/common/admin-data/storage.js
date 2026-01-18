@@ -48,7 +48,7 @@ if (!driver) {
 
 export function getDefaultDbPath(env = process.env) {
   const home = getHomeDir(env) || os.homedir();
-  const hostApp = resolveHostApp({ env, fallbackHostApp: 'aide' }) || 'aide';
+  const hostApp = resolveHostApp({ env, fallbackHostApp: 'chatos' }) || 'chatos';
   if (home && hostApp) {
     const dir = path.join(home, '.deepseek_cli', hostApp);
     const desired = path.join(dir, `${hostApp}.db.sqlite`);

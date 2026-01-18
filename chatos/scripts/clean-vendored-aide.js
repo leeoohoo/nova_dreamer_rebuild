@@ -7,13 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const internalAideRoot = path.resolve(projectRoot, 'src', 'aide');
+const internalEngineRoot = path.resolve(projectRoot, 'src', 'engine');
 
 try {
-  fs.rmSync(internalAideRoot, { recursive: true, force: true });
-  console.log(`[clean:aide] Removed vendored aide directory: ${internalAideRoot}`);
+  fs.rmSync(internalEngineRoot, { recursive: true, force: true });
+  console.log(`[clean:engine] Removed vendored engine directory: ${internalEngineRoot}`);
 } catch (err) {
-  console.error(`[clean:aide] Failed to remove ${internalAideRoot}: ${err?.message || String(err)}`);
+  console.error(`[clean:engine] Failed to remove ${internalEngineRoot}: ${err?.message || String(err)}`);
   process.exitCode = 1;
 }
 

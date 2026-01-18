@@ -14,15 +14,15 @@ export function resolveLegacyStateDir(sessionRoot) {
 }
 
 export function resolveAppStateDir(sessionRoot, options = {}) {
-  return resolveAppStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
+  return resolveAppStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'chatos' });
 }
 
 export function maybeMigrateLegacyStateDir(sessionRoot, options = {}) {
-  return maybeMigrateLegacyStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
+  return maybeMigrateLegacyStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'chatos' });
 }
 
 export function ensureAppStateDir(sessionRoot, options = {}) {
-  return ensureAppStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
+  return ensureAppStateDirCore(sessionRoot, { ...options, fallbackHostApp: 'chatos' });
 }
 
 export function resolveAppDbFileName(hostApp) {
@@ -34,9 +34,9 @@ export function resolveAppDbJsonFileName(hostApp) {
 }
 
 export function maybeMigrateLegacyDbFiles(stateDir, options = {}) {
-  return maybeMigrateLegacyDbFilesCore(stateDir, { ...options, fallbackHostApp: 'aide' });
+  return maybeMigrateLegacyDbFilesCore(stateDir, { ...options, fallbackHostApp: 'chatos' });
 }
 
 export function ensureAppDbPath(sessionRoot, options = {}) {
-  return ensureAppDbPathCore(sessionRoot, { ...options, fallbackHostApp: 'aide' });
+  return ensureAppDbPathCore(sessionRoot, { ...options, fallbackHostApp: 'chatos' });
 }

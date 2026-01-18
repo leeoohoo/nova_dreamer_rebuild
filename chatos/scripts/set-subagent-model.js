@@ -1,12 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { resolveAideRoot } from '../src/aide-paths.js';
+import { resolveEngineRoot } from '../src/engine-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
-const cliRoot = resolveAideRoot({ projectRoot });
+const cliRoot = resolveEngineRoot({ projectRoot });
 
 function parseArgs(argv) {
   const args = { model: null, plugins: [], all: false, dryRun: false, root: null };
@@ -41,7 +41,7 @@ Usage:
   node scripts/set-subagent-model.js --model <model_id> [--plugins a,b] [--all] [--dry-run] [--root <plugins_dir>]
 
 Defaults:
-  --root defaults to <repo>/chatos/src/aide/subagents/plugins
+  --root defaults to <repo>/chatos/src/engine/subagents/plugins
   if neither --plugins nor --all is provided, all plugins are scanned.
 `);
 }
@@ -87,7 +87,7 @@ function main() {
     process.exit(1);
   }
   if (!cliRoot) {
-    console.error('AIDE sources not found (expected ./src/aide relative to chatos).');
+    console.error('Engine sources not found (expected ./src/engine relative to chatos).');
     process.exit(1);
   }
   const root = args.root || path.join(cliRoot, 'subagents', 'plugins');

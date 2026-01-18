@@ -34,7 +34,7 @@ function isUiAppServer(entry) {
 
 function filterServersForRuntime(servers) {
   const list = Array.isArray(servers) ? servers : [];
-  const host = normalizeHostAppName(process.env.MODEL_CLI_HOST_APP || 'aide');
+  const host = normalizeHostAppName(process.env.MODEL_CLI_HOST_APP || 'chatos');
   if (!host) return list;
   return list.filter((entry) => {
     const uiapp = isUiAppServer(entry);

@@ -25,14 +25,14 @@ import { createCliShim } from './cli-shim.js';
 import { createTerminalManager } from './terminal-manager.js';
 import { registerChatApi } from './chat/index.js';
 import { ensureAllSubagentsInstalled, maybePurgeUiAppsSyncedAdminData, readLegacyState } from './main-helpers.js';
-import { resolveAideRoot } from '../src/aide-paths.js';
+import { resolveEngineRoot } from '../src/engine-paths.js';
 import { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
 import { ensureAppStateDir } from '../src/common/state-core/state-paths.js';
 import { resolveRuntimeLogPath } from '../src/common/state-core/runtime-log.js';
 import { createDb } from '../src/common/admin-data/storage.js';
 import { createAdminServices } from '../src/common/admin-data/services/index.js';
 import { syncAdminToFiles } from '../src/common/admin-data/sync.js';
-import { buildAdminSeed, parseMcpServers, loadBuiltinPromptFiles } from '../src/common/admin-data/legacy.js';
+import { buildAdminSeed } from '../src/common/admin-data/legacy.js';
 import { createLspInstaller } from './lsp-installer.js';
 import { ConfigApplier } from '../src/core/session/ConfigApplier.js';
 import { readLastLinesFromFile } from './sessions/utils.js';
@@ -48,21 +48,21 @@ const sessionRoot = resolveSessionRoot();
 process.env.MODEL_CLI_SESSION_ROOT = sessionRoot;
 persistSessionRoot(sessionRoot);
 
-const cliRoot = resolveAideRoot({ projectRoot });
-if (!cliRoot) {
-  throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
+const engineRoot = resolveEngineRoot({ projectRoot });
+if (!engineRoot) {
+  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
 }
-const resolveAideEngineModule = (relativePath) => {
+const resolveEngineModule = (relativePath) => {
   const rel = typeof relativePath === 'string' ? relativePath.trim() : '';
-  if (!rel) throw new Error('AIDE module path is required');
-  const srcCandidate = path.join(cliRoot, 'src', rel);
+  if (!rel) throw new Error('Engine module path is required');
+  const srcCandidate = path.join(engineRoot, 'src', rel);
   if (fs.existsSync(srcCandidate)) return srcCandidate;
-  const distCandidate = path.join(cliRoot, 'dist', rel);
+  const distCandidate = path.join(engineRoot, 'dist', rel);
   if (fs.existsSync(distCandidate)) return distCandidate;
-  throw new Error(`AIDE module not found: ${rel}`);
+  throw new Error(`Engine module not found: ${rel}`);
 };
 const { createSubAgentManager } = await import(
-  pathToFileURL(resolveAideEngineModule('subagents/index.js')).href
+  pathToFileURL(resolveEngineModule('subagents/index.js')).href
 );
 
 const appIconPath = resolveAppIconPath();
@@ -99,7 +99,7 @@ const ENABLE_ALL_SUBAGENTS = resolveBoolEnv('MODEL_CLI_ENABLE_ALL_SUBAGENTS', Bo
 // IMPORTANT: keep UI Apps scanning read-only by default; only enable DB sync explicitly via env.
 const UIAPPS_SYNC_AI_CONTRIBUTES = resolveBoolEnv('MODEL_CLI_UIAPPS_SYNC_AI_CONTRIBUTES', false);
 const BUILTIN_UI_APPS_DIR = path.join(projectRoot, 'ui_apps', 'plugins');
-const REGISTRY_KNOWN_APPS = Array.from(new Set([hostApp, 'aide', 'git_app', 'wsl'].filter(Boolean)));
+const REGISTRY_KNOWN_APPS = Array.from(new Set([hostApp, 'git_app', 'wsl'].filter(Boolean)));
 const sanitizeAdminForUi = (snapshot) => {
   const sanitized = sanitizeAdminSnapshot(snapshot);
   if (UI_DEVELOPER_MODE || UI_EXPOSE_SUBAGENTS) return sanitized;
@@ -347,7 +347,7 @@ ipcMain.handle('lsp:install', async (_event, payload = {}) => {
 });
 
 const defaultPaths = {
-  defaultsRoot: cliRoot,
+  defaultsRoot: engineRoot,
   models: path.join(authDir, 'models.yaml'),
   systemPrompt: path.join(authDir, 'system-prompt.yaml'),
   systemDefaultPrompt: path.join(authDir, 'system-default-prompt.yaml'),
@@ -360,9 +360,9 @@ const defaultPaths = {
   fileChanges: path.join(stateDir, 'file-changes.jsonl'),
   uiPrompts: path.join(stateDir, 'ui-prompts.jsonl'),
   runs: path.join(stateDir, 'runs.jsonl'),
-  marketplace: path.join(cliRoot, 'subagents', 'marketplace.json'),
+  marketplace: path.join(engineRoot, 'subagents', 'marketplace.json'),
   marketplaceUser: path.join(stateDir, 'subagents', 'marketplace.json'),
-  pluginsDir: path.join(cliRoot, 'subagents', 'plugins'),
+  pluginsDir: path.join(engineRoot, 'subagents', 'plugins'),
   pluginsDirUser: path.join(stateDir, 'subagents', 'plugins'),
   installedSubagents: path.join(stateDir, 'subagents.json'),
   adminDb: path.join(stateDir, `${hostApp}.db.sqlite`),
@@ -431,7 +431,7 @@ const workspaceOps = createWorkspaceOps({
 });
 
 const subAgentManager = createSubAgentManager({
-  baseDir: path.join(cliRoot, 'subagents'),
+  baseDir: path.join(engineRoot, 'subagents'),
   stateDir,
 });
 
@@ -444,14 +444,14 @@ sessionApi = createSessionApi({
   uiFlags: UI_FLAGS,
 });
 
-const cliShim = createCliShim({ projectRoot: cliRoot, commandName: CLI_COMMAND_NAME });
+const cliShim = createCliShim({ projectRoot: engineRoot, commandName: CLI_COMMAND_NAME });
 const legacyCliShim =
   process.platform === 'win32' && CLI_COMMAND_NAME !== LEGACY_CLI_COMMAND_NAME
-    ? createCliShim({ projectRoot: cliRoot, commandName: LEGACY_CLI_COMMAND_NAME })
+    ? createCliShim({ projectRoot: engineRoot, commandName: LEGACY_CLI_COMMAND_NAME })
     : null;
 
 terminalManager = createTerminalManager({
-  projectRoot: cliRoot,
+  projectRoot: engineRoot,
   terminalsDir,
   sessionRoot,
   defaultPaths,
@@ -548,50 +548,6 @@ Promise.resolve()
         continue;
       }
 
-      if (appId === 'aide' && cliRoot) {
-        try {
-          const mcpDefaultsPath = path.join(cliRoot, 'shared', 'defaults', 'mcp.config.json');
-          const raw = fs.existsSync(mcpDefaultsPath) ? fs.readFileSync(mcpDefaultsPath, 'utf8') : '';
-          const defaults = parseMcpServers(raw);
-          (Array.isArray(defaults) ? defaults : []).forEach((srv) => {
-            const name = typeof srv?.name === 'string' ? srv.name.trim() : '';
-            const url = typeof srv?.url === 'string' ? srv.url.trim() : '';
-            if (!name || !url) return;
-            registryCenter.registerMcpServer('aide', {
-              id: name,
-              name,
-              url,
-              description: typeof srv?.description === 'string' ? srv.description : '',
-              tags: Array.isArray(srv?.tags) ? srv.tags : [],
-              enabled: srv?.enabled !== false,
-              allowMain: srv?.allowMain === true,
-              allowSub: srv?.allowSub !== false,
-              auth: srv?.auth || undefined,
-            });
-          });
-        } catch {
-          // ignore
-        }
-
-        try {
-          const builtinPrompts = loadBuiltinPromptFiles({ defaultsRoot: cliRoot });
-          (Array.isArray(builtinPrompts) ? builtinPrompts : []).forEach((prompt) => {
-            const name = typeof prompt?.name === 'string' ? prompt.name.trim() : '';
-            const content = typeof prompt?.content === 'string' ? prompt.content : '';
-            if (!name || !content.trim()) return;
-            registryCenter.registerPrompt('aide', {
-              id: name,
-              name,
-              title: typeof prompt?.title === 'string' ? prompt.title : '',
-              content,
-              allowMain: prompt?.allowMain === true,
-              allowSub: prompt?.allowSub === true,
-            });
-          });
-        } catch {
-          // ignore
-        }
-      }
     }
   })
   .catch(() => {});

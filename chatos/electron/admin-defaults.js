@@ -7,7 +7,7 @@ import {
   parseMcpServers,
   parseModelsWithDefault,
   safeRead,
-} from '../src/aide/shared/data/legacy.js';
+} from '../src/engine/shared/data/legacy.js';
 import { getHostApp } from '../src/common/host-app.js';
 
 export { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';

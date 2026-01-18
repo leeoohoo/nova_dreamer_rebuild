@@ -6,14 +6,14 @@ import { fileURLToPath } from 'url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { resolveAideRoot } from '../src/aide-paths.js';
+import { resolveEngineRoot } from '../src/engine-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
-const cliRoot = resolveAideRoot({ projectRoot: repoRoot });
-if (!cliRoot) {
-  throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
+const engineRoot = resolveEngineRoot({ projectRoot: repoRoot });
+if (!engineRoot) {
+  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
 }
 
 const activeTransports = new Set();
@@ -153,7 +153,7 @@ async function connectUiPrompter({ runId, sessionRoot: root }) {
   const client = new Client({ name: 'ui-prompt-test', version: '0.1.0' });
   const transport = new StdioClientTransport({
     command: 'node',
-    args: [path.join(cliRoot, 'mcp_servers', 'ui-prompt-server.js'), '--name', 'ui_prompter'],
+    args: [path.join(engineRoot, 'mcp_servers', 'ui-prompt-server.js'), '--name', 'ui_prompter'],
     cwd: repoRoot,
     env,
     stderr: 'pipe',

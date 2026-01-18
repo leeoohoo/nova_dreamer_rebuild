@@ -44,7 +44,7 @@ Note (macOS downloads from GitHub): unsigned apps may be blocked by Gatekeeper a
 The desktop app’s chat/CLI capabilities depend on the AIDE engine:
 
 - **Bundled (recommended)**: `npm run desktop:dist` runs `npm run aide:embed` before packaging, so the release AIDE runtime + built-in apps ship inside the installer and work out-of-the-box.
-- By default it expects the AIDE repo at `./src/aide`; override via `MODEL_CLI_AIDE_EMBED_ROOT` or `--aide-root <path>`.
+- Engine sources live in this repo at `./src/engine` (no external embed root required).
 - **External engine install/override is disabled**: the desktop build is locked to the bundled AIDE engine and will not import an external dir/zip.
 
 ## Desktop app: import app packages (generic)
@@ -100,9 +100,9 @@ CI: `.github/workflows/desktop-build.yml` (supports `workflow_dispatch`; pushing
 ## Structure
 Paths are relative to the AIDE engine root (desktop installs default to `~/.deepseek_cli/chatos/aide`):
 ```
-src/aide/src/             # CLI, chat loop, prompts, MCP runtime
-src/aide/subagents/       # marketplace + plugins (python, spring-boot, frontend-react)
-src/aide/mcp_servers/     # shell server with session tools, others unchanged
+src/engine/src/           # CLI core, chat loop, prompts, MCP runtime
+src/engine/subagents/     # marketplace + plugins (python, spring-boot, frontend-react)
+src/engine/mcp_servers/   # shell server with session tools, others unchanged
 README.en.md / README.zh.md
 ```
 

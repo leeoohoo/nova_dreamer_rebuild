@@ -3,19 +3,19 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import { getDefaultTtyPaths } from '../src/common/terminal/tty-paths.js';
-import { resolveAideRoot } from '../src/aide-paths.js';
+import { resolveEngineRoot } from '../src/engine-paths.js';
 import { getSystemTerminalLauncher } from '../electron/terminal-manager/system-terminal/launcher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
-const cliRoot = resolveAideRoot({ projectRoot });
-if (!cliRoot) {
-  throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
+const engineRoot = resolveEngineRoot({ projectRoot });
+if (!engineRoot) {
+  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
 }
 
 const importAide = async (relativePath) => {
-  const target = path.join(cliRoot, relativePath);
+  const target = path.join(engineRoot, relativePath);
   return await import(pathToFileURL(target).href);
 };
 

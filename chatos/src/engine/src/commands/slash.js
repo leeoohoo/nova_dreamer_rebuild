@@ -315,7 +315,7 @@ export async function handleSlashCommand(input, context) {
           console.log(colors.yellow('No changes applied to MCP configuration.'));
           return null;
         }
-        const hostApp = getHostApp() || 'aide';
+        const hostApp = getHostApp() || 'chatos';
         const serverWithApp = {
           ...(result.server || {}),
           app_id: hostApp,

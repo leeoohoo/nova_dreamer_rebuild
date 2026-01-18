@@ -82,7 +82,7 @@ function SettingsManager({ data, loading }) {
       const result = await api.invoke('cli:install', { force });
       setCliStatus(result);
       if (result?.ok) {
-        message.success(`已安装命令：${result.command || 'aide'}`);
+        message.success(`已安装命令：${result.command || 'chatos'}`);
         return;
       }
       if (result?.reason === 'exists' && force !== true) {
@@ -121,10 +121,10 @@ function SettingsManager({ data, loading }) {
   const directExample = typeof cliStatus?.examples?.direct === 'string' ? cliStatus.examples.direct : '';
   const installedExample = typeof cliStatus?.examples?.command === 'string' ? cliStatus.examples.command : '';
   const cliCommand =
-    typeof cliStatus?.command === 'string' && cliStatus.command.trim() ? cliStatus.command.trim() : 'aide';
+    typeof cliStatus?.command === 'string' && cliStatus.command.trim() ? cliStatus.command.trim() : 'chatos';
   const legacyInstalled = cliStatus?.legacyInstalled === true;
   const legacyCommand =
-    typeof cliStatus?.legacyCommand === 'string' && cliStatus.legacyCommand.trim() ? cliStatus.legacyCommand.trim() : 'aide';
+    typeof cliStatus?.legacyCommand === 'string' && cliStatus.legacyCommand.trim() ? cliStatus.legacyCommand.trim() : 'chatos';
   const legacyInstalledPath = typeof cliStatus?.legacyInstalledPath === 'string' ? cliStatus.legacyInstalledPath : '';
 
   return (

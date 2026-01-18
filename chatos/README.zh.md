@@ -45,7 +45,7 @@ npm run desktop:dist
 桌面 App 的聊天/CLI 能力依赖 AIDE 引擎：
 
 - **内置版（推荐）**：本仓库的 `npm run desktop:dist` 会在打包前自动执行 `npm run aide:embed`，把 AIDE 引擎（release dist）与内置应用一起打进安装包，首次启动开箱即用。
-- 约定 AIDE 源码目录在 `./src/aide`；也可通过环境变量 `MODEL_CLI_AIDE_EMBED_ROOT` 或命令行参数 `--aide-root <path>` 指定。
+- 引擎源码与 ChatOS 同仓，目录为 `./src/engine`（无需外部 embed root）。
 - **外部引擎安装/替换已禁用**：桌面端锁定使用内置 AIDE，引擎不会再从外部目录/zip 导入。
 
 ## 桌面 App：导入应用包（通用）
@@ -101,9 +101,9 @@ CI 构建：`.github/workflows/desktop-build.yml`（支持 `workflow_dispatch`�
 ## 目录结构
 下列路径以 AIDE 引擎根目录为基准（默认在 `~/.deepseek_cli/chatos/aide`）：
 ```
-src/aide/src/             # CLI 主体、聊天循环、prompt、MCP runtime
-src/aide/subagents/       # 子代理管理、marketplace、插件（python / spring-boot / frontend-react）
-src/aide/mcp_servers/     # Shell（含会话工具）等 MCP 服务器
+src/engine/src/           # CLI Core、聊天循环、prompt、MCP runtime
+src/engine/subagents/     # 子代理管理、marketplace、插件（python / spring-boot / frontend-react）
+src/engine/mcp_servers/   # Shell（含会话工具）等 MCP 服务器
 README.en.md / README.zh.md
 ```
 

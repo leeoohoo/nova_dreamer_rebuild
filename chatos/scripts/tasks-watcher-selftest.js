@@ -8,15 +8,15 @@ import { fileURLToPath } from 'url';
 
 import { createDb } from '../src/common/admin-data/storage.js';
 import { createAdminServices } from '../src/common/admin-data/services/index.js';
-import { resolveAideRoot } from '../src/aide-paths.js';
+import { resolveEngineRoot } from '../src/engine-paths.js';
 import { createSessionApi } from '../electron/session-api.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
-const cliRoot = resolveAideRoot({ projectRoot });
+const cliRoot = resolveEngineRoot({ projectRoot });
 if (!cliRoot) {
-  throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
+  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
 }
 
 const ROOT =

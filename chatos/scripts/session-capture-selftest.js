@@ -6,14 +6,14 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-import { resolveAideRoot } from '../src/aide-paths.js';
+import { resolveEngineRoot } from '../src/engine-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
-const cliRoot = resolveAideRoot({ projectRoot });
+const cliRoot = resolveEngineRoot({ projectRoot });
 if (!cliRoot) {
-  throw new Error('AIDE sources not found (expected ./src/aide relative to chatos).');
+  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
 }
 
 const { createSessionManager } = await import(pathToFileURL(path.join(cliRoot, 'mcp_servers/shell/session-manager.js')).href);

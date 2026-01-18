@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { parseJsonSafe, safeRead } from '../src/aide/shared/data/legacy.js';
+import { parseJsonSafe, safeRead } from '../src/engine/shared/data/legacy.js';
 import { getHostApp } from '../src/common/host-app.js';
 import { resolveAppStateDir } from '../src/common/state-core/state-paths.js';
 import { createRuntimeLogger } from '../src/common/state-core/runtime-log.js';

@@ -2,12 +2,12 @@
   "servers": [
     {
       "name": "project_files",
-      "url": "cmd://node ./src/aide/mcp_servers/filesystem-server.js --root . --mode read --name project_files",
+      "url": "cmd://node ./src/engine/mcp_servers/filesystem-server.js --root . --mode read --name project_files",
       "description": "Browse/Search project files (Read-only, defaults to root=.)."
     },
     {
       "name": "lsp_bridge",
-      "url": "cmd://node ./src/aide/mcp_servers/lsp-bridge-server.js --root . --name lsp_bridge",
+      "url": "cmd://node ./src/engine/mcp_servers/lsp-bridge-server.js --root . --name lsp_bridge",
       "description": "LSP bridge (hover/definition/completion/diagnostics via local language servers; requires servers installed)."
     },
     {
@@ -17,12 +17,12 @@
     },
     {
       "name": "task_manager",
-      "url": "cmd://node ./src/aide/mcp_servers/task-server.js --root . --store .deepseek_cli/tasks.json --name task_manager",
+      "url": "cmd://node ./src/engine/mcp_servers/task-server.js --root . --store .deepseek_cli/tasks.json --name task_manager",
       "description": "Task board for this workspace: add/list/update/complete/clear tasks."
     },
     {
       "name": "subagent_router",
-      "url": "cmd://node ./src/aide/mcp_servers/subagent-server.js --name subagent_router",
+      "url": "cmd://node ./src/engine/mcp_servers/subagent-server.js --name subagent_router",
       "description": "Sub-agent directory/router: list, inspect, and run sub-agents directly."
     }
   ]

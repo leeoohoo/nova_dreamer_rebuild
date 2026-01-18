@@ -111,7 +111,7 @@ async function main() {
     nodePaths: [
       path.resolve(root, '..', 'node_modules'),
       path.join(root, 'node_modules'),
-      path.resolve(root, 'src', 'aide', 'node_modules'),
+      path.resolve(root, 'src', 'engine', 'node_modules'),
     ],
   });
   const html = fs.readFileSync(htmlSrc, 'utf8');

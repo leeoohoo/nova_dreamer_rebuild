@@ -6,10 +6,15 @@ import { createRestrictedSubAgentManager } from './subagent-restriction.js';
 import { resolveAllowedTools } from './tool-selection.js';
 import { applySecretsToProcessEnv } from '../../src/common/secrets-env.js';
 import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../src/common/host-app.js';
+import { resolveEngineRoot } from '../../src/engine-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ENGINE_ROOT = path.resolve(__dirname, '..', '..', 'src', 'aide');
+const projectRoot = path.resolve(__dirname, '..', '..');
+const ENGINE_ROOT = resolveEngineRoot({ projectRoot });
+if (!ENGINE_ROOT) {
+  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+}
 
 function resolveEngineModule(relativePath) {
   const rel = typeof relativePath === 'string' ? relativePath.trim() : '';

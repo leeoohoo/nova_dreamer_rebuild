@@ -4,12 +4,13 @@
   "description": "Terminal chat client for multiple AI models (Node.js implementation).",
   "license": "MIT",
   "bin": {
-    "chatos": "src/cli.js",
+    "chatos": "cli/src/index.js",
     "chatosui": "bin/chatosui.js"
   },
   "type": "module",
   "files": [
     "bin/**/*",
+    "cli/**/*",
     "src/**/*",
     "build_resources/**/*",
     "electron/**/*",
@@ -64,9 +65,9 @@
       "mcp_config_restore.json",
       "mcp_config_update.json",
       "!**/*.map",
-      "!src/aide/**/node_modules/**",
-      "!src/aide/**/.git/**",
-      "!src/aide/**/src/**",
+      "!src/engine/**/node_modules/**",
+      "!src/engine/**/.git/**",
+      "!src/engine/**/src/**",
       "!**/node_modules/electron/**"
     ],
     "asarUnpack": [

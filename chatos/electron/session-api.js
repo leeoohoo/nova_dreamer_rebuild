@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { createDb } from '../src/aide/shared/data/storage.js';
-import { syncAdminToFiles } from '../src/aide/shared/data/sync.js';
+import { createDb } from '../src/engine/shared/data/storage.js';
+import { syncAdminToFiles } from '../src/engine/shared/data/sync.js';
 import {
   parseEvents,
   parseInstalledPlugins,
@@ -11,7 +11,7 @@ import {
   parseModels,
   parsePrompts,
   safeRead,
-} from '../src/aide/shared/data/legacy.js';
+} from '../src/engine/shared/data/legacy.js';
 import {
   ensureDir,
   ensureFileExists,

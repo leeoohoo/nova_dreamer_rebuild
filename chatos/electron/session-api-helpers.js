@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { createDb } from '../src/aide/shared/data/storage.js';
-import { parseJsonSafe } from '../src/aide/shared/data/legacy.js';
+import { createDb } from '../src/engine/shared/data/storage.js';
+import { parseJsonSafe } from '../src/engine/shared/data/legacy.js';
 
 export function ensureDir(dirPath) {
   try {

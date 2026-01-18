@@ -21,7 +21,7 @@ function escapeCmdBatchString(text) {
 }
 
 export function createCliShim({ projectRoot, commandName } = {}) {
-  const CLI_COMMAND_NAME = typeof commandName === 'string' && commandName.trim() ? commandName.trim() : 'aide';
+  const CLI_COMMAND_NAME = typeof commandName === 'string' && commandName.trim() ? commandName.trim() : 'chatos';
   const baseRoot = typeof projectRoot === 'string' && projectRoot.trim() ? projectRoot.trim() : process.cwd();
 
   function isWritableDirectory(target) {
