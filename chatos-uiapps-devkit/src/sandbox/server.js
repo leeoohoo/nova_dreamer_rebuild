@@ -126,7 +126,7 @@ function expandCallMetaValue(value, vars) {
   return value;
 }
 
-function buildSandboxCallMeta({ rawCallMeta, context } = {}) {
+function buildSandboxCallMeta({ rawCallMeta, rawWorkdir, context } = {}) {
   const ctx = context && typeof context === 'object' ? context : null;
   const defaults = ctx
     ? {
@@ -158,22 +158,32 @@ function buildSandboxCallMeta({ rawCallMeta, context } = {}) {
       }
     : {};
   const expanded = raw ? expandCallMetaValue(raw, vars) : null;
-  return mergeCallMeta(defaults, expanded);
+  let merged = mergeCallMeta(defaults, expanded);
+  const workdirRaw = normalizeText(rawWorkdir);
+  if (workdirRaw) {
+    const expandedWorkdir = expandCallMetaValue(workdirRaw, vars);
+    const workdirValue = typeof expandedWorkdir === 'string' ? expandedWorkdir.trim() : '';
+    if (workdirValue) {
+      merged = mergeCallMeta(merged, { workdir: workdirValue });
+    }
+  }
+  return merged;
 }
 
 function loadSandboxLlmConfig(filePath) {
-  if (!filePath) return { apiKey: '', baseUrl: '', modelId: '' };
+  if (!filePath) return { apiKey: '', baseUrl: '', modelId: '', workdir: '' };
   try {
-    if (!fs.existsSync(filePath)) return { apiKey: '', baseUrl: '', modelId: '' };
+    if (!fs.existsSync(filePath)) return { apiKey: '', baseUrl: '', modelId: '', workdir: '' };
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = raw ? JSON.parse(raw) : {};
     return {
       apiKey: normalizeText(parsed?.apiKey),
       baseUrl: normalizeText(parsed?.baseUrl),
       modelId: normalizeText(parsed?.modelId),
+      workdir: normalizeText(parsed?.workdir),
     };
   } catch {
-    return { apiKey: '', baseUrl: '', modelId: '' };
+    return { apiKey: '', baseUrl: '', modelId: '', workdir: '' };
   }
 }
 
@@ -798,6 +808,11 @@ function htmlPage() {
           <label for="llmModelId">Model ID</label>
           <input id="llmModelId" type="text" placeholder="gpt-4o-mini" />
         </div>
+        <div class="card">
+          <label for="llmWorkdir">Workdir</label>
+          <input id="llmWorkdir" type="text" placeholder="(default: dataDir)" />
+          <div class="muted">留空使用 dataDir；支持 $dataDir/$pluginDir/$projectRoot</div>
+        </div>
         <div class="row">
           <button id="btnLlmSave" class="btn" type="button">Save</button>
           <button id="btnLlmClear" class="btn" type="button">Clear Key</button>
@@ -865,6 +880,7 @@ const btnLlmClear = $('#btnLlmClear');
 const llmApiKey = $('#llmApiKey');
 const llmBaseUrl = $('#llmBaseUrl');
 const llmModelId = $('#llmModelId');
+const llmWorkdir = $('#llmWorkdir');
 const llmStatus = $('#llmStatus');
 const llmKeyStatus = $('#llmKeyStatus');
 
@@ -943,6 +959,7 @@ const refreshLlmConfig = async () => {
     const cfg = j?.config || {};
     if (llmBaseUrl) llmBaseUrl.value = cfg.baseUrl || '';
     if (llmModelId) llmModelId.value = cfg.modelId || '';
+    if (llmWorkdir) llmWorkdir.value = cfg.workdir || '';
     if (llmKeyStatus) llmKeyStatus.textContent = cfg.hasApiKey ? 'API key set' : 'API key missing';
     setLlmStatus('');
   } catch (err) {
@@ -956,6 +973,7 @@ const saveLlmConfig = async ({ clearKey } = {}) => {
     const payload = {
       baseUrl: llmBaseUrl ? llmBaseUrl.value : '',
       modelId: llmModelId ? llmModelId.value : '',
+      workdir: llmWorkdir ? llmWorkdir.value : '',
     };
     const apiKey = llmApiKey ? llmApiKey.value : '';
     if (clearKey) {
@@ -994,6 +1012,7 @@ const formatJson = (value) => {
 };
 
 const tokenNameList = Array.isArray(__SANDBOX__.tokenNames) ? __SANDBOX__.tokenNames : [];
+const sandboxContextBase = __SANDBOX__.context || { pluginId: __SANDBOX__.pluginId, appId: __SANDBOX__.appId };
 
 const collectTokens = () => {
   const style = getComputedStyle(document.documentElement);
@@ -1014,7 +1033,7 @@ const collectTokens = () => {
 const readHostContext = () => {
   if (!inspectorEnabled) return null;
   if (typeof host?.context?.get === 'function') return host.context.get();
-  return { pluginId: __SANDBOX__.pluginId, appId: __SANDBOX__.appId, theme: currentTheme, bridge: { enabled: true } };
+  return { ...sandboxContextBase, theme: currentTheme, bridge: { enabled: true } };
 };
 
 const readThemeInfo = () => ({
@@ -1275,7 +1294,7 @@ const getTheme = () => currentTheme || resolveTheme();
 
 const host = {
   bridge: { enabled: true },
-  context: { get: () => ({ pluginId: __SANDBOX__.pluginId, appId: __SANDBOX__.appId, theme: getTheme(), bridge: { enabled: true } }) },
+  context: { get: () => ({ ...sandboxContextBase, theme: getTheme(), bridge: { enabled: true } }) },
   theme: {
     get: getTheme,
     onChange: (listener) => {
@@ -1741,6 +1760,9 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
     if (Object.prototype.hasOwnProperty.call(patch, 'modelId')) {
       next.modelId = normalizeText(patch.modelId);
     }
+    if (Object.prototype.hasOwnProperty.call(patch, 'workdir')) {
+      next.workdir = normalizeText(patch.workdir);
+    }
     sandboxLlmConfig = next;
     saveSandboxLlmConfig(sandboxConfigPath, next);
     return { ...next };
@@ -1871,6 +1893,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   ensureDir(ctxBase.dataDir);
   sandboxCallMeta = buildSandboxCallMeta({
     rawCallMeta: app?.ai?.mcp?.callMeta,
+    rawWorkdir: getSandboxLlmConfig().workdir,
     context: {
       pluginId: ctxBase.pluginId,
       appId: effectiveAppId,
@@ -1951,7 +1974,18 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
 
       if (req.method === 'GET' && pathname === '/sandbox.mjs') {
         const tokenNames = loadTokenNames();
+        const sandboxContext = {
+          pluginId: ctxBase.pluginId,
+          appId: effectiveAppId,
+          pluginDir: ctxBase.pluginDir,
+          dataDir: ctxBase.dataDir,
+          stateDir: ctxBase.stateDir,
+          sessionRoot: ctxBase.sessionRoot,
+          projectRoot: ctxBase.projectRoot,
+          workdir: sandboxCallMeta?.workdir || ctxBase.dataDir || '',
+        };
         const js = sandboxClientJs()
+          .replaceAll('__SANDBOX__.context', JSON.stringify(sandboxContext))
           .replaceAll('__SANDBOX__.pluginId', JSON.stringify(ctxBase.pluginId))
           .replaceAll('__SANDBOX__.appId', JSON.stringify(effectiveAppId))
           .replaceAll('__SANDBOX__.entryUrl', JSON.stringify(entryUrl))
@@ -1979,6 +2013,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
             config: {
               baseUrl: cfg.baseUrl || '',
               modelId: cfg.modelId || '',
+              workdir: cfg.workdir || '',
               hasApiKey: Boolean(cfg.apiKey),
             },
           });
@@ -1991,12 +2026,14 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
               ...(Object.prototype.hasOwnProperty.call(patch || {}, 'apiKey') ? { apiKey: patch.apiKey } : {}),
               ...(Object.prototype.hasOwnProperty.call(patch || {}, 'baseUrl') ? { baseUrl: patch.baseUrl } : {}),
               ...(Object.prototype.hasOwnProperty.call(patch || {}, 'modelId') ? { modelId: patch.modelId } : {}),
+              ...(Object.prototype.hasOwnProperty.call(patch || {}, 'workdir') ? { workdir: patch.workdir } : {}),
             });
             return sendJson(res, 200, {
               ok: true,
               config: {
                 baseUrl: next.baseUrl || '',
                 modelId: next.modelId || '',
+                workdir: next.workdir || '',
                 hasApiKey: Boolean(next.apiKey),
               },
             });

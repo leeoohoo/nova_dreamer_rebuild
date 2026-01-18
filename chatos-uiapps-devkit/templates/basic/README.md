@@ -34,6 +34,7 @@ npm run dev
 
 - `plugin/plugin.json`：`apps[i].entry.type` 必须是 `module`，且 `path` 在插件目录内。
 - `plugin/plugin.json`：可选 `apps[i].entry.compact.path`，用于 compact UI。
+- 安全：插件目录内尽量避免 symlink（`npm run validate` 会提示），以免路径边界与打包行为不一致。
 - `mount()`：返回卸载函数并清理事件/订阅；滚动放在应用内部，固定内容用 `slots.header`。
 - 主题：用 `host.theme.*` 与 `--ds-*` tokens；避免硬编码颜色。
 - 宿主能力：先判断 `host.bridge.enabled`，非宿主环境要可降级运行。
@@ -49,6 +50,7 @@ npm run dev
 2) **后端调用 LLM**：在 `plugin/backend/index.mjs` 里通过 `ctx.llm.complete()` 调用模型；前端用 `host.backend.invoke('llmComplete', { input })` 触发。
 
 说明：本地沙箱默认是 mock；可通过右上角 `AI Config` 配置 `API Key / Base URL / Model ID` 后启用真实模型调用，并用于测试应用 MCP（需配置 `ai.mcp`）。
+补充：沙箱默认把 `_meta.workdir` 设为 `dataDir`；如需模拟其它工作目录，可在 `AI Config` 里设置 `Workdir` 覆盖（支持 `$dataDir/$pluginDir/$projectRoot`）。
 
 ## 安装到本机 ChatOS
 

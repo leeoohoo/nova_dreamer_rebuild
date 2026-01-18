@@ -18,11 +18,52 @@ function statSizeSafe(filePath) {
   }
 }
 
+function collectSymlinks(rootDir) {
+  const root = typeof rootDir === 'string' ? rootDir.trim() : '';
+  if (!root) return [];
+  const out = [];
+  const walk = (dir) => {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    entries.forEach((entry) => {
+      if (!entry || !entry.name) return;
+      const fullPath = path.join(dir, entry.name);
+      let stat;
+      try {
+        stat = fs.lstatSync(fullPath);
+      } catch {
+        return;
+      }
+      if (stat.isSymbolicLink()) {
+        out.push(fullPath);
+        return;
+      }
+      if (stat.isDirectory()) {
+        walk(fullPath);
+      }
+    });
+  };
+  walk(root);
+  return out;
+}
+
 export async function cmdValidate({ flags }) {
   const { config } = loadDevkitConfig(process.cwd());
   const pluginDir = findPluginDir(process.cwd(), flags['plugin-dir'] || flags.pluginDir || config?.pluginDir);
 
   const { manifestPath, manifest } = loadPluginManifest(pluginDir);
+  const warnings = [];
+  const warn = (message) => warnings.push(message);
+
+  const symlinks = collectSymlinks(pluginDir);
+  if (symlinks.length > 0) {
+    const rel = symlinks.map((entry) => path.relative(pluginDir, entry) || entry);
+    warn(`Symlink detected inside plugin dir (may bypass path boundaries): ${rel.join(', ')}`);
+  }
 
   const manifestSize = statSizeSafe(manifestPath);
   assert(manifestSize <= 256 * 1024, `plugin.json too large (>256KiB): ${manifestSize} bytes`);
@@ -106,6 +147,13 @@ export async function cmdValidate({ flags }) {
       const size = statSizeSafe(abs);
       assert(size <= 128 * 1024, `mcpPrompt too large (>128KiB): ${rel}`);
     }
+  }
+
+  if (warnings.length > 0) {
+    warnings.forEach((message) => {
+      // eslint-disable-next-line no-console
+      console.warn(`WARN: ${message}`);
+    });
   }
 
   // eslint-disable-next-line no-console

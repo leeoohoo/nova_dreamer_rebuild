@@ -9,6 +9,11 @@ npm install
 npm run dev
 ```
 
+## 本地沙箱 AI Config（可选）
+
+- 右上角 `AI Config` 可配置 `API Key / Base URL / Model ID`，用于测试真实模型调用（以及 MCP 调用）。
+- 沙箱默认把 `_meta.workdir` 设为 `dataDir`；如需模拟其它工作目录，可在 `AI Config` 里设置 `Workdir` 覆盖（支持 `$dataDir/$pluginDir/$projectRoot`）。
+
 ## 目录说明
 
 - `plugin/plugin.json`：插件清单（应用列表、入口、后端、AI 贡献）
@@ -29,6 +34,7 @@ npm run dev
 
 - `plugin/plugin.json`：`apps[i].entry.type` 必须是 `module`，且 `path` 在插件目录内。
 - `plugin/plugin.json`：可选 `apps[i].entry.compact.path`，用于 compact UI。
+- 安全：插件目录内尽量避免 symlink（`npm run validate` 会提示），以免路径边界与打包行为不一致。
 - `mount()`：返回卸载函数并清理事件/订阅；滚动放在应用内部，固定内容用 `slots.header`。
 - 主题：用 `host.theme.*` 与 `--ds-*` tokens；避免硬编码颜色。
 - 宿主能力：先判断 `host.bridge.enabled`，非宿主环境要可降级运行。

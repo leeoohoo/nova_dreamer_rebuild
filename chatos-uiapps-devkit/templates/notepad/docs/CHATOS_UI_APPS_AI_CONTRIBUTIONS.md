@@ -85,6 +85,8 @@
 
 同时，宿主默认注入 `_meta.workdir`（默认等于 `dataDir`；如需指定其它目录，可在 `ai.mcp.callMeta.workdir` 覆盖）。
 
+> DevKit sandbox：右上角 `AI Config` 支持设置 `Workdir` 覆盖；留空即使用 `dataDir`（也支持 `$dataDir/$pluginDir/$projectRoot`）。
+
 示例（`plugin.json`）：
 
 ```json
