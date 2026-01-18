@@ -23,9 +23,10 @@
 - `sessionRoot`：会话根目录
   - 默认：用户主目录（Home）
   - 可通过环境变量覆盖：`MODEL_CLI_SESSION_ROOT=/path/to/root`
-- 桌面端/CLI 会把“上次使用的 sessionRoot”记录到 `<home>/.deepseek_cli/last-session-root.txt`（未设置 env 时会优先读取）
-- `stateDir`：`<home>/.deepseek_cli/<hostApp>`（ChatOS 的 `hostApp=chatos`）
-  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `stateDir`
+- `stateRoot`：用户状态根目录
+  - 桌面端/CLI 会把“上次使用的 sessionRoot”记录到 `<stateRoot>/last-session-root.txt`（未设置 env 时会优先读取）
+- `stateDir`：`<stateRoot>/<hostApp>`（ChatOS 的 `hostApp=chatos`）
+  - 兼容旧路径：若存在 `legacyStateRoot/<hostApp>`，启动时会自动迁移到 `stateDir`
 
 全局配置（由宿主维护；应用侧只读/复用）：
 
@@ -46,7 +47,7 @@
 宿主会扫描两个目录（并在 UI「应用」页展示实际路径）：
 
 - **内置/开发目录**：`chatos/ui_apps/plugins`
-- **用户插件目录**：`<stateDir>/ui_apps/plugins`（`stateDir` 默认 `~/.deepseek_cli/<hostApp>`）
+- **用户插件目录**：`<stateDir>/ui_apps/plugins`（`stateDir = <stateRoot>/<hostApp>`）
 
 同名 `plugin.id` 的覆盖规则：
 

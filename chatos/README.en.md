@@ -78,7 +78,8 @@ CI: `.github/workflows/desktop-build.yml` (supports `workflow_dispatch`; pushing
 - Sub-agents: all registered tools (filesystem, shell, sessions, task_manager, subagent_router, etc.).
 
 ## MCP server configuration
-- `stateDir`: per-app state root (default `~/.deepseek_cli/<hostApp>`, legacy `~/.chatos/<hostApp>` auto-migrated)
+- `stateRoot`: per-user state root
+- `stateDir`: `<stateRoot>/<hostApp>` (legacy `legacyStateRoot/<hostApp>` auto-migrated)
 - File: `<stateDir>/auth/mcp.config.json`
 - In chat: `/mcp` (show), `/mcp_set` (edit), `/mcp_tools` (enable tools per model)
 - Built-in: `chrome_devtools` (disabled by default, sub-agent-only). Enable it in the UI (Admin → MCP Server 管理) if you want browser automation/debugging.

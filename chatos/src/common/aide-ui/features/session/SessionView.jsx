@@ -14,6 +14,7 @@ import {
 import { CodeBlock } from '../../components/CodeBlock.jsx';
 import { formatBytes } from '../../lib/format.js';
 import { buildSessionStats, pickRecentConversation } from '../../lib/events.js';
+import { formatStateRootLabel } from '../../lib/state-paths.js';
 import { RUN_FILTER_ALL } from '../../lib/storage.js';
 import { FileChangesCard } from './components/FileChangesCard.jsx';
 import { RecentActivityCard } from './components/RecentActivityCard.jsx';
@@ -21,7 +22,6 @@ import { SessionStats } from './components/SessionStats.jsx';
 import { SessionsPanel } from './components/SessionsPanel.jsx';
 import { TasksDrawer } from './components/TasksDrawer.jsx';
 import { ToolDrawer } from './components/ToolDrawer.jsx';
-import { STATE_ROOT_DIRNAME } from '../../../state-core/state-constants.js';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -60,6 +60,7 @@ function SessionView({
   const [runtimeError, setRuntimeError] = useState(null);
   const [runtimePayload, setRuntimePayload] = useState(null);
   const normalizedEvents = Array.isArray(eventList) ? eventList : [];
+  const stateRootLabel = useMemo(() => formatStateRootLabel({ style: 'dirname' }), []);
   const stats = useMemo(() => buildSessionStats(normalizedEvents, tasks), [normalizedEvents, tasks]);
   const recentConversation = useMemo(
     () => pickRecentConversation(normalizedEvents, 0),
@@ -145,7 +146,7 @@ function SessionView({
 	                主页
 	              </Title>
 	              <Text type="secondary">
-	                回溯对话、工具调用与文件改动记录，数据源自 {STATE_ROOT_DIRNAME}。{lastUpdated ? ` 最新事件：${lastUpdated}` : ''}
+	                回溯对话、工具调用与文件改动记录，数据源自 {stateRootLabel}。{lastUpdated ? ` 最新事件：${lastUpdated}` : ''}
 	              </Text>
 	            </Space>
           </Col>

@@ -15,6 +15,7 @@ import { createFilesystemOps } from './filesystem/ops.js';
 import { createSessionManager } from './shell/session-manager.js';
 import { registerShellTools } from './shell/register-tools.js';
 import { ensureAppDbPath, resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveSessionRoot } from '../shared/session-root.js';
 
 const execAsync = promisify(exec);
 const args = parseArgs(process.argv.slice(2));
@@ -416,15 +417,6 @@ function structuredResponse(text, structuredContent) {
     ],
     structuredContent: structuredContent && typeof structuredContent === 'object' ? structuredContent : undefined,
   };
-}
-
-function resolveSessionRoot() {
-  if (process.env.MODEL_CLI_SESSION_ROOT) {
-    return path.resolve(process.env.MODEL_CLI_SESSION_ROOT);
-  }
-  const home = os.homedir();
-  if (home) return path.resolve(home);
-  return process.cwd();
 }
 
 function ensureFileExists(filePath) {

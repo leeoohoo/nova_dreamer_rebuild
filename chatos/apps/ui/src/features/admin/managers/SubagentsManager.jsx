@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
-import { STATE_ROOT_DIRNAME } from '../../../../../../src/common/state-core/state-constants.js';
+import { formatStateDirLabel } from '../../../../../../src/common/aide-ui/lib/state-paths.js';
 
 const { Text, Paragraph } = Typography;
 const SUBAGENT_INSTALL_HINT =
-  `提示：安装会把外部 marketplace 的插件转换到 \`~/${STATE_ROOT_DIRNAME}/<hostApp>/subagents/plugins/\`，并写入 \`subagents.json\`。`;
+  `提示：安装会把外部 marketplace 的插件转换到 \`${formatStateDirLabel({ hostApp: '<hostApp>', style: 'tilde' })}/subagents/plugins/\`，并写入 \`subagents.json\`。`;
 
 function SubagentsManager({
   data,

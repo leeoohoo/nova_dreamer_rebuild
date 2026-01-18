@@ -10,16 +10,12 @@ import {
 } from './ops/friendly-patch.js';
 import { createWorkspaceResolver, preprocessPatchText, resolvePatchPayload, resolveWritePayload } from './ops/helpers.js';
 import { resolveAppStateDir } from '../../shared/state-paths.js';
+import { resolveSessionRoot as resolveSessionRootCore } from '../../shared/session-root.js';
 
 const fsp = fs.promises;
 
 export function resolveSessionRoot() {
-  if (process.env.MODEL_CLI_SESSION_ROOT) {
-    return path.resolve(process.env.MODEL_CLI_SESSION_ROOT);
-  }
-  const home = os.homedir();
-  if (home) return path.resolve(home);
-  return process.cwd();
+  return resolveSessionRootCore();
 }
 
 export function createFilesystemOps({

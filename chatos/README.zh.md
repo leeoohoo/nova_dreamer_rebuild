@@ -79,7 +79,8 @@ CI 构建：`.github/workflows/desktop-build.yml`（支持 `workflow_dispatch`�
 - 子代理：继承全部已注册工具（文件、shell、sessions、task_manager、subagent_router 等）。
 
 ## MCP 服务配置
-- `stateDir`：每个应用的状态根目录（默认 `~/.deepseek_cli/<hostApp>`，旧 `~/.chatos/<hostApp>` 自动迁移）
+- `stateRoot`：用户状态根目录
+- `stateDir`：`<stateRoot>/<hostApp>`（旧 `legacyStateRoot/<hostApp>` 自动迁移）
 - 配置文件：`<stateDir>/auth/mcp.config.json`
 - 聊天内管理：`/mcp`（查看）、`/mcp_set`（编辑）、`/mcp_tools`（为当前模型启用工具）
 - 内置：`chrome_devtools`（默认禁用、仅子代理可用）。如需浏览器自动化/调试，请在 UI（Admin → MCP Server 管理）里启用。

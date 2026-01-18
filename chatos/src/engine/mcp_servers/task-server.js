@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -11,6 +10,7 @@ import { TaskService } from '../shared/data/services/task-service.js';
 import { SettingsService } from '../shared/data/services/settings-service.js';
 import { createTtyPrompt } from './tty-prompt.js';
 import { ensureAppDbPath, resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveSessionRoot } from '../shared/session-root.js';
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help || args.h) {
@@ -896,15 +896,6 @@ function ensureFileExists(filePath) {
   } catch {
     // ignore
   }
-}
-
-function resolveSessionRoot() {
-  if (process.env.MODEL_CLI_SESSION_ROOT) {
-    return path.resolve(process.env.MODEL_CLI_SESSION_ROOT);
-  }
-  const home = os.homedir();
-  if (home) return path.resolve(home);
-  return process.cwd();
 }
 
 function normalizeCallerKind(value) {

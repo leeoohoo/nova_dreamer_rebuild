@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -9,6 +8,7 @@ import { z } from 'zod';
 import { clampNumber, parseArgs } from './cli-utils.js';
 import { createTtyPrompt } from './tty-prompt.js';
 import { resolveAppStateDir, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
+import { resolveSessionRoot } from '../shared/session-root.js';
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help || args.h) {
@@ -755,15 +755,6 @@ function ensureFileExists(filePath) {
   } catch {
     // ignore
   }
-}
-
-function resolveSessionRoot() {
-  if (process.env.MODEL_CLI_SESSION_ROOT) {
-    return path.resolve(process.env.MODEL_CLI_SESSION_ROOT);
-  }
-  const home = os.homedir();
-  if (home) return path.resolve(home);
-  return process.cwd();
 }
 
 function printHelp() {

@@ -19,8 +19,8 @@
 - 每个插件一个目录，目录根部必须包含 `plugin.json`。
 - 插件目录可放在：
   - `chatos/ui_apps/plugins`（内置/开发）
-  - `<stateDir>/ui_apps/plugins`（用户插件目录；`stateDir` 默认 `~/.deepseek_cli/<hostApp>`）
-  - 兼容旧路径：若存在 `~/.chatos/<hostApp>/ui_apps/plugins`，启动时会自动迁移到 `stateDir`
+  - `<stateDir>/ui_apps/plugins`（用户插件目录；`stateDir = <stateRoot>/<hostApp>`）
+  - 兼容旧路径：若存在 `legacyStateRoot/<hostApp>/ui_apps/plugins`，启动时会自动迁移到 `stateDir`
 - 也可通过桌面端 UI：`应用` → `导入应用包`（目录或 `.zip`）安装到用户插件目录。
 
 ## 2. 顶层 schema（`uiAppsPluginSchema`）

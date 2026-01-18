@@ -53,7 +53,8 @@ Common in-chat commands:
 - On trigger, history becomes: system prompt + latest summary + current user message (main and sub-agents).
 
 ## Config Paths
-- `stateDir`: per-app state root (default `~/.deepseek_cli/<hostApp>`, legacy `~/.chatos/<hostApp>` auto-migrated).
+- `stateRoot`: per-user state root.
+- `stateDir`: `<stateRoot>/<hostApp>` (legacy `legacyStateRoot/<hostApp>` auto-migrated).
 - Models: `<stateDir>/auth/models.yaml`
 - Main prompts:
   - `<stateDir>/auth/system-prompt.yaml` (`internal_main`, built-in read-only)
@@ -95,7 +96,7 @@ node src/cli.js chat
 - 子代理：全部工具；Shell 提供 `run_shell_command`、`session_run`、`session_capture_output`
 
 自动总结：超过阈值（默认 60000 估算 token 或 `MODEL_CLI_SUMMARY_TOKENS`）后，历史裁剪为「系统 prompt + 最新总结 + 当前用户消息」，子代理同样适用。
-stateDir 默认 `~/.deepseek_cli/<hostApp>`（旧 `~/.chatos/<hostApp>` 自动迁移）。
+stateDir = `<stateRoot>/<hostApp>`（旧 `legacyStateRoot/<hostApp>` 自动迁移）。
 自动总结 prompt：`<stateDir>/auth/summary-prompt.yaml`（支持 `{{history}}`；可用 `/summary prompt` 查看）。
 
 配置位置：`<stateDir>/auth/models.yaml`、`<stateDir>/auth/system-*-prompt.yaml`、`<stateDir>/auth/subagent-*-prompt.yaml`、`<stateDir>/auth/mcp.config.json`、`<stateDir>/chatos.db.sqlite`、`<stateDir>/subagents.json`

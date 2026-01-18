@@ -26,7 +26,7 @@ This document is a concise, code‑oriented map of the system. It focuses on res
 
 ## 3) State and Storage (Single Source of Truth)
 
-**Canonical state root**: `~/.deepseek_cli/<hostApp>/`
+**State root/dir**: `stateRoot` is the per-user state root; `stateDir = <stateRoot>/<hostApp>`
 
 - **Admin DB** (source of truth): `<stateDir>/<hostApp>.db.sqlite`
 - **File mirrors** (synced from DB): `<stateDir>/auth/*.yaml`, `<stateDir>/auth/mcp.config.json`
@@ -35,7 +35,7 @@ This document is a concise, code‑oriented map of the system. It focuses on res
   - Plugins: `<stateDir>/ui_apps/plugins`
   - Data: `<stateDir>/ui_apps/data/<pluginId>`
 
-Compatibility: legacy `~/.chatos/<hostApp>/` is auto‑migrated on startup.
+Compatibility: legacy `legacyStateRoot/<hostApp>/` is auto‑migrated on startup.
 
 ## 4) Core Data Flows (Simplified)
 
@@ -79,4 +79,3 @@ Compatibility: legacy `~/.chatos/<hostApp>/` is auto‑migrated on startup.
 - Engine config source: `chatos/src/engine/src/config-source.js`
 - MCP runtime: `chatos/src/engine/src/mcp/runtime.js`
 - DevKit sandbox: `chatos-uiapps-devkit/src/sandbox/server.js`
-

@@ -14,7 +14,7 @@
 1) 选择插件目录（任选其一）：
 
 - 开发/内置目录：`<projectRoot>/ui_apps/plugins`
-- 用户插件目录：`<stateDir>/ui_apps/plugins`（`stateDir` 默认 `~/.deepseek_cli/<hostApp>`）
+- 用户插件目录：`<stateDir>/ui_apps/plugins`（`stateDir = <stateRoot>/<hostApp>`）
 
 2) 复制模板插件：
 
