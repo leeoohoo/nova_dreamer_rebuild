@@ -141,6 +141,7 @@ Nova Dreamer 是一个以 **ChatOS 桌面端**为宿主、以 **AIDE** 为核心
 
 ### 进一步阅读（可选）
 
+- 架构总览（组件/数据流/关键入口）：`ARCHITECTURE_OVERVIEW.md`
 - UI Apps 框架/协议概览：`CHATOS_UI_APPS_OVERVIEW.md`
 - 插件清单（`plugin.json`）规范：`CHATOS_UI_APPS_PLUGIN_MANIFEST.md`
 - Host API（前端侧）：`CHATOS_UI_APPS_HOST_API.md`
@@ -281,6 +282,7 @@ Entry: `Apps` → `WSL Manager`
 
 ### Further reading (optional)
 
+- Architecture overview (components/data flow/entry points): `ARCHITECTURE_OVERVIEW.md`
 - UI Apps overview: `CHATOS_UI_APPS_OVERVIEW.md`
 - Plugin manifest spec (`plugin.json`): `CHATOS_UI_APPS_PLUGIN_MANIFEST.md`
 - Host API (frontend): `CHATOS_UI_APPS_HOST_API.md`

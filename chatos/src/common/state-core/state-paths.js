@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { COMPAT_STATE_ROOT_DIRNAME, STATE_ROOT_DIRNAME } from './state-constants.js';
 import { copyTree, ensureDir, getHomeDir, isDirectory, isFile, normalizeHostApp, resolveHostApp } from './utils.js';
 
 const DEFAULT_SIGNAL_FILES = [
@@ -37,8 +38,23 @@ const DEFAULT_MIGRATION_CANDIDATES = [
 
 const LEGACY_DB_BASENAME = 'admin.db.sqlite';
 const LEGACY_DB_JSON_BASENAME = 'admin.db.json';
-const STATE_ROOT_DIRNAME = '.deepseek_cli';
-const COMPAT_STATE_ROOT_DIRNAME = '.chatos';
+export { STATE_ROOT_DIRNAME, COMPAT_STATE_ROOT_DIRNAME };
+
+export function resolveStateRootDir(options = {}) {
+  const env = options?.env && typeof options.env === 'object' ? options.env : process.env;
+  const homeRaw = typeof options.homeDir === 'string' ? options.homeDir.trim() : '';
+  const home = homeRaw || getHomeDir(env);
+  if (!home) return '';
+  return path.join(home, STATE_ROOT_DIRNAME);
+}
+
+export function resolveCompatStateRootDir(options = {}) {
+  const env = options?.env && typeof options.env === 'object' ? options.env : process.env;
+  const homeRaw = typeof options.homeDir === 'string' ? options.homeDir.trim() : '';
+  const home = homeRaw || getHomeDir(env);
+  if (!home) return '';
+  return path.join(home, COMPAT_STATE_ROOT_DIRNAME);
+}
 
 export function resolveLegacyStateDir(sessionRoot) {
   const base =

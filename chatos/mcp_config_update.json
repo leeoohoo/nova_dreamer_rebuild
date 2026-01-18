@@ -17,7 +17,7 @@
     },
     {
       "name": "task_manager",
-      "url": "cmd://node ./src/engine/mcp_servers/task-server.js --root . --store .deepseek_cli/tasks.json --name task_manager",
+      "url": "cmd://node ./src/engine/mcp_servers/task-server.js --root . --name task_manager",
       "description": "Task board for this workspace: add/list/update/complete/clear tasks."
     },
     {

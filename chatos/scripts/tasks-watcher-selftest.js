@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 
 import { createDb } from '../src/common/admin-data/storage.js';
 import { createAdminServices } from '../src/common/admin-data/services/index.js';
+import { resolveLegacyStateDir } from '../src/common/state-core/state-paths.js';
 import { resolveEngineRoot } from '../src/engine-paths.js';
 import { createSessionApi } from '../electron/session-api.js';
 
@@ -54,7 +55,7 @@ async function main() {
       .replace(/^_+|_+$/g, '') || 'chatos';
   process.env.MODEL_CLI_HOST_APP = hostApp;
   console.log('[setup]', { root: ROOT });
-  const stateDir = path.join(ROOT, '.deepseek_cli', hostApp);
+  const stateDir = path.join(resolveLegacyStateDir(ROOT), hostApp);
   const authDir = path.join(stateDir, 'auth');
   ensureDir(authDir);
 

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { STATE_ROOT_DIRNAME, resolveStateRootDir } from '../src/common/state-core/state-paths.js';
 
 function ensureDir(dirPath) {
   try {
@@ -62,7 +63,9 @@ export function createCliShim({ projectRoot, commandName } = {}) {
   }
 
   function resolveWindowsFallbackBinDir() {
-    return path.join(os.homedir(), '.deepseek_cli', 'bin');
+    const root = resolveStateRootDir({ env: process.env, homeDir: os.homedir() });
+    if (root) return path.join(root, 'bin');
+    return path.join(os.homedir(), STATE_ROOT_DIRNAME, 'bin');
   }
 
   function listCliShimCandidates() {

@@ -27,7 +27,7 @@
   - 可通过环境变量覆盖：`MODEL_CLI_SESSION_ROOT=/path/to/root`
   - 桌面端/CLI 会把“上次使用的 sessionRoot”记录到 `<home>/.deepseek_cli/last-session-root.txt`（未设置 env 时会优先读取）
 - `stateDir`：`<home>/.deepseek_cli/<hostApp>`（ChatOS 的 `hostApp=chatos`）
-- 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `.deepseek_cli`
+  - 兼容旧路径：若存在 `<home>/.chatos/<hostApp>`，启动时会自动迁移到 `.deepseek_cli`
 
 全局配置（由宿主维护；应用侧只读/复用）：
 

@@ -1,18 +1,16 @@
 import fs from 'fs';
 import path from 'path';
+import { COMPAT_STATE_ROOT_DIRNAME, STATE_ROOT_DIRNAME } from './state-paths.js';
 import { ensureDir, getHomeDir, resolveHostApp } from './utils.js';
 
-const STATE_DIRNAME = '.deepseek_cli';
-const COMPAT_STATE_DIRNAME = '.chatos';
-
-function getMarkerPath(homeDir, hostApp, baseDir = STATE_DIRNAME) {
+function getMarkerPath(homeDir, hostApp, baseDir = STATE_ROOT_DIRNAME) {
   const home = typeof homeDir === 'string' ? homeDir.trim() : '';
   const host = typeof hostApp === 'string' ? hostApp.trim() : '';
   if (!home || !host) return '';
   return path.join(home, baseDir, host, 'last-session-root.txt');
 }
 
-function getLegacyMarkerPath(homeDir, baseDir = STATE_DIRNAME) {
+function getLegacyMarkerPath(homeDir, baseDir = STATE_ROOT_DIRNAME) {
   const home = typeof homeDir === 'string' ? homeDir.trim() : '';
   if (!home) return '';
   return path.join(home, baseDir, 'last-session-root.txt');
@@ -28,9 +26,9 @@ export function resolveSessionRoot(options = {}) {
   const home = getHomeDir(env);
   const hostApp = resolveHostApp({ env, hostApp: options.hostApp, fallbackHostApp: options.fallbackHostApp });
   const markerPath = getMarkerPath(home, hostApp);
-  const compatMarkerPath = getMarkerPath(home, hostApp, COMPAT_STATE_DIRNAME);
+  const compatMarkerPath = getMarkerPath(home, hostApp, COMPAT_STATE_ROOT_DIRNAME);
   const legacyMarkerPath = getLegacyMarkerPath(home);
-  const legacyCompatMarkerPath = getLegacyMarkerPath(home, COMPAT_STATE_DIRNAME);
+  const legacyCompatMarkerPath = getLegacyMarkerPath(home, COMPAT_STATE_ROOT_DIRNAME);
 
   const readMarker = (filePath) => {
     if (!filePath) return '';

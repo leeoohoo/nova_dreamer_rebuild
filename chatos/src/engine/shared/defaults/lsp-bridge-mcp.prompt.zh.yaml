@@ -17,7 +17,7 @@ prompt: |
     <setup>
       - `mcp_lsp_bridge_list_lsp_servers`：查看已配置的 server_id 以及扩展名映射
       - `mcp_lsp_bridge_start_lsp_server({ "server_id": "..." })`：必要时显式拉起（通常会按扩展名自动选择）
-      - 配置文件：`.deepseek_cli/<app>/lsp-servers.json`（示例：`aide/mcp_servers/lsp-servers.example.json`）
+      - 配置文件：`stateDir/<app>/lsp-servers.json`（示例：`aide/mcp_servers/lsp-servers.example.json`）
     </setup>
 
     <available_tools>

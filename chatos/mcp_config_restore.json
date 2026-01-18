@@ -22,7 +22,7 @@
     },
     {
       "name": "task_manager",
-      "url": "cmd://node ./src/engine/mcp_servers/task-server.js --root . --store .deepseek_cli/tasks.json --name task_manager",
+      "url": "cmd://node ./src/engine/mcp_servers/task-server.js --root . --name task_manager",
       "description": "维护任务清单：新增、列表、更新状态、清理已完成任务。"
     },
     {

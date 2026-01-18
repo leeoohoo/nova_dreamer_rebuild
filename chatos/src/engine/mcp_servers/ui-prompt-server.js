@@ -8,7 +8,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { clampNumber, parseArgs } from './cli-utils.js';
 import { createTtyPrompt } from './tty-prompt.js';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveAppStateDir, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help || args.h) {
@@ -770,7 +770,7 @@ function printHelp() {
   console.log(`Usage: ui-prompt-server.js [--name <serverName>]
 
 Environment:
-  MODEL_CLI_SESSION_ROOT   Base dir for per-app state (default: $SESSION_ROOT/.deepseek_cli/<app>/...)
-  MODEL_CLI_UI_PROMPTS     Override prompt log path (default: $SESSION_ROOT/.deepseek_cli/<app>/ui-prompts.jsonl)
+  MODEL_CLI_SESSION_ROOT   Base dir for per-app state (default: $SESSION_ROOT/${STATE_ROOT_DIRNAME}/<app>/...)
+  MODEL_CLI_UI_PROMPTS     Override prompt log path (default: $SESSION_ROOT/${STATE_ROOT_DIRNAME}/<app>/ui-prompts.jsonl)
 `);
 }

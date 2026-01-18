@@ -9,14 +9,17 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
 
-import { ensureDir, isDirectory, isFile } from '../lib/fs.js';
+import { copyDir, ensureDir, isDirectory, isFile } from '../lib/fs.js';
 import { loadPluginManifest, pickAppFromManifest } from '../lib/plugin.js';
 import { resolveInsideDir } from '../lib/path-boundary.js';
+import { COMPAT_STATE_ROOT_DIRNAME, STATE_ROOT_DIRNAME } from '../lib/state-constants.js';
 
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const TOKEN_REGEX = /--ds-[a-z0-9-]+/gi;
+const SANDBOX_STATE_DIRNAME = STATE_ROOT_DIRNAME;
+const SANDBOX_COMPAT_DIRNAME = COMPAT_STATE_ROOT_DIRNAME;
 const GLOBAL_STYLES_CANDIDATES = [
   path.resolve(__dirname, '..', '..', '..', 'common', 'aide-ui', 'components', 'GlobalStyles.jsx'),
   path.resolve(process.cwd(), 'common', 'aide-ui', 'components', 'GlobalStyles.jsx'),
@@ -35,6 +38,28 @@ function loadTokenNames() {
     }
   }
   return [];
+}
+
+function resolveSandboxRoots() {
+  const cwd = process.cwd();
+  const primary = path.join(cwd, SANDBOX_STATE_DIRNAME);
+  const legacy = path.join(cwd, SANDBOX_COMPAT_DIRNAME);
+  if (!isDirectory(primary) && isDirectory(legacy)) {
+    try {
+      copyDir(legacy, primary);
+    } catch {
+      // ignore compat copy errors
+    }
+  }
+  return { primary, legacy };
+}
+
+function resolveSandboxConfigPath({ primaryRoot, legacyRoot }) {
+  const primaryPath = path.join(primaryRoot, 'sandbox', 'llm-config.json');
+  if (isFile(primaryPath)) return primaryPath;
+  const legacyPath = path.join(legacyRoot, 'sandbox', 'llm-config.json');
+  if (isFile(legacyPath)) return legacyPath;
+  return primaryPath;
 }
 
 const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
@@ -1635,7 +1660,8 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   let backendInstance = null;
   let backendFactory = null;
 
-  const sandboxConfigPath = path.join(process.cwd(), '.chatos', 'sandbox', 'llm-config.json');
+  const { primary: sandboxRoot, legacy: legacySandboxRoot } = resolveSandboxRoots();
+  const sandboxConfigPath = resolveSandboxConfigPath({ primaryRoot: sandboxRoot, legacyRoot: legacySandboxRoot });
   let sandboxLlmConfig = loadSandboxLlmConfig(sandboxConfigPath);
   const getAppMcpPrompt = () => resolveAppMcpPrompt(app, pluginDir);
   const appMcpEntry = buildAppMcpEntry({ pluginDir, pluginId: String(manifest?.id || ''), app });
@@ -1815,7 +1841,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   const ctxBase = {
     pluginId: String(manifest?.id || ''),
     pluginDir,
-    stateDir: path.join(process.cwd(), '.chatos', 'state', 'chatos'),
+    stateDir: path.join(sandboxRoot, 'state', 'chatos'),
     sessionRoot: process.cwd(),
     projectRoot: process.cwd(),
     dataDir: '',
@@ -1840,7 +1866,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
       },
     },
   };
-  ctxBase.dataDir = path.join(process.cwd(), '.chatos', 'data', ctxBase.pluginId);
+  ctxBase.dataDir = path.join(sandboxRoot, 'data', ctxBase.pluginId);
   ensureDir(ctxBase.stateDir);
   ensureDir(ctxBase.dataDir);
   sandboxCallMeta = buildSandboxCallMeta({

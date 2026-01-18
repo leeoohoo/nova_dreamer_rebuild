@@ -4,10 +4,14 @@ import path from 'path';
 import { createRequire } from 'module';
 import { createDb as createDbCore } from '../state-core/db.js';
 import { resolveSessionRoot } from '../state-core/session-root.js';
-import { ensureAppStateDir, resolveAppDbFileName, resolveAppDbJsonFileName } from '../state-core/state-paths.js';
+import {
+  STATE_ROOT_DIRNAME,
+  ensureAppStateDir,
+  resolveAppDbFileName,
+  resolveAppDbJsonFileName,
+} from '../state-core/state-paths.js';
 import { getHomeDir, resolveHostApp } from '../state-core/utils.js';
 
-const STATE_ROOT_DIRNAME = '.deepseek_cli';
 const LEGACY_DEFAULT_DB_PATH = path.join(os.homedir(), STATE_ROOT_DIRNAME, 'admin.db.sqlite');
 
 const require = createRequire(import.meta.url);

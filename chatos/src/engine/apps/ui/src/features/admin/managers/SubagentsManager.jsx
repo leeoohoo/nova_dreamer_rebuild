@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
+import { STATE_ROOT_DIRNAME } from '../../../../../../../common/state-core/state-constants.js';
 
 const { Text, Paragraph } = Typography;
+const SUBAGENT_INSTALL_HINT =
+  `提示：安装会把外部 marketplace 的插件转换到 \`~/${STATE_ROOT_DIRNAME}/<hostApp>/subagents/plugins/\`，并写入 \`subagents.json\`。`;
 
 function SubagentsManager({
   data,
@@ -477,9 +480,7 @@ function SubagentsManager({
           </Col>
           <Col xs={24} md={24} lg={10}>
             {allowMarketplace ? (
-              <Text type="secondary">
-                提示：安装会把外部 marketplace 的插件转换到 `~/.deepseek_cli/subagents/plugins/`，并写入 `subagents.json`。
-              </Text>
+              <Text type="secondary">{SUBAGENT_INSTALL_HINT}</Text>
             ) : null}
           </Col>
         </Row>

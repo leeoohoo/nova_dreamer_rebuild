@@ -11,6 +11,7 @@ import {
   writeScaffoldManifest,
   writeScaffoldPackageJson,
 } from '../lib/template.js';
+import { COMPAT_STATE_ROOT_DIRNAME, STATE_ROOT_DIRNAME } from '../lib/state-constants.js';
 
 function canPrompt() {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -128,7 +129,7 @@ export async function cmdInit({ positionals, flags }) {
   // Ensure a helpful note exists even if template is edited later.
   writeText(
     path.join(destDir, '.gitignore'),
-    `node_modules/\n.DS_Store\n.deepseek_cli/\n.chatos/\n*.log\n\n# build outputs (if you add bundling later)\ndist/\n`
+    `node_modules/\n.DS_Store\n${STATE_ROOT_DIRNAME}/\n${COMPAT_STATE_ROOT_DIRNAME}/\n*.log\n\n# build outputs (if you add bundling later)\ndist/\n`
   );
 
   // eslint-disable-next-line no-console

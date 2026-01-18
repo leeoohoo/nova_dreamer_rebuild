@@ -17,7 +17,7 @@ prompt: |
     <setup>
       - `mcp_lsp_bridge_list_lsp_servers`: view configured server_id and extension mapping
       - `mcp_lsp_bridge_start_lsp_server({ "server_id": "..." })`: explicitly start if needed (usually auto-picked by file extension)
-      - Config file: `.deepseek_cli/<app>/lsp-servers.json` (example: `aide/mcp_servers/lsp-servers.example.json`)
+      - Config file: `stateDir/<app>/lsp-servers.json` (example: `aide/mcp_servers/lsp-servers.example.json`)
     </setup>
 
     <available_tools>

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { resolveEngineRoot } from '../src/engine-paths.js';
+import { resolveAppStateDir } from '../src/engine/shared/state-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,7 +74,7 @@ if (!runningUnderNodeTest) {
   timeoutMs = clampNumber(args.timeout_ms ?? args.timeout, 1_000, 30 * 60 * 1_000, 10 * 60 * 1_000);
   runA = safeTrim(args.run_a ?? args.a ?? 'run-a') || 'run-a';
   runB = safeTrim(args.run_b ?? args.b ?? 'run-b') || 'run-b';
-  promptLogPath = path.join(sessionRoot, '.deepseek_cli', 'ui-prompts.jsonl');
+  promptLogPath = path.join(resolveAppStateDir(sessionRoot, { preferSessionRoot: true }), 'ui-prompts.jsonl');
   ensureFileExists(promptLogPath);
 
   process.on('SIGINT', async () => {

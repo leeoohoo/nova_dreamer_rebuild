@@ -2,8 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
 import initSqlJs from 'sql.js';
-import { getHomeDir, normalizeHostApp } from '../../src/common/state-core/utils.js';
-import { maybeMigrateLegacyDbFiles, resolveAppDbFileName, resolveAppStateDir } from '../../src/common/state-core/state-paths.js';
+import { normalizeHostApp } from '../../src/common/state-core/utils.js';
+import {
+  maybeMigrateLegacyDbFiles,
+  resolveAppDbFileName,
+  resolveAppStateDir,
+  resolveCompatStateRootDir,
+  resolveStateRootDir,
+} from '../../src/common/state-core/state-paths.js';
 
 const require = createRequire(import.meta.url);
 
@@ -49,9 +55,10 @@ function listAppIds({ knownApps = [], env = process.env } = {}) {
 
   (Array.isArray(knownApps) ? knownApps : []).forEach(register);
 
-  const home = getHomeDir(env);
-  if (home) {
-    const baseDir = path.join(home, '.deepseek_cli');
+  const roots = [resolveStateRootDir({ env }), resolveCompatStateRootDir({ env })]
+    .filter((dir) => typeof dir === 'string' && dir.trim())
+    .filter((dir, index, arr) => arr.indexOf(dir) === index);
+  roots.forEach((baseDir) => {
     try {
       const entries = fs.readdirSync(baseDir, { withFileTypes: true });
       entries.forEach((entry) => {
@@ -61,7 +68,7 @@ function listAppIds({ knownApps = [], env = process.env } = {}) {
     } catch {
       // ignore
     }
-  }
+  });
 
   return out;
 }

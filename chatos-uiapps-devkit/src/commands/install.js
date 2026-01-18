@@ -4,10 +4,11 @@ import path from 'path';
 import { copyDir, ensureDir, isDirectory, rmForce, sanitizeDirComponent } from '../lib/fs.js';
 import { loadDevkitConfig } from '../lib/config.js';
 import { findPluginDir, loadPluginManifest } from '../lib/plugin.js';
+import { STATE_ROOT_DIRNAME } from '../lib/state-constants.js';
 
 function defaultStateDir(hostApp) {
   const app = typeof hostApp === 'string' && hostApp.trim() ? hostApp.trim() : 'chatos';
-  return path.join(os.homedir(), '.deepseek_cli', app);
+  return path.join(os.homedir(), STATE_ROOT_DIRNAME, app);
 }
 
 function copyPluginDir(srcDir, destDir) {

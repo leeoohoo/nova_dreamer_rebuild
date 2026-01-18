@@ -8,7 +8,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { createFilesystemOps, resolveSessionRoot } from './filesystem/ops.js';
-import { resolveAppStateDir } from '../shared/state-paths.js';
+import { resolveAppStateDir, STATE_ROOT_DIRNAME } from '../shared/state-paths.js';
 
 const fsp = fs.promises;
 
@@ -1385,7 +1385,7 @@ function printHelp() {
       '',
       'Options:',
       '  --root <path>            Workspace root (default current directory)',
-      '  --config <path>          LSP config JSON (default: .deepseek_cli/<app>/lsp-servers.json if present, else built-in defaults)',
+      `  --config <path>          LSP config JSON (default: ${STATE_ROOT_DIRNAME}/<app>/lsp-servers.json if present, else built-in defaults)`,
       '  --name <id>              MCP server name (default lsp_bridge)',
       '  --timeout-ms <n>         Default LSP request timeout (default 30000)',
       '  --max-bytes <n>          Max bytes to read per file for syncing (default 512KB)',
@@ -1398,7 +1398,7 @@ function printHelp() {
       'Template variables (in command/args):',
       '  ${workspaceRoot}  workspace root (absolute path)',
       '  ${sessionRoot}    session root (usually HOME)',
-      '  ${stateDir}       per-app state dir (sessionRoot/.deepseek_cli/<app>)',
+      `  ${'{'}stateDir${'}'}       per-app state dir (sessionRoot/${STATE_ROOT_DIRNAME}/<app>)`,
       '  ${serverId}       current server id',
     ].join('\n')
   );
