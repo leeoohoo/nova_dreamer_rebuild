@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Space, Tooltip } from 'antd';
+import { Button, Space } from 'antd';
 import {
   AppstoreOutlined,
   DoubleLeftOutlined,
@@ -43,6 +43,7 @@ export function ChatView({ admin, onNavigate }) {
   const sidebarCollapsedBeforeAppRef = useRef(false);
 
   const showApp = Boolean(activeApp?.pluginId && activeApp?.appId);
+  const headerTitle = showApp ? '应用' : '应用列表';
 
   useEffect(() => {
     if (showApp) {
@@ -102,21 +103,20 @@ export function ChatView({ admin, onNavigate }) {
             onSidebarCollapsedChange={setSidebarCollapsed}
           />
           {!drawerOpen ? (
-            <Tooltip title="Apps">
-              <Button
-                type="primary"
-                size="small"
-                icon={<AppstoreOutlined />}
-                onClick={() => setDrawerOpen(true)}
-                style={{
-                  position: 'absolute',
-                  right: 8,
-                  top: 16,
-                  borderRadius: 8,
-                  zIndex: 10,
-                }}
-              />
-            </Tooltip>
+            <Button
+              type="primary"
+              size="small"
+              icon={<AppstoreOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: 16,
+                borderRadius: 8,
+                zIndex: 10,
+              }}
+              title="Apps"
+            />
           ) : null}
         </div>
       ) : null}
@@ -134,28 +134,37 @@ export function ChatView({ admin, onNavigate }) {
             }}
           >
             <AppstoreOutlined />
-            <span style={{ fontWeight: 600 }}>{showApp ? 'App' : 'Apps'}</span>
+            <span style={{ fontWeight: 600 }}>{headerTitle}</span>
             <div style={{ flex: 1 }} />
             <Space size={6}>
-              {showApp ? (
-                <Tooltip title={drawerFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
-                  <Button
-                    size="small"
-                    icon={<DoubleLeftOutlined />}
-                    onClick={() => setDrawerFullscreen((prev) => !prev)}
-                  />
-                </Tooltip>
-              ) : null}
-              <Tooltip title="Collapse">
-                <Button
-                  size="small"
-                  icon={<DoubleRightOutlined />}
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    setDrawerFullscreen(false);
-                  }}
-                />
-              </Tooltip>
+              <Button
+                size="small"
+                icon={<HomeOutlined />}
+                onClick={() => {
+                  setActiveApp(null);
+                  setDrawerFullscreen(false);
+                }}
+                disabled={!showApp}
+              >
+                Home
+              </Button>
+              <Button
+                size="small"
+                icon={<DoubleLeftOutlined />}
+                onClick={() => setDrawerFullscreen((prev) => !prev)}
+              >
+                {drawerFullscreen ? '退出全屏' : '全屏'}
+              </Button>
+              <Button
+                size="small"
+                icon={<DoubleRightOutlined />}
+                onClick={() => {
+                  setDrawerOpen(false);
+                  setDrawerFullscreen(false);
+                }}
+              >
+                收起
+              </Button>
             </Space>
           </div>
 
@@ -173,27 +182,6 @@ export function ChatView({ admin, onNavigate }) {
             )}
           </div>
 
-          <div
-            style={{
-              padding: '10px 12px',
-              borderTop: '1px solid var(--ds-panel-border)',
-              background: 'var(--ds-subtle-bg)',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Button
-              size="small"
-              icon={<HomeOutlined />}
-              onClick={() => {
-                setActiveApp(null);
-                setDrawerFullscreen(false);
-              }}
-              disabled={!showApp}
-            >
-              Home
-            </Button>
-          </div>
         </div>
       ) : null}
     </div>
