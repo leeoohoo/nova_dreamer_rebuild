@@ -25,6 +25,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
   const moduleDisposeRef = useRef(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [moduleStatus, setModuleStatus] = useState({ loading: false, error: null });
+  const [trusting, setTrusting] = useState(false);
   const isBuiltinCliConsole = String(pluginId || '') === 'com.leeoohoo.aideui.builtin' && String(appId || '') === 'cli';
   const [cliTab, setCliTab] = useState(() =>
     normalizeBuiltinCliTab(typeof window !== 'undefined' ? window.__aideuiCliTab : '')
@@ -46,7 +47,8 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
   const entryUrl = typeof activeEntry?.url === 'string' ? activeEntry.url : '';
   const entryType = typeof activeEntry?.type === 'string' ? activeEntry.type : 'iframe';
   const isModuleApp = entryType === 'module';
-  const hostBridgeEnabled = entryType !== 'url' && entryUrl.startsWith('file://');
+  const pluginTrusted = app?.plugin?.trusted === true;
+  const hostBridgeEnabled = pluginTrusted && entryType !== 'url' && entryUrl.startsWith('file://');
   const compactMissing = surfaceMode === 'compact' && Boolean(app) && !compactEntry;
 
   useEffect(() => {
@@ -81,7 +83,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
   }, []);
 
   useEffect(() => {
-    if (!isModuleApp || !entryUrl) return;
+    if (!isModuleApp || !entryUrl || !pluginTrusted) return;
 
     let canceled = false;
 
@@ -108,7 +110,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
 
     const ensureBridge = () => {
       if (!hostBridgeEnabled) {
-        throw new Error('Host bridge is disabled for URL apps. Use file-based plugins instead.');
+        throw new Error('Host bridge is disabled for this app.');
       }
       if (!hasApi) {
         throw new Error('IPC bridge not available. Is preload loaded?');
@@ -461,7 +463,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
         chatEventsFilterRef.current = { sessionId: '', types: null };
       }
     };
-  }, [appId, entryUrl, hostBridgeEnabled, isModuleApp, onNavigate, pluginId, reloadToken, surfaceMode]);
+  }, [appId, entryUrl, hostBridgeEnabled, isModuleApp, onNavigate, pluginId, pluginTrusted, reloadToken, surfaceMode]);
 
   useEffect(() => {
     const handleMessage = async (event) => {
@@ -494,6 +496,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
               pluginId,
               appId,
               theme,
+              surface: surfaceMode,
               bridge: { enabled: hostBridgeEnabled },
             },
           });
@@ -501,7 +504,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
         }
 
         if (!hostBridgeEnabled) {
-          await reply({ ok: false, error: 'Host bridge is disabled for URL apps. Use iframe file-based plugins instead.' });
+          await reply({ ok: false, error: 'Host bridge is disabled for this app.' });
           return;
         }
 
@@ -866,8 +869,22 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [pluginId, appId, onNavigate, hostBridgeEnabled]);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      chatEventsToIframeRef.current = false;
+      if (!chatEventsListenersRef.current || chatEventsListenersRef.current.size === 0) {
+        if (chatEventsUnsubRef.current) {
+          try {
+            chatEventsUnsubRef.current();
+          } catch {
+            // ignore
+          }
+        }
+        chatEventsUnsubRef.current = null;
+        chatEventsFilterRef.current = { sessionId: '', types: null };
+      }
+    };
+  }, [pluginId, appId, onNavigate, hostBridgeEnabled, surfaceMode]);
 
   useEffect(() => {
     return () => {
@@ -888,6 +905,29 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
   const reload = () => {
     refresh();
     setReloadToken((prev) => prev + 1);
+  };
+
+  const trustPlugin = async () => {
+    if (!hasApi) {
+      message.error('IPC bridge not available. Is preload loaded?');
+      return;
+    }
+    const targetId = typeof pluginId === 'string' ? pluginId.trim() : '';
+    if (!targetId) {
+      message.error('pluginId is required');
+      return;
+    }
+    setTrusting(true);
+    try {
+      const res = await api.invoke('uiApps:plugins:trust', { pluginId: targetId, trusted: true });
+      if (res?.ok === false) throw new Error(res?.message || '信任失败');
+      message.success('插件已标记为可信');
+      await refresh();
+    } catch (err) {
+      message.error(err?.message || '信任失败');
+    } finally {
+      setTrusting(false);
+    }
   };
 
   return (
@@ -966,19 +1006,36 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
             </div>
           ) : entryUrl ? (
             isModuleApp ? (
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {moduleStatus?.error ? (
-                  <div style={{ padding: 12 }}>
-                    <Alert type="error" showIcon message="应用加载失败" description={moduleStatus.error} />
-                  </div>
-                ) : null}
-                {moduleStatus?.loading ? (
-                  <div style={{ padding: 12 }}>
-                    <Text type="secondary">加载中…</Text>
-                  </div>
-                ) : null}
-                <div ref={moduleContainerRef} style={{ flex: 1, minHeight: 0, overflow: 'auto' }} />
-              </div>
+              !pluginTrusted ? (
+                <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="插件未受信任"
+                    description="为安全起见，模块入口已禁用。若确认来源可信，可手动标记为可信。"
+                  />
+                  <Space>
+                    <Button type="primary" loading={trusting} onClick={trustPlugin}>
+                      信任并启用
+                    </Button>
+                    <Text type="secondary">{pluginId}</Text>
+                  </Space>
+                </div>
+              ) : (
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  {moduleStatus?.error ? (
+                    <div style={{ padding: 12 }}>
+                      <Alert type="error" showIcon message="应用加载失败" description={moduleStatus.error} />
+                    </div>
+                  ) : null}
+                  {moduleStatus?.loading ? (
+                    <div style={{ padding: 12 }}>
+                      <Text type="secondary">加载中…</Text>
+                    </div>
+                  ) : null}
+                  <div ref={moduleContainerRef} style={{ flex: 1, minHeight: 0, overflow: 'auto' }} />
+                </div>
+              )
             ) : (
               <iframe
                 key={reloadToken}

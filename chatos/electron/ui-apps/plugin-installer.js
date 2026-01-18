@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { ensureUiAppsPluginTrustRecord } from './trust-store.js';
 
 const DEFAULT_PLUGINS_DIRNAME = 'ui_apps/plugins';
 
@@ -149,6 +150,8 @@ export async function installUiAppsPlugins({ inputPath, stateDir }) {
         pluginDir: destDir,
         replaced,
       });
+
+      ensureUiAppsPluginTrustRecord({ pluginId: id, stateDir: state });
     });
 
     return { ok: true, plugins: results, pluginsRoot };

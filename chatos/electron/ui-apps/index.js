@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import { uiAppsPluginSchema } from './schemas.js';
+import { isUiAppsPluginTrusted, setUiAppsPluginTrust } from './trust-store.js';
 import { resolveUiAppsAi, syncUiAppsAiContributes } from './ai.js';
 import { getRegistryCenter } from '../backend/registry-center.js';
 import { createRuntimeLogger } from '../../src/common/state-core/runtime-log.js';
@@ -9,6 +10,14 @@ import { createRuntimeLogger } from '../../src/common/state-core/runtime-log.js'
 const DEFAULT_MANIFEST_FILE = 'plugin.json';
 const DEFAULT_MAX_MANIFEST_BYTES = 256 * 1024;
 const DEFAULT_MAX_PROMPT_BYTES = 128 * 1024;
+
+function resolveBoolEnv(value, fallback = false) {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!raw) return fallback;
+  if (['1', 'true', 'yes', 'y', 'on'].includes(raw)) return true;
+  if (['0', 'false', 'no', 'n', 'off'].includes(raw)) return false;
+  return fallback;
+}
 
 export function createUiAppsManager(options = {}) {
   return new UiAppsManager(options);
@@ -26,6 +35,7 @@ export function registerUiAppsApi(ipcMain, options = {}) {
     }
   });
   ipcMain.handle('uiApps:invoke', async (_event, payload = {}) => manager.invoke(payload));
+  ipcMain.handle('uiApps:plugins:trust', async (_event, payload = {}) => manager.setPluginTrust(payload));
   return manager;
 }
 
@@ -173,10 +183,12 @@ class UiAppsManager {
 
     const plugins = pluginsInternal.map((plugin) => ({
       id: plugin.id,
+      providerAppId: plugin.providerAppId || '',
       name: plugin.name,
       version: plugin.version,
       description: plugin.description,
       source: plugin.source,
+      trusted: plugin.trusted === true,
       backend: plugin.backend ? { entry: plugin.backend.entry, available: Boolean(plugin.backend.resolved) } : null,
       apps: plugin.apps.map(sanitizeAppForUi),
     }));
@@ -184,7 +196,14 @@ class UiAppsManager {
       .flatMap((plugin) =>
         plugin.apps.map((app) => ({
           ...sanitizeAppForUi(app),
-          plugin: { id: plugin.id, name: plugin.name, version: plugin.version },
+          plugin: {
+            id: plugin.id,
+            name: plugin.name,
+            version: plugin.version,
+            source: plugin.source,
+            trusted: plugin.trusted === true,
+            backend: plugin.backend ? { entry: plugin.backend.entry, available: Boolean(plugin.backend.resolved) } : null,
+          },
         }))
       )
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -285,6 +304,29 @@ class UiAppsManager {
     };
   }
 
+  async setPluginTrust(payload = {}) {
+    const pluginId = typeof payload?.pluginId === 'string' ? payload.pluginId.trim() : '';
+    if (!pluginId) return { ok: false, message: 'pluginId is required' };
+    if (!this.stateDir) return { ok: false, message: 'stateDir not available' };
+    const trusted = payload?.trusted === true;
+
+    if (!this.registryMap.size) {
+      await this.listRegistry();
+    }
+    let plugin = this.registryMap.get(pluginId);
+    if (!plugin) {
+      await this.listRegistry();
+      plugin = this.registryMap.get(pluginId);
+    }
+    if (!plugin) {
+      return { ok: false, message: `Plugin not found: ${pluginId}` };
+    }
+
+    setUiAppsPluginTrust({ pluginId, stateDir: this.stateDir, trusted });
+    await this.listRegistry();
+    return { ok: true, trusted };
+  }
+
   async invoke(payload = {}) {
     const pluginId = typeof payload?.pluginId === 'string' ? payload.pluginId.trim() : '';
     const method = typeof payload?.method === 'string' ? payload.method.trim() : '';
@@ -342,6 +384,21 @@ class UiAppsManager {
     this.#logRuntime(level, message, meta, err);
   }
 
+  #isPluginTrusted(plugin) {
+    const pluginId = typeof plugin?.id === 'string' ? plugin.id.trim() : '';
+    if (!pluginId) return false;
+    return isUiAppsPluginTrusted({
+      pluginId,
+      source: plugin?.source,
+      stateDir: this.stateDir,
+      env: process.env,
+    });
+  }
+
+  #allowUntrustedBackend() {
+    return resolveBoolEnv(process.env.MODEL_CLI_UIAPPS_ALLOW_UNTRUSTED_BACKEND, false);
+  }
+
   #ensureDir(dirPath) {
     const normalized = typeof dirPath === 'string' ? dirPath.trim() : '';
     if (!normalized) return;
@@ -378,12 +435,15 @@ class UiAppsManager {
         const plugin = uiAppsPluginSchema.parse(parsed);
         const apps = this.#resolveApps(pluginDir, plugin, errors);
         const backend = this.#resolveBackend(pluginDir, plugin, errors);
+        const trusted = this.#isPluginTrusted({ id: plugin.id, source });
         plugins.push({
           id: plugin.id,
+          providerAppId: plugin.providerAppId || '',
           name: plugin.name,
           version: plugin.version,
           description: plugin.description,
           source,
+          trusted,
           backend,
           apps,
           pluginDir,
@@ -518,6 +578,7 @@ class UiAppsManager {
 
       const providerAppIdRaw = typeof plugin?.providerAppId === 'string' ? plugin.providerAppId.trim() : '';
       const providerAppId = providerAppIdRaw || pluginId;
+      const allowGrants = plugin?.trusted === true;
 
       try {
         registry.registerApp(providerAppId, { name: plugin?.name || providerAppId, version: plugin?.version || '' });
@@ -528,6 +589,7 @@ class UiAppsManager {
       (Array.isArray(plugin?.apps) ? plugin.apps : []).forEach((app) => {
         const appId = typeof app?.id === 'string' ? app.id.trim() : '';
         if (!appId) return;
+        const consumerAppId = `${pluginId}.${appId}`;
 
         const ai = app?.ai && typeof app.ai === 'object' ? app.ai : null;
         if (!ai) return;
@@ -542,7 +604,7 @@ class UiAppsManager {
             `uiapp:${pluginId}.${appId}`,
           ]).sort((a, b) => a.localeCompare(b));
           try {
-            registry.registerMcpServer(providerAppId, {
+            const serverRecord = registry.registerMcpServer(providerAppId, {
               id: String(mcp.name || '').trim(),
               name: String(mcp.name || '').trim(),
               url: String(mcp.url || '').trim(),
@@ -553,6 +615,29 @@ class UiAppsManager {
               allowSub: typeof mcp.allowSub === 'boolean' ? mcp.allowSub : true,
               auth: mcp.auth || undefined,
             });
+            if (serverRecord?.id) {
+              if (allowGrants) {
+                try {
+                  registry.grantMcpServerAccess(consumerAppId, serverRecord.id);
+                } catch (err) {
+                  errors.push({
+                    dir: pluginDir,
+                    source: 'registry',
+                    message: `Failed to grant MCP server "${mcp.name}" to "${consumerAppId}": ${err?.message || String(err)}`,
+                  });
+                }
+              } else {
+                try {
+                  registry.revokeMcpServerAccess(consumerAppId, serverRecord.id);
+                } catch (err) {
+                  errors.push({
+                    dir: pluginDir,
+                    source: 'registry',
+                    message: `Failed to revoke MCP server "${mcp.name}" from "${consumerAppId}": ${err?.message || String(err)}`,
+                  });
+                }
+              }
+            }
           } catch (err) {
             errors.push({
               dir: pluginDir,
@@ -592,7 +677,7 @@ class UiAppsManager {
             const promptName = String(variant.name || '').trim();
             if (!promptName) return;
             try {
-              registry.registerPrompt(providerAppId, {
+              const promptRecord = registry.registerPrompt(providerAppId, {
                 id: promptName,
                 name: promptName,
                 title,
@@ -601,6 +686,29 @@ class UiAppsManager {
                 allowMain: true,
                 allowSub: true,
               });
+              if (promptRecord?.id) {
+                if (allowGrants) {
+                  try {
+                    registry.grantPromptAccess(consumerAppId, promptRecord.id);
+                  } catch (err) {
+                    errors.push({
+                      dir: pluginDir,
+                      source: 'registry',
+                      message: `Failed to grant Prompt "${promptName}" to "${consumerAppId}": ${err?.message || String(err)}`,
+                    });
+                  }
+                } else {
+                  try {
+                    registry.revokePromptAccess(consumerAppId, promptRecord.id);
+                  } catch (err) {
+                    errors.push({
+                      dir: pluginDir,
+                      source: 'registry',
+                      message: `Failed to revoke Prompt "${promptName}" from "${consumerAppId}": ${err?.message || String(err)}`,
+                    });
+                  }
+                }
+              }
             } catch (err) {
               errors.push({
                 dir: pluginDir,
@@ -725,6 +833,10 @@ class UiAppsManager {
   async #getBackend(plugin) {
     const pluginId = typeof plugin?.id === 'string' ? plugin.id.trim() : '';
     if (!pluginId) throw new Error('pluginId is required');
+    const trusted = this.#isPluginTrusted(plugin);
+    if (!trusted && !this.#allowUntrustedBackend()) {
+      throw new Error(`Plugin backend disabled for untrusted plugin: ${pluginId}`);
+    }
     const backendResolved = plugin?.backend?.resolved;
     if (!backendResolved) throw new Error(`Plugin backend not available: ${pluginId}`);
 

@@ -94,6 +94,7 @@ const CLI_COMMAND_NAME = process.platform === 'win32' ? WINDOWS_DESKTOP_CLI_COMM
 const LEGACY_CLI_COMMAND_NAME = DEFAULT_CLI_COMMAND_NAME;
 const UI_DEVELOPER_MODE = (!app?.isPackaged) || process.env.MODEL_CLI_UI_DEVELOPER_MODE === '1';
 const UI_EXPOSE_SUBAGENTS = resolveBoolEnv('MODEL_CLI_UI_EXPOSE_SUBAGENTS', true);
+const UI_WEB_SECURITY = resolveBoolEnv('MODEL_CLI_UI_WEB_SECURITY', true);
 const UI_FLAGS = { developerMode: UI_DEVELOPER_MODE, aideInstalled: true, exposeSubagents: UI_EXPOSE_SUBAGENTS };
 const ENABLE_ALL_SUBAGENTS = resolveBoolEnv('MODEL_CLI_ENABLE_ALL_SUBAGENTS', Boolean(app?.isPackaged));
 // IMPORTANT: keep UI Apps scanning read-only by default; only enable DB sync explicitly via env.
@@ -864,7 +865,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false,
+      sandbox: true,
+      webSecurity: UI_WEB_SECURITY,
     },
   };
   if (appIconPath) {

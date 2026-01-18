@@ -32,6 +32,14 @@ const require = createRequire(import.meta.url);
 const uiAppNodeModulesReady = new Set();
 let cachedHostNodeModulesDir = null;
 
+function resolveBoolEnv(value, fallback = false) {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!raw) return fallback;
+  if (['1', 'true', 'yes', 'y', 'on'].includes(raw)) return true;
+  if (['0', 'false', 'no', 'n', 'off'].includes(raw)) return false;
+  return fallback;
+}
+
 function resolveHostNodeModulesDir() {
   if (cachedHostNodeModulesDir !== null) {
     return cachedHostNodeModulesDir;
@@ -92,6 +100,8 @@ function isUiAppMcpServer(entry, options = {}) {
 }
 
 function ensureUiAppNodeModules(sessionRoot, runtimeLogger) {
+  const allowShared = resolveBoolEnv(process.env.MODEL_CLI_UIAPPS_SHARE_NODE_MODULES, false);
+  if (!allowShared) return;
   const root = typeof sessionRoot === 'string' && sessionRoot.trim() ? sessionRoot.trim() : process.cwd();
   const stateDir = resolveAppStateDir(root);
   if (!stateDir || uiAppNodeModulesReady.has(stateDir)) return;

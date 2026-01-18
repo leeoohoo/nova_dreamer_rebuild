@@ -117,6 +117,7 @@ export const uiAppSchema = z.object({
 export const uiAppsPluginSchema = z.object({
   manifestVersion: manifestVersionSchema,
   id: z.string().trim().min(1, 'plugin.id is required'),
+  providerAppId: z.string().trim().optional().default(''),
   name: z.string().trim().min(1, 'plugin.name is required'),
   version: z.string().trim().optional().default('0.0.0'),
   description: z.string().trim().optional().default(''),

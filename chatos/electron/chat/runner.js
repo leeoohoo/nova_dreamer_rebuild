@@ -7,6 +7,7 @@ import { resolveAllowedTools } from './tool-selection.js';
 import { applySecretsToProcessEnv } from '../../src/common/secrets-env.js';
 import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../src/common/host-app.js';
 import { resolveEngineRoot } from '../../src/engine-paths.js';
+import { getRegistryCenter } from '../backend/registry-center.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -258,6 +259,87 @@ export function createChatRunner({
   const MCP_INIT_TIMEOUT = Symbol('mcp_init_timeout');
 
   const resolveUiAppAi = uiApps && typeof uiApps.getAiContribution === 'function' ? uiApps.getAiContribution.bind(uiApps) : null;
+  let registry = null;
+  try {
+    const registryDb = adminServices?.mcpServers?.db || null;
+    registry = registryDb ? getRegistryCenter({ db: registryDb }) : null;
+  } catch {
+    registry = null;
+  }
+  let uiAppsTrustMap = new Map();
+  const refreshUiAppsTrust = async () => {
+    uiAppsTrustMap = new Map();
+    if (!uiApps || typeof uiApps.listRegistry !== 'function') return;
+    try {
+      const snapshot = await uiApps.listRegistry();
+      const plugins = Array.isArray(snapshot?.plugins) ? snapshot.plugins : [];
+      uiAppsTrustMap = new Map(
+        plugins
+          .map((plugin) => [normalizeId(plugin?.id), plugin?.trusted === true])
+          .filter(([id]) => id)
+      );
+    } catch {
+      uiAppsTrustMap = new Map();
+    }
+  };
+  const isUiAppTrusted = (pluginId) => {
+    const pid = normalizeId(pluginId);
+    if (!pid) return false;
+    return uiAppsTrustMap.get(pid) === true;
+  };
+  const normalizeRegistryName = (value) => String(value || '').trim().toLowerCase();
+  const resolveUiAppRegistryAccess = (pluginId, appId) => {
+    if (!registry) return null;
+    const pid = normalizeId(pluginId);
+    const aid = normalizeId(appId);
+    if (!pid || !aid) return null;
+    const appKey = `${pid}.${aid}`;
+    let servers = [];
+    let prompts = [];
+    try {
+      servers = registry.getMcpServersForApp(appKey) || [];
+    } catch {
+      servers = [];
+    }
+    try {
+      prompts = registry.getPromptsForApp(appKey) || [];
+    } catch {
+      prompts = [];
+    }
+    const serversByName = new Map(
+      servers
+        .filter((srv) => srv?.name)
+        .map((srv) => [normalizeRegistryName(srv.name), srv])
+    );
+    const promptsByName = new Map(
+      prompts
+        .filter((p) => p?.name)
+        .map((p) => [normalizeRegistryName(p.name), p])
+    );
+    const serversById = new Map(
+      servers
+        .filter((srv) => srv?.id)
+        .map((srv) => [String(srv.id), srv])
+    );
+    const promptsById = new Map(
+      prompts
+        .filter((p) => p?.id)
+        .map((p) => [String(p.id), p])
+    );
+    const serverIds = new Set(Array.from(serversById.keys()));
+    const promptIds = new Set(Array.from(promptsById.keys()));
+    return {
+      appKey,
+      servers,
+      prompts,
+      serversByName,
+      promptsByName,
+      serversById,
+      promptsById,
+      serverIds,
+      promptIds,
+    };
+  };
 
   const computeMcpSignature = (servers, skipServers) => {
     const list = Array.isArray(servers) ? servers : [];
@@ -509,16 +591,26 @@ export function createChatRunner({
     const derivedPromptNames = [];
     const missingUiAppServers = [];
     const missingUiAppPrompts = [];
+    const deniedUiAppServers = [];
+    const deniedUiAppPrompts = [];
     const extraMcpServers = [];
     const extraMcpRuntimeServers = [];
     const extraPrompts = [];
+    const untrustedUiApps = new Set();
+
+    await refreshUiAppsTrust();
 
     const uiRefs = Array.isArray(agentRecord?.uiApps) ? agentRecord.uiApps : [];
     for (const ref of uiRefs) {
       const pluginId = normalizeId(ref?.pluginId);
       const appId = normalizeId(ref?.appId);
       if (!pluginId || !appId) continue;
+      if (!isUiAppTrusted(pluginId)) {
+        untrustedUiApps.add(`${pluginId}.${appId}`);
+        continue;
+      }
       const serverName = `${pluginId}.${appId}`;
+      const registryAccess = resolveUiAppRegistryAccess(pluginId, appId);
       const wantsMcp = ref?.mcp !== false;
       const wantsPrompt = ref?.prompt !== false;
 
@@ -542,19 +634,78 @@ export function createChatRunner({
         const explicitMcpIds = Array.isArray(ref?.mcpServerIds)
           ? ref.mcpServerIds.map((id) => normalizeId(id)).filter(Boolean)
           : [];
-        const explicitMcpValidIds = explicitMcpIds.filter((id) => serverById.has(id));
-        if (explicitMcpValidIds.length > 0) {
-          explicitMcpValidIds.forEach((id) => derivedMcpServerIds.push(id));
+        const explicitAllowedIds = [];
+        if (explicitMcpIds.length > 0) {
+          explicitMcpIds.forEach((id) => {
+            const adminServer = serverById.get(id);
+            if (adminServer) {
+              if (registryAccess) {
+                const allowedByName = registryAccess.serversByName.get(
+                  String(adminServer?.name || '').trim().toLowerCase()
+                );
+                if (allowedByName) {
+                  explicitAllowedIds.push(id);
+                }
+              } else {
+                explicitAllowedIds.push(id);
+              }
+              return;
+            }
+            if (registryAccess && registryAccess.serverIds.has(id)) {
+              explicitAllowedIds.push(id);
+            }
+          });
+        }
+
+        if (explicitAllowedIds.length > 0) {
+          explicitAllowedIds.forEach((id) => derivedMcpServerIds.push(id));
+          if (registryAccess?.serversById) {
+            explicitAllowedIds.forEach((id) => {
+              if (serverById.has(id)) return;
+              const record = registryAccess.serversById.get(id);
+              if (!record?.url) return;
+              extraMcpServers.push({
+                id: record.id,
+                name: record.name || record.provider_server_id || record.id,
+                url: record.url,
+                description: typeof record?.description === 'string' ? record.description : '',
+                tags: Array.isArray(record?.tags) ? record.tags : [],
+                enabled: record?.enabled !== false,
+                allowMain: typeof record?.allowMain === 'boolean' ? record.allowMain : true,
+                allowSub: typeof record?.allowSub === 'boolean' ? record.allowSub : true,
+                auth: record?.auth || undefined,
+                callMeta: record?.callMeta || undefined,
+              });
+              extraMcpRuntimeServers.push({
+                name: record.name || record.provider_server_id || record.id,
+                url: record.url,
+                description: typeof record?.description === 'string' ? record.description : '',
+                tags: Array.isArray(record?.tags) ? record.tags : [],
+                enabled: record?.enabled !== false,
+                allowMain: typeof record?.allowMain === 'boolean' ? record.allowMain : true,
+                allowSub: typeof record?.allowSub === 'boolean' ? record.allowSub : true,
+                auth: record?.auth || undefined,
+                callMeta: record?.callMeta || undefined,
+              });
+            });
+          }
         } else {
           const srv = serverByName.get(serverName.toLowerCase());
+          const registryAllowed = registryAccess?.serversByName?.get(serverName.toLowerCase()) || null;
           if (srv?.id) {
-            derivedMcpServerIds.push(srv.id);
+            if (registryAccess && !registryAllowed) {
+              deniedUiAppServers.push(serverName);
+            } else {
+              derivedMcpServerIds.push(srv.id);
+            }
           } else {
             const contribute = await resolveContribution();
             const mcp = contribute?.mcp && typeof contribute.mcp === 'object' ? contribute.mcp : null;
             const mcpUrl = typeof mcp?.url === 'string' ? mcp.url.trim() : '';
-            if (mcpUrl) {
-              const uiId = `uiapp:${serverName}`;
+            if (registryAccess && !registryAllowed) {
+              deniedUiAppServers.push(serverName);
+            } else if (mcpUrl) {
+              const uiId = registryAllowed?.id || `uiapp:${serverName}`;
               const tags = Array.isArray(mcp?.tags) ? mcp.tags : [];
               const mergedTags = [
                 ...tags,
@@ -563,33 +714,56 @@ export function createChatRunner({
                 `uiapp:${pluginId}:${appId}`,
                 `uiapp:${pluginId}.${appId}`,
               ];
-              const allowMain = typeof mcp?.allowMain === 'boolean' ? mcp.allowMain : true;
-              const allowSub = typeof mcp?.allowSub === 'boolean' ? mcp.allowSub : true;
-              const enabled = typeof mcp?.enabled === 'boolean' ? mcp.enabled : true;
-              const auth = mcp?.auth || undefined;
+              const allowMain =
+                typeof registryAllowed?.allowMain === 'boolean'
+                  ? registryAllowed.allowMain
+                  : typeof mcp?.allowMain === 'boolean'
+                    ? mcp.allowMain
+                    : true;
+              const allowSub =
+                typeof registryAllowed?.allowSub === 'boolean'
+                  ? registryAllowed.allowSub
+                  : typeof mcp?.allowSub === 'boolean'
+                    ? mcp.allowSub
+                    : true;
+              const enabled =
+                typeof registryAllowed?.enabled === 'boolean'
+                  ? registryAllowed.enabled
+                  : typeof mcp?.enabled === 'boolean'
+                    ? mcp.enabled
+                    : true;
+              const auth = registryAllowed?.auth || mcp?.auth || undefined;
 
               extraMcpServers.push({
                 id: uiId,
-                name: mcp?.name || serverName,
-                url: mcpUrl,
-                description: typeof mcp?.description === 'string' ? mcp.description : '',
-                tags: mergedTags,
+                name: registryAllowed?.name || mcp?.name || serverName,
+                url: registryAllowed?.url || mcpUrl,
+                description: typeof registryAllowed?.description === 'string'
+                  ? registryAllowed.description
+                  : typeof mcp?.description === 'string'
+                    ? mcp.description
+                    : '',
+                tags: Array.isArray(registryAllowed?.tags) ? registryAllowed.tags : mergedTags,
                 enabled,
                 allowMain,
                 allowSub,
                 auth,
-                callMeta: mcp?.callMeta || undefined,
+                callMeta: registryAllowed?.callMeta || mcp?.callMeta || undefined,
               });
               extraMcpRuntimeServers.push({
-                name: mcp?.name || serverName,
-                url: mcpUrl,
-                description: typeof mcp?.description === 'string' ? mcp.description : '',
-                tags: mergedTags,
+                name: registryAllowed?.name || mcp?.name || serverName,
+                url: registryAllowed?.url || mcpUrl,
+                description: typeof registryAllowed?.description === 'string'
+                  ? registryAllowed.description
+                  : typeof mcp?.description === 'string'
+                    ? mcp.description
+                    : '',
+                tags: Array.isArray(registryAllowed?.tags) ? registryAllowed.tags : mergedTags,
                 enabled,
                 allowMain,
                 allowSub,
                 auth,
-                callMeta: mcp?.callMeta || undefined,
+                callMeta: registryAllowed?.callMeta || mcp?.callMeta || undefined,
               });
               derivedMcpServerIds.push(uiId);
             } else {
@@ -603,14 +777,91 @@ export function createChatRunner({
         const explicitPromptIds = Array.isArray(ref?.promptIds)
           ? ref.promptIds.map((id) => normalizeId(id)).filter(Boolean)
           : [];
-        const explicitPromptValidIds = explicitPromptIds.filter((id) => promptById.has(id));
-        if (explicitPromptValidIds.length > 0) {
-          explicitPromptValidIds.forEach((id) => derivedPromptIds.push(id));
+        const explicitAllowedPromptIds = [];
+        if (explicitPromptIds.length > 0) {
+          explicitPromptIds.forEach((id) => {
+            const adminPrompt = promptById.get(id);
+            if (adminPrompt) {
+              if (registryAccess) {
+                const allowedByName = registryAccess.promptsByName.get(
+                  String(adminPrompt?.name || '').trim().toLowerCase()
+                );
+                if (allowedByName) {
+                  explicitAllowedPromptIds.push(id);
+                } else {
+                  deniedUiAppPrompts.push(adminPrompt?.name || id);
+                }
+              } else {
+                explicitAllowedPromptIds.push(id);
+              }
+              return;
+            }
+
+            if (registryAccess && registryAccess.promptIds.has(id)) {
+              explicitAllowedPromptIds.push(id);
+              const record = registryAccess.promptsById?.get(id);
+              if (record?.content) {
+                extraPrompts.push({
+                  id: record.id,
+                  name: record.name || record.provider_prompt_id || id,
+                  title: typeof record?.title === 'string' ? record.title : '',
+                  type: 'system',
+                  content: String(record.content || '').trim(),
+                  allowMain: typeof record?.allowMain === 'boolean' ? record.allowMain : true,
+                  allowSub: typeof record?.allowSub === 'boolean' ? record.allowSub : true,
+                  tags: Array.isArray(record?.tags) ? record.tags : [],
+                });
+              }
+              return;
+            }
+
+            if (registryAccess) {
+              deniedUiAppPrompts.push(id);
+            }
+          });
+        }
+
+        if (explicitAllowedPromptIds.length > 0) {
+          explicitAllowedPromptIds.forEach((id) => derivedPromptIds.push(id));
           continue;
         }
 
         const preferredName = getMcpPromptNameForServer(serverName, promptLanguage).toLowerCase();
         const fallbackName = getMcpPromptNameForServer(serverName).toLowerCase();
+        if (registryAccess) {
+          const allowedPrompt =
+            registryAccess.promptsByName.get(preferredName) ||
+            (preferredName === fallbackName ? null : registryAccess.promptsByName.get(fallbackName));
+          if (!allowedPrompt) {
+            deniedUiAppPrompts.push(preferredName);
+            continue;
+          }
+          const allowedName = String(allowedPrompt?.name || '').trim().toLowerCase() || preferredName;
+          const localPrompt = promptByName.get(allowedName);
+          const localContent = typeof localPrompt?.content === 'string' ? localPrompt.content.trim() : '';
+          if (localContent) {
+            derivedPromptNames.push(allowedName);
+            continue;
+          }
+          const registryContent = typeof allowedPrompt?.content === 'string' ? allowedPrompt.content.trim() : '';
+          if (registryContent) {
+            extraPrompts.push({
+              id: allowedPrompt.id || `uiapp:${allowedName}`,
+              name: allowedPrompt.name || allowedName,
+              title: typeof allowedPrompt?.title === 'string' ? allowedPrompt.title : '',
+              type: 'system',
+              content: registryContent,
+              allowMain: typeof allowedPrompt?.allowMain === 'boolean' ? allowedPrompt.allowMain : true,
+              allowSub: typeof allowedPrompt?.allowSub === 'boolean' ? allowedPrompt.allowSub : true,
+              tags: Array.isArray(allowedPrompt?.tags) ? allowedPrompt.tags : [],
+            });
+            derivedPromptNames.push(allowedName);
+            continue;
+          }
+          missingUiAppPrompts.push(allowedName);
+          continue;
+        }
+
         const preferred = promptByName.get(preferredName);
         const preferredContent = typeof preferred?.content === 'string' ? preferred.content.trim() : '';
         if (preferredContent) {
@@ -668,12 +919,35 @@ export function createChatRunner({
         }`,
       });
     }
+    if (deniedUiAppServers.length > 0) {
+      sendEvent({
+        type: 'notice',
+        message: `[UI Apps] MCP server 未授权：${deniedUiAppServers.slice(0, 6).join(', ')}${
+          deniedUiAppServers.length > 6 ? ' ...' : ''
+        }`,
+      });
+    }
     if (missingUiAppPrompts.length > 0) {
       sendEvent({
         type: 'notice',
         message: `[UI Apps] 未找到 Prompt：${missingUiAppPrompts.slice(0, 6).join(', ')}${
           missingUiAppPrompts.length > 6 ? ' ...' : ''
         }`,
+      });
+    }
+    if (deniedUiAppPrompts.length > 0) {
+      sendEvent({
+        type: 'notice',
+        message: `[UI Apps] Prompt 未授权：${deniedUiAppPrompts.slice(0, 6).join(', ')}${
+          deniedUiAppPrompts.length > 6 ? ' ...' : ''
+        }`,
+      });
+    }
+    if (untrustedUiApps.size > 0) {
+      const list = Array.from(untrustedUiApps);
+      sendEvent({
+        type: 'notice',
+        message: `[UI Apps] 插件未受信任：${list.slice(0, 6).join(', ')}${list.length > 6 ? ' ...' : ''}`,
       });
     }
 

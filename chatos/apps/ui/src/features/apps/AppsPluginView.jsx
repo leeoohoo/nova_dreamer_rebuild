@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Card, Space, Typography } from 'antd';
+import { Alert, Button, Card, Space, Typography, message } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { api, hasApi } from '../../lib/api.js';
@@ -11,9 +11,11 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
   const { loading, error, data, refresh } = useUiAppsRegistry();
   const apps = useMemo(() => (Array.isArray(data?.apps) ? data.apps : []), [data]);
 
+  const iframeRef = useRef(null);
   const chatEventsUnsubRef = useRef(null);
   const chatEventsFilterRef = useRef({ sessionId: '', types: null });
   const chatEventsListenersRef = useRef(new Set());
+  const chatEventsToIframeRef = useRef(false);
 
   const moduleHeaderRef = useRef(null);
   const moduleContainerRef = useRef(null);
@@ -21,6 +23,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
 
   const [reloadToken, setReloadToken] = useState(0);
   const [moduleStatus, setModuleStatus] = useState({ loading: false, error: null });
+  const [trusting, setTrusting] = useState(false);
 
   const app = useMemo(
     () =>
@@ -38,11 +41,13 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
   const entryUrl = typeof activeEntry?.url === 'string' ? activeEntry.url : '';
   const entryType = typeof activeEntry?.type === 'string' ? activeEntry.type : 'module';
   const isModuleApp = entryType === 'module';
-  const hostBridgeEnabled = entryUrl.startsWith('file://') && hasApi;
+  const pluginTrusted = app?.plugin?.trusted === true;
+  const hostBridgeEnabled =
+    pluginTrusted && hasApi && entryType !== 'url' && typeof entryUrl === 'string' && entryUrl.startsWith('file://');
   const compactMissing = surfaceMode === 'compact' && Boolean(app) && !compactEntry;
 
   useEffect(() => {
-    if (!isModuleApp || !entryUrl) return;
+    if (!isModuleApp || !entryUrl || !pluginTrusted) return;
 
     let canceled = false;
 
@@ -69,7 +74,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
 
     const ensureBridge = () => {
       if (!hostBridgeEnabled) {
-        throw new Error('Host bridge not available. Ensure preload is loaded and app entry is file-based.');
+        throw new Error('Host bridge not available. Ensure the plugin is trusted and entry is file-based.');
       }
     };
 
@@ -472,13 +477,476 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
         }
       }
       chatEventsUnsubRef.current = null;
+      chatEventsToIframeRef.current = false;
       chatEventsFilterRef.current = { sessionId: '', types: null };
     };
-  }, [appId, entryUrl, hostBridgeEnabled, isModuleApp, onNavigate, pluginId, reloadToken, surfaceMode]);
+  }, [appId, entryUrl, hostBridgeEnabled, isModuleApp, onNavigate, pluginId, pluginTrusted, reloadToken, surfaceMode]);
+
+  useEffect(() => {
+    if (isModuleApp || !entryUrl) return;
+
+    const handleMessage = async (event) => {
+      const frame = iframeRef.current;
+      const sourceWindow = frame?.contentWindow;
+      if (!sourceWindow || event.source !== sourceWindow) return;
+
+      const messageData = event?.data;
+      if (!messageData || typeof messageData !== 'object') return;
+      if (messageData.__aideui !== 'apps' || messageData.type !== 'invoke') return;
+
+      const requestId = typeof messageData.requestId === 'string' ? messageData.requestId : '';
+      const method = typeof messageData.method === 'string' ? messageData.method.trim() : '';
+      if (!requestId || !method) return;
+
+      const reply = async (payload) => {
+        try {
+          sourceWindow.postMessage({ __aideui: 'apps', type: 'response', requestId, ...payload }, '*');
+        } catch {
+          // ignore postMessage errors
+        }
+      };
+
+      try {
+        if (method === 'context.get') {
+          const theme = document?.documentElement?.dataset?.theme || 'light';
+          await reply({
+            ok: true,
+            result: {
+              pluginId,
+              appId,
+              theme,
+              surface: surfaceMode,
+              bridge: { enabled: hostBridgeEnabled },
+            },
+          });
+          return;
+        }
+
+        if (!hostBridgeEnabled) {
+          await reply({ ok: false, error: 'Host bridge is disabled for this app.' });
+          return;
+        }
+
+        if (method === 'registry.list') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('uiApps:list');
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'list failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'admin.state') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('admin:state');
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'admin.models.list') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('admin:models:list');
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'admin.secrets.list') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('admin:secrets:list');
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'backend.invoke') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const backendMethod = typeof messageData?.params?.method === 'string' ? messageData.params.method.trim() : '';
+          if (!backendMethod) {
+            await reply({ ok: false, error: 'params.method is required' });
+            return;
+          }
+          const res = await api.invoke('uiApps:invoke', { pluginId, method: backendMethod, params: messageData?.params?.params });
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'invoke failed' });
+            return;
+          }
+          await reply({ ok: true, result: res?.result });
+          return;
+        }
+
+        if (method === 'ui.navigate') {
+          const target = typeof messageData?.params?.menu === 'string' ? messageData.params.menu.trim() : '';
+          if (!target) {
+            await reply({ ok: false, error: 'params.menu is required' });
+            return;
+          }
+          if (typeof onNavigate === 'function') {
+            onNavigate(target);
+          }
+          await reply({ ok: true, result: { ok: true } });
+          return;
+        }
+
+        if (method === 'chat.agents.list') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('chat:agents:list');
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'chat agents list failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.agents.ensureDefault') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('chat:agents:ensureDefault');
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'ensureDefault agent failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.agents.create') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const payload = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const res = await api.invoke('chat:agents:create', payload);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'create agent failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.agents.update') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const payload = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const id = typeof payload?.id === 'string' ? payload.id.trim() : '';
+          if (!id) {
+            await reply({ ok: false, error: 'params.id is required' });
+            return;
+          }
+          const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+          const res = await api.invoke('chat:agents:update', { id, data });
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'update agent failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.agents.delete') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const payload = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const id = typeof payload?.id === 'string' ? payload.id.trim() : '';
+          if (!id) {
+            await reply({ ok: false, error: 'params.id is required' });
+            return;
+          }
+          const res = await api.invoke('chat:agents:delete', { id });
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'delete agent failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.agents.createForApp') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const payload = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const preferredName = typeof payload?.name === 'string' ? payload.name.trim() : '';
+          const preferredDescription = typeof payload?.description === 'string' ? payload.description.trim() : '';
+          const preferredPrompt = typeof payload?.prompt === 'string' ? payload.prompt : '';
+          const preferredModelId = typeof payload?.modelId === 'string' ? payload.modelId.trim() : '';
+          const base = await api.invoke('chat:agents:ensureDefault');
+          if (base?.ok === false) {
+            await reply({ ok: false, error: base?.message || 'ensureDefault agent failed' });
+            return;
+          }
+          const modelId = preferredModelId || base?.agent?.modelId || '';
+          if (!modelId) {
+            await reply({ ok: false, error: 'modelId is required' });
+            return;
+          }
+          const agentPayload = {
+            name: preferredName || `${pluginId}:${appId} Agent`,
+            description: preferredDescription || `应用专用 Agent（${pluginId}:${appId}）`,
+            prompt: preferredPrompt,
+            modelId,
+            promptIds: Array.isArray(payload?.promptIds) ? payload.promptIds : [],
+            subagentIds: Array.isArray(payload?.subagentIds) ? payload.subagentIds : [],
+            skills: Array.isArray(payload?.skills) ? payload.skills : [],
+            mcpServerIds: Array.isArray(payload?.mcpServerIds) ? payload.mcpServerIds : [],
+            uiApps: [{ pluginId, appId, mcp: true, prompt: true }],
+          };
+          const res = await api.invoke('chat:agents:create', agentPayload);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'create agent failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.sessions.list') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const res = await api.invoke('chat:sessions:list');
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'chat sessions list failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.sessions.ensureDefault') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const params = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const res = await api.invoke('chat:sessions:ensureDefault', params);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'ensureDefault failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.sessions.create') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const params = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const res = await api.invoke('chat:sessions:create', params);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'create session failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.messages.list') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const params = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const res = await api.invoke('chat:messages:list', params);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'list messages failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.send') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const params = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const res = await api.invoke('chat:send', params);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'send failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.abort') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const params = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const res = await api.invoke('chat:abort', params);
+          if (res?.ok === false) {
+            await reply({ ok: false, error: res?.message || 'abort failed' });
+            return;
+          }
+          await reply({ ok: true, result: res });
+          return;
+        }
+
+        if (method === 'chat.events.subscribe') {
+          if (!hasApi) {
+            await reply({ ok: false, error: 'IPC bridge not available' });
+            return;
+          }
+          const params = messageData?.params && typeof messageData.params === 'object' ? messageData.params : {};
+          const sessionId = typeof params?.sessionId === 'string' ? params.sessionId.trim() : '';
+          const types = Array.isArray(params?.types) ? params.types.map((t) => String(t || '').trim()).filter(Boolean) : null;
+          chatEventsFilterRef.current = { sessionId, types: types && types.length ? types : null };
+          chatEventsToIframeRef.current = true;
+
+          if (!chatEventsUnsubRef.current) {
+            chatEventsUnsubRef.current = api.on('chat:event', (payload) => {
+              if (!payload || typeof payload !== 'object') return;
+              const filter = chatEventsFilterRef.current || { sessionId: '', types: null };
+              if (filter?.sessionId && String(payload?.sessionId || '') !== filter.sessionId) return;
+              if (Array.isArray(filter?.types) && filter.types.length > 0) {
+                const eventType = String(payload?.type || '');
+                if (!filter.types.includes(eventType)) return;
+              }
+
+              if (chatEventsToIframeRef.current) {
+                const targetWindow = iframeRef.current?.contentWindow;
+                if (targetWindow) {
+                  try {
+                    targetWindow.postMessage({ __aideui: 'apps', type: 'event', event: 'chat.event', payload }, '*');
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+
+              const listeners = chatEventsListenersRef.current;
+              if (!listeners || listeners.size === 0) return;
+              for (const listener of listeners) {
+                try {
+                  listener(payload);
+                } catch {
+                  // ignore
+                }
+              }
+            });
+          }
+
+          await reply({ ok: true, result: { ok: true } });
+          return;
+        }
+
+        if (method === 'chat.events.unsubscribe') {
+          chatEventsToIframeRef.current = false;
+          if (!chatEventsListenersRef.current || chatEventsListenersRef.current.size === 0) {
+            if (chatEventsUnsubRef.current) {
+              try {
+                chatEventsUnsubRef.current();
+              } catch {
+                // ignore
+              }
+              chatEventsUnsubRef.current = null;
+            }
+            chatEventsFilterRef.current = { sessionId: '', types: null };
+          }
+          await reply({ ok: true, result: { ok: true } });
+          return;
+        }
+
+        await reply({ ok: false, error: `Unknown method: ${method}` });
+      } catch (err) {
+        await reply({ ok: false, error: err?.message || String(err) });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      chatEventsToIframeRef.current = false;
+      if (!chatEventsListenersRef.current || chatEventsListenersRef.current.size === 0) {
+        if (chatEventsUnsubRef.current) {
+          try {
+            chatEventsUnsubRef.current();
+          } catch {
+            // ignore
+          }
+        }
+        chatEventsUnsubRef.current = null;
+        chatEventsFilterRef.current = { sessionId: '', types: null };
+      }
+    };
+  }, [appId, entryUrl, hostBridgeEnabled, isModuleApp, onNavigate, pluginId, surfaceMode]);
+
+  useEffect(() => {
+    return () => {
+      if (chatEventsUnsubRef.current) {
+        try {
+          chatEventsUnsubRef.current();
+        } catch {
+          // ignore
+        }
+      }
+      chatEventsUnsubRef.current = null;
+      chatEventsToIframeRef.current = false;
+      chatEventsFilterRef.current = { sessionId: '', types: null };
+      chatEventsListenersRef.current.clear();
+    };
+  }, []);
 
   const reload = () => {
     refresh();
     setReloadToken((prev) => prev + 1);
+  };
+
+  const trustPlugin = async () => {
+    if (!hasApi) {
+      message.error('IPC bridge not available. Is preload loaded?');
+      return;
+    }
+    const targetId = typeof pluginId === 'string' ? pluginId.trim() : '';
+    if (!targetId) {
+      message.error('pluginId is required');
+      return;
+    }
+    setTrusting(true);
+    try {
+      const res = await api.invoke('uiApps:plugins:trust', { pluginId: targetId, trusted: true });
+      if (res?.ok === false) throw new Error(res?.message || '信任失败');
+      message.success('插件已标记为可信');
+      await refresh();
+    } catch (err) {
+      message.error(err?.message || '信任失败');
+    } finally {
+      setTrusting(false);
+    }
   };
 
   return (
@@ -531,27 +999,68 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
             </div>
           ) : entryUrl ? (
             isModuleApp ? (
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                {moduleStatus?.error ? (
-                  <div style={{ padding: 12 }}>
-                    <Alert type="error" showIcon message="应用加载失败" description={moduleStatus.error} />
-                  </div>
-                ) : null}
-                {moduleStatus?.loading ? (
-                  <div style={{ padding: 12 }}>
-                    <Text type="secondary">加载中…</Text>
-                  </div>
-                ) : null}
-                <div ref={moduleHeaderRef} className="ds-ui-app-header-slot" style={{ flex: 'none' }} />
-                <div
-                  ref={moduleContainerRef}
-                  className="ds-ui-app-body-slot"
-                  style={{ flex: 1, minHeight: 0, overflow: 'auto', overscrollBehavior: 'contain' }}
-                />
-              </div>
+              !pluginTrusted ? (
+                <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="插件未受信任"
+                    description="为安全起见，模块入口已禁用。若确认来源可信，可手动标记为可信。"
+                  />
+                  <Space>
+                    <Button type="primary" loading={trusting} onClick={trustPlugin}>
+                      信任并启用
+                    </Button>
+                    <Text type="secondary">{pluginId}</Text>
+                  </Space>
+                </div>
+              ) : (
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                  {moduleStatus?.error ? (
+                    <div style={{ padding: 12 }}>
+                      <Alert type="error" showIcon message="应用加载失败" description={moduleStatus.error} />
+                    </div>
+                  ) : null}
+                  {moduleStatus?.loading ? (
+                    <div style={{ padding: 12 }}>
+                      <Text type="secondary">加载中…</Text>
+                    </div>
+                  ) : null}
+                  <div ref={moduleHeaderRef} className="ds-ui-app-header-slot" style={{ flex: 'none' }} />
+                  <div
+                    ref={moduleContainerRef}
+                    className="ds-ui-app-body-slot"
+                    style={{ flex: 1, minHeight: 0, overflow: 'auto', overscrollBehavior: 'contain' }}
+                  />
+                </div>
+              )
+            ) : entryType === 'iframe' || entryType === 'url' ? (
+              <iframe
+                key={reloadToken}
+                ref={iframeRef}
+                title={app?.name || `${pluginId}:${appId}`}
+                src={entryUrl}
+                style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+                onLoad={() => {
+                  try {
+                    const theme = document?.documentElement?.dataset?.theme || 'light';
+                    iframeRef.current?.contentWindow?.postMessage(
+                      {
+                        __aideui: 'apps',
+                        type: 'event',
+                        event: 'host.ready',
+                        payload: { pluginId, appId, theme, surface: surfaceMode, bridge: { enabled: hostBridgeEnabled } },
+                      },
+                      '*'
+                    );
+                  } catch {
+                    // ignore
+                  }
+                }}
+              />
             ) : (
               <div style={{ padding: 14 }}>
-                <Alert type="error" showIcon message="不支持的应用入口" description={`仅支持 module 入口（当前：${entryType || 'unknown'}）。`} />
+                <Alert type="error" showIcon message="不支持的应用入口" description={`未知入口类型：${entryType || 'unknown'}`} />
               </div>
             )
           ) : (
