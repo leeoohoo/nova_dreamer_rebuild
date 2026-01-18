@@ -149,6 +149,7 @@ export const TABLE_SCHEMAS = {
       { name: 'description', type: 'string', required: false },
       { name: 'main', type: 'object', required: false, note: '主流程关联配置' },
       { name: 'sub', type: 'object', required: false, note: '子流程关联配置' },
+      { name: 'locked', type: 'boolean', required: false, note: '内置锁定不可改' },
       { name: 'createdAt', type: 'datetime', required: true },
       { name: 'updatedAt', type: 'datetime', required: true },
     ],
@@ -311,6 +312,7 @@ export const landConfigSchema = z.object({
   description: z.string().trim().optional().default(''),
   main: landConfigFlowSchema.optional().default({ mcpServers: [], apps: [], prompts: [] }),
   sub: landConfigFlowSchema.optional().default({ mcpServers: [], apps: [], prompts: [] }),
+  locked: z.boolean().optional().default(false),
 });
 
 export const DEFAULT_RUNTIME_SETTINGS = {

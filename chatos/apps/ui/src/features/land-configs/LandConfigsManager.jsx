@@ -199,6 +199,8 @@ export function LandConfigsManager({ admin }) {
     });
   };
 
+  const isLocked = Boolean(draft?.locked);
+
   const updateFlow = (flowKey, patch) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -305,6 +307,10 @@ export function LandConfigsManager({ admin }) {
   const handleSave = async () => {
     if (!draft?.id) return;
     if (!hasApi) return;
+    if (draft?.locked) {
+      message.warning('该 land_config 为内置配置，禁止编辑。');
+      return;
+    }
     const payload = {
       name: typeof draft.name === 'string' ? draft.name.trim() : '',
       description: typeof draft.description === 'string' ? draft.description : '',
@@ -354,6 +360,11 @@ export function LandConfigsManager({ admin }) {
 
   const handleDelete = async (id) => {
     if (!hasApi) return;
+    const target = configs.find((item) => item.id === id);
+    if (target?.locked) {
+      message.warning('该 land_config 为内置配置，禁止删除。');
+      return;
+    }
     try {
       await api.invoke('admin:landConfigs:delete', { id });
       message.success('已删除');
@@ -375,10 +386,10 @@ export function LandConfigsManager({ admin }) {
         </Title>
         <Space size={8} style={{ marginBottom: 12 }}>
           <Text type="secondary">一键语言</Text>
-          <Button size="small" onClick={() => applyFlowLanguage(flowKey, 'zh')}>
+          <Button size="small" onClick={() => applyFlowLanguage(flowKey, 'zh')} disabled={isLocked}>
             中文
           </Button>
-          <Button size="small" onClick={() => applyFlowLanguage(flowKey, 'en')}>
+          <Button size="small" onClick={() => applyFlowLanguage(flowKey, 'en')} disabled={isLocked}>
             English
           </Button>
         </Space>
@@ -394,6 +405,7 @@ export function LandConfigsManager({ admin }) {
               options={mcpServerOptions}
               value={selectedMcpIds}
               onChange={(values) => updateMcpServers(flowKey, values)}
+              disabled={isLocked}
             />
             {flow.mcpServers.length > 0 ? (
               <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
@@ -416,6 +428,7 @@ export function LandConfigsManager({ admin }) {
                           { label: 'English', value: 'en' },
                         ]}
                         style={{ width: 110 }}
+                        disabled={isLocked}
                       />
                     </Space>
                   );
@@ -434,6 +447,7 @@ export function LandConfigsManager({ admin }) {
               options={uiAppOptions}
               value={selectedAppKeys}
               onChange={(values) => updateApps(flowKey, values)}
+              disabled={isLocked}
             />
             {flow.apps.length > 0 ? (
               <Space size={[6, 6]} wrap style={{ marginTop: 8 }}>
@@ -457,6 +471,7 @@ export function LandConfigsManager({ admin }) {
               options={promptOptions}
               value={selectedPromptKeys}
               onChange={(values) => updatePrompts(flowKey, values)}
+              disabled={isLocked}
             />
             {flow.prompts.length > 0 ? (
               <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
@@ -478,6 +493,7 @@ export function LandConfigsManager({ admin }) {
                           { label: 'English', value: 'en', disabled: !allowEn && allowZh },
                         ]}
                         style={{ width: 110 }}
+                        disabled={isLocked}
                       />
                       {!allowZh && allowEn ? <Tag color="orange">仅英文</Tag> : null}
                       {allowZh && !allowEn ? <Tag color="default">仅中文</Tag> : null}
@@ -530,8 +546,10 @@ export function LandConfigsManager({ admin }) {
                       type="link"
                       size="small"
                       danger
+                      disabled={config?.locked}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (config?.locked) return;
                         Modal.confirm({
                           title: '确认删除',
                           content: '确定要删除这个配置吗？此操作不可恢复。',
@@ -547,6 +565,7 @@ export function LandConfigsManager({ admin }) {
                     <Space size={6}>
                       <span>{config.name}</span>
                       {config?.id === selectedId ? <Tag color="blue">当前</Tag> : null}
+                      {config?.locked ? <Tag color="gold">内置</Tag> : null}
                     </Space>
                     <span style={{ color: '#888', fontSize: 12 }}>{config.description || '暂无描述'}</span>
                   </Space>
@@ -574,6 +593,7 @@ export function LandConfigsManager({ admin }) {
                     onChange={(event) => updateDraft({ name: event.target.value })}
                     placeholder="配置名称"
                     style={{ marginTop: 6 }}
+                    disabled={isLocked}
                   />
                 </div>
                 <div>
@@ -584,6 +604,7 @@ export function LandConfigsManager({ admin }) {
                     placeholder="可选描述"
                     rows={3}
                     style={{ marginTop: 6 }}
+                    disabled={isLocked}
                   />
                 </div>
               </Space>
@@ -598,8 +619,8 @@ export function LandConfigsManager({ admin }) {
             {renderFlowSection('sub', '子流程配置')}
 
             <div>
-              <Button type="primary" onClick={handleSave} loading={saving}>
-                保存配置
+              <Button type="primary" onClick={handleSave} loading={saving} disabled={isLocked}>
+                {isLocked ? '内置配置不可编辑' : '保存配置'}
               </Button>
             </div>
           </Space>

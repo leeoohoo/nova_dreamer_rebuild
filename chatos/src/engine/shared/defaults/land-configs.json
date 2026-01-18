@@ -4,6 +4,7 @@
       "id": "220e7e4d-eee0-4a76-902a-9e93b57c88e6",
       "name": "默认",
       "description": "",
+      "locked": true,
       "main": {
         "mcpServers": [
           {
