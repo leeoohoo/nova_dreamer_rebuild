@@ -67,7 +67,6 @@
       "!**/*.map",
       "!src/engine/**/node_modules/**",
       "!src/engine/**/.git/**",
-      "!src/engine/**/src/**",
       "!**/node_modules/electron/**"
     ],
     "asarUnpack": [
