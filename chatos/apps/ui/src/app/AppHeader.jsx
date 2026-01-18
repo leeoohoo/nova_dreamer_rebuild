@@ -52,12 +52,13 @@ export function AppHeader({
         padding: '0 16px',
         borderBottom: '1px solid var(--ds-header-border)',
         minHeight: 64,
+        height: 64,
         display: 'flex',
         alignItems: 'center',
         lineHeight: 'normal',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', flexWrap: 'nowrap', overflow: 'hidden' }}>
         <Title level={4} style={{ margin: 0, whiteSpace: 'nowrap' }}>
           <span className="ds-app-title">chatos</span>
         </Title>

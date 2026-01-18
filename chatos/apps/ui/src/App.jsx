@@ -87,7 +87,7 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
   }
 
   return (
-    <Layout style={{ height: '100vh' }}>
+    <Layout style={{ height: '100vh', overflow: 'hidden' }}>
       <GlobalStyles />
 
       <AppHeader
@@ -98,7 +98,7 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
         developerMode={developerMode}
       />
 
-      <Content style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <Content style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {error ? (
           <div style={{ padding: 16 }}>
             <Alert type="error" message={error} showIcon />
@@ -114,7 +114,7 @@ export default function App({ themeMode = 'light', onToggleTheme }) {
           />
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
           {loading ? (
             <div style={{ padding: 18 }}>
               <Spin />
