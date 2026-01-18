@@ -772,16 +772,11 @@ class UiAppsManager {
 
   #resolveEntry(pluginDir, entry) {
     const resolveEntryItem = (raw, label = 'entry') => {
-      const normalized = typeof raw === 'string' ? { type: 'iframe', path: raw } : raw;
-      if (normalized?.type === 'url') {
-        const url = typeof normalized?.url === 'string' ? normalized.url.trim() : '';
-        if (!url) throw new Error(`${label}.url is required`);
-        return { type: 'url', url };
-      }
+      const normalized = typeof raw === 'string' ? { type: 'module', path: raw } : raw;
       const entryType = normalized?.type;
-      if (entryType !== 'iframe' && entryType !== 'module') {
-        if (label === 'entry') throw new Error('Unknown entry type');
-        throw new Error(`Unknown ${label} type`);
+      if (entryType !== 'module') {
+        if (label === 'entry') throw new Error('Only module entry is supported');
+        throw new Error(`Only module ${label} is supported`);
       }
       const relPath = typeof normalized?.path === 'string' ? normalized.path.trim() : '';
       if (!relPath) throw new Error(`${label}.path is required`);
@@ -794,16 +789,14 @@ class UiAppsManager {
         throw new Error(`${label}.path not found: ${relPath}`);
       }
 
-      if (entryType === 'module') {
-        let stat = null;
-        try {
-          stat = fs.statSync(resolved);
-        } catch {
-          throw new Error(`${label}.path not found: ${relPath}`);
-        }
-        if (!stat.isFile()) {
-          throw new Error(`${label}.path must be a file for module apps: ${relPath}`);
-        }
+      let stat = null;
+      try {
+        stat = fs.statSync(resolved);
+      } catch {
+        throw new Error(`${label}.path not found: ${relPath}`);
+      }
+      if (!stat.isFile()) {
+        throw new Error(`${label}.path must be a file for module apps: ${relPath}`);
       }
 
       return { type: entryType, url: pathToFileURL(resolved).toString() };

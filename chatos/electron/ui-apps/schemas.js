@@ -2,33 +2,21 @@ import { z } from 'zod';
 
 const manifestVersionSchema = z.number().int().min(1).max(1).optional().default(1);
 
-const iframeEntrySchema = z.object({
-  type: z.literal('iframe'),
-  path: z.string().trim().min(1, 'entry.path is required for iframe apps'),
-});
-
 const moduleEntrySchema = z.object({
   type: z.literal('module'),
   path: z.string().trim().min(1, 'entry.path is required for module apps'),
 });
 
-const urlEntrySchema = z.object({
-  type: z.literal('url'),
-  url: z.string().trim().url('entry.url must be a valid url'),
-});
-
 const entryCompactSchema = z
-  .union([iframeEntrySchema, moduleEntrySchema, urlEntrySchema, z.string().trim().min(1)])
-  .transform((value) => (typeof value === 'string' ? { type: 'iframe', path: value } : value));
+  .union([moduleEntrySchema, z.string().trim().min(1)])
+  .transform((value) => (typeof value === 'string' ? { type: 'module', path: value } : value));
 
 const entrySchema = z
   .union([
-    iframeEntrySchema.extend({ compact: entryCompactSchema.optional() }),
     moduleEntrySchema.extend({ compact: entryCompactSchema.optional() }),
-    urlEntrySchema.extend({ compact: entryCompactSchema.optional() }),
     z.string().trim().min(1),
   ])
-  .transform((value) => (typeof value === 'string' ? { type: 'iframe', path: value } : value));
+  .transform((value) => (typeof value === 'string' ? { type: 'module', path: value } : value));
 
 const aiPromptSourceSchema = z
   .object({
