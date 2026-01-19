@@ -31,7 +31,7 @@
       "id": "smart-debug",
       "name": "Smart Debug",
       "description": "You are an expert AI-assisted debugging specialist with deep knowledge of modern debugging tools, observability platforms, and automated root cause analysis.",
-      "instructionsPath": "commands/smart-debug.md",
+      "instructionsPath": "../shared/commands/smart-debug.md",
       "model": "deepseek_chat"
     }
   ]

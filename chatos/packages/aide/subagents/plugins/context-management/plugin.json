@@ -21,7 +21,7 @@
       "id": "context-restore",
       "name": "Context Restoration: Advanced Semantic Memory Rehydration",
       "description": "## Role Statement",
-      "instructionsPath": "commands/context-restore.md",
+      "instructionsPath": "../shared/commands/context-restore.md",
       "model": "deepseek_chat"
     },
     {

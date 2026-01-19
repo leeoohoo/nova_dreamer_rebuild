@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { createDb, getDefaultDbPath } from '../shared/data/storage.js';
 import { createAdminServices } from '../shared/data/services/index.js';
 import { resolveSessionRoot } from '../shared/session-root.js';
+import { loadMcpConfig } from './mcp.js';
 import {
   buildAdminSeed,
   extractVariables,
@@ -34,7 +35,6 @@ export function getAdminServices() {
   const authDir = resolveStateDirPath(stateDir, STATE_DIR_NAMES.auth);
   const legacyAdminDb = getDefaultDbPath();
 
-  const legacySeed = readLegacyState(legacyAdminDb);
   const defaultPaths = {
     defaultsRoot,
     models: path.join(authDir, 'models.yaml'),
@@ -53,6 +53,15 @@ export function getAdminServices() {
     installedSubagents: resolveStateDirPath(stateDir, 'subagents.json'),
     adminDb: resolveStateDirPath(stateDir, `${getHostApp() || 'chatos'}.db.sqlite`),
   };
+  const legacySeed = readLegacyState(legacyAdminDb);
+  if (!legacySeed) {
+    // Ensure MCP config exists so admin seed matches runtime defaults.
+    try {
+      loadMcpConfig(defaultPaths.mcpConfig);
+    } catch {
+      // ignore MCP defaults bootstrap errors
+    }
+  }
   const seed = legacySeed || buildAdminSeed(defaultPaths);
   const adminDb = createDb({
     dbPath: defaultPaths.adminDb,

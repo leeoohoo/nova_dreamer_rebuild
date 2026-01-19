@@ -1,1 +1,1 @@
-export * from '../../../../../../packages/common/aide-ui/features/apps/hooks/useUiAppsRegistry.js';
+export * from 'aide-ui/features/apps/hooks/useUiAppsRegistry.js';

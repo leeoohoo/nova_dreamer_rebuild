@@ -1,1 +1,1 @@
-export * from '../../../../common/aide-ui/lib/parse.js';
+export * from 'aide-ui/lib/parse.js';

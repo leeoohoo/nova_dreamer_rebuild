@@ -38,7 +38,7 @@
       "id": "multi-agent-review",
       "name": "Multi Agent Code Review Orchestration Tool",
       "description": "## Role: Expert Multi-Agent Review Orchestration Specialist",
-      "instructionsPath": "commands/multi-agent-review.md",
+      "instructionsPath": "../shared/commands/multi-agent-review.md",
       "model": "deepseek_chat"
     }
   ]

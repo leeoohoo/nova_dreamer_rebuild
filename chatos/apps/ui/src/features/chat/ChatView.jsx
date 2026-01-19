@@ -7,7 +7,7 @@ import {
   HomeOutlined,
 } from '@ant-design/icons';
 
-import { ChatView as BaseChatView } from '../../../../../packages/common/aide-ui/features/chat/ChatView.jsx';
+import { ChatView as BaseChatView } from 'aide-ui/features/chat/ChatView.jsx';
 import { AppsHubView } from '../apps/AppsHubView.jsx';
 import { AppsPluginView } from '../apps/AppsPluginView.jsx';
 

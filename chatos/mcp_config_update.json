@@ -6,6 +6,11 @@
       "description": "Browse/Search project files (Read-only, defaults to root=.)."
     },
     {
+      "name": "code_maintainer",
+      "url": "cmd://node ./packages/aide/mcp_servers/code-maintainer-server.js --root . --write --name code_maintainer",
+      "description": "Read/write codebase with extra helpers: read_file_raw/read_file_range/stat_path/move_path/copy_path."
+    },
+    {
       "name": "lsp_bridge",
       "url": "cmd://node ./packages/aide/mcp_servers/lsp-bridge-server.js --root . --name lsp_bridge",
       "description": "LSP bridge (hover/definition/completion/diagnostics via local language servers; requires servers installed)."

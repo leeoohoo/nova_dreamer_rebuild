@@ -1,1 +1,1 @@
-export * from '../../../../../common/aide-ui/lib/storage.js';
+export * from 'aide-ui/lib/storage.js';

@@ -1,1 +1,1 @@
-export * from '../../../../packages/common/aide-ui/lib/events.js';
+export * from 'aide-ui/lib/events.js';

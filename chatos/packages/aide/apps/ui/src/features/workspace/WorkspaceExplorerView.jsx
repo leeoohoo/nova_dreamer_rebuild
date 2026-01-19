@@ -1,1 +1,1 @@
-export * from '../../../../../../common/aide-ui/features/workspace/WorkspaceExplorerView.jsx';
+export * from 'aide-ui/features/workspace/WorkspaceExplorerView.jsx';

@@ -1,1 +1,1 @@
-export * from '../../../../../common/aide-ui/components/GlobalStyles.jsx';
+export * from 'aide-ui/components/GlobalStyles.jsx';

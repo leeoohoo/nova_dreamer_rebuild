@@ -31,5 +31,5 @@ These remain under `chatos/src` but are updated to point at the new `packages` p
 
 - No references to `chatos/src/engine` remain outside `packages/aide`.
 - Build scripts and MCP configs point at `packages/aide`.
-- UI and CLI re-exports reference `packages/common/aide-ui`.
+- UI and CLI re-exports reference the `aide-ui` entrypoint (packages/common/aide-ui).
 - `package.json` files/resources include `packages/**` paths.

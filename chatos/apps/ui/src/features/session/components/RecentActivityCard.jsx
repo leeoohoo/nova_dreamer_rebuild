@@ -1,1 +1,1 @@
-export * from '../../../../../../packages/common/aide-ui/features/session/components/RecentActivityCard.jsx';
+export * from 'aide-ui/features/session/components/RecentActivityCard.jsx';

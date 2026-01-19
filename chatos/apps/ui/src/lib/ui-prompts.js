@@ -1,1 +1,1 @@
-export * from '../../../../packages/common/aide-ui/lib/ui-prompts.js';
+export * from 'aide-ui/lib/ui-prompts.js';

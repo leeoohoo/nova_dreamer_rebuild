@@ -1,1 +1,1 @@
-export * from '../../../../packages/common/aide-ui/lib/event-markdown.js';
+export * from 'aide-ui/lib/event-markdown.js';

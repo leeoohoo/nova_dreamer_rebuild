@@ -21,7 +21,7 @@
       "id": "deps-audit",
       "name": "Dependency Audit and Security Analysis",
       "description": "You are a dependency security expert specializing in vulnerability scanning, license compliance, and supply chain security. Analyze project dependencies for known vulnerabilities, licensing issues, outdated packages, and provide actionable remediation strategies.",
-      "instructionsPath": "commands/deps-audit.md",
+      "instructionsPath": "../shared/commands/deps-audit.md",
       "model": "deepseek_chat"
     }
   ]

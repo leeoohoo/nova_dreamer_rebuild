@@ -1,1 +1,1 @@
-export * from '../../../../common/aide-ui/lib/highlight.js';
+export * from 'aide-ui/lib/highlight.js';

@@ -6,6 +6,11 @@
       "description": "浏览/搜索项目文件（只读，默认 root=.）。"
     },
     {
+      "name": "code_maintainer",
+      "url": "cmd://node ./packages/aide/mcp_servers/code-maintainer-server.js --root . --write --name code_maintainer",
+      "description": "读写并维护项目代码（含额外工具：read_file_raw/read_file_range/stat_path/move_path/copy_path）。"
+    },
+    {
       "name": "lsp_bridge",
       "url": "cmd://node ./packages/aide/mcp_servers/lsp-bridge-server.js --root . --name lsp_bridge",
       "description": "LSP 桥接（hover/definition/completion/diagnostics 等）。依赖本机已安装对应语言的 Language Server；如需把重命名/格式化 edits 应用到磁盘，请启动时加 --write。"
@@ -13,7 +18,7 @@
     {
       "name": "code_writer",
       "url": "cmd://node ./packages/aide/mcp_servers/filesystem-server.js --root . --write --name code_writer",
-      "description": "写入/追加/删除项目文件。局部修改请优先用 apply_patch（支持标准 diff）；write_file 仅在需要整块覆盖或追加日志时使用。"
+      "description": "写入/追加/删除项目文件。局部修改优先用 apply_patch（标准 diff）或 edit_file（old_string/new_string 替换）；write_file 仅在需要整块覆盖或追加日志时使用。"
     },
     {
       "name": "shell_tasks",

@@ -149,6 +149,7 @@ async function main() {
       path.resolve(root, 'node_modules'),
       path.resolve(root, 'deepseek_cli', 'node_modules'),
       path.resolve(root, 'packages', 'node_modules'),
+      path.resolve(root, 'packages', 'common'),
       path.resolve(root, 'packages', 'aide', 'node_modules'),
     ],
   };

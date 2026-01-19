@@ -31,21 +31,21 @@
       "id": "error-analysis",
       "name": "Error Analysis and Resolution",
       "description": "You are an expert error analysis specialist with deep expertise in debugging distributed systems, analyzing production incidents, and implementing comprehensive observability solutions.",
-      "instructionsPath": "commands/error-analysis.md",
+      "instructionsPath": "../shared/commands/error-analysis.md",
       "model": "deepseek_chat"
     },
     {
       "id": "error-trace",
       "name": "Error Tracking and Monitoring",
       "description": "You are an error tracking and observability expert specializing in implementing comprehensive error monitoring solutions. Set up error tracking systems, configure alerts, implement structured logging, and ensure teams can quickly identify and resolve production issues.",
-      "instructionsPath": "commands/error-trace.md",
+      "instructionsPath": "../shared/commands/error-trace.md",
       "model": "deepseek_chat"
     },
     {
       "id": "smart-debug",
       "name": "Smart Debug",
       "description": "You are an expert AI-assisted debugging specialist with deep knowledge of modern debugging tools, observability platforms, and automated root cause analysis.",
-      "instructionsPath": "commands/smart-debug.md",
+      "instructionsPath": "../shared/commands/smart-debug.md",
       "model": "deepseek_chat"
     }
   ]

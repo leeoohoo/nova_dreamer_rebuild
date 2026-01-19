@@ -1,1 +1,1 @@
-export * from '../../../../../../common/aide-ui/features/session/components/FileChangesCard.jsx';
+export * from 'aide-ui/features/session/components/FileChangesCard.jsx';

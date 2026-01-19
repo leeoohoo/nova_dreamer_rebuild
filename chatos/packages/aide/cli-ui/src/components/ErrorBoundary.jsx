@@ -1,1 +1,1 @@
-export * from '../../../../common/aide-ui/components/ErrorBoundary.jsx';
+export * from 'aide-ui/components/ErrorBoundary.jsx';

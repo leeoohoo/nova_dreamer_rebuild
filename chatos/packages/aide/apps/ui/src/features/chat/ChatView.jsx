@@ -1,1 +1,1 @@
-export * from '../../../../../../common/aide-ui/features/chat/ChatView.jsx';
+export * from 'aide-ui/features/chat/ChatView.jsx';

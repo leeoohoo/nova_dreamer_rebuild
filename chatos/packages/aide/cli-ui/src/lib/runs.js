@@ -1,1 +1,1 @@
-export * from '../../../../common/aide-ui/lib/runs.js';
+export * from 'aide-ui/lib/runs.js';

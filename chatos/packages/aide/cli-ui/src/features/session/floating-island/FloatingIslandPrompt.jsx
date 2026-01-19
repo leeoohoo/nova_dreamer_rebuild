@@ -1,1 +1,1 @@
-export * from '../../../../../../common/aide-ui/features/session/floating-island/FloatingIslandPrompt.jsx';
+export * from 'aide-ui/features/session/floating-island/FloatingIslandPrompt.jsx';
