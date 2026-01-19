@@ -2,7 +2,7 @@ const SUBAGENT_TOOL_DENYLIST = new Set(['invoke_sub_agent']);
 const SUBAGENT_TOOL_DENYLIST_PREFIXES = ['mcp_subagent_router_'];
 
 const SUBAGENT_GUARDRAIL_TEXT =
-  'Tooling guard: sub-agents cannot call invoke_sub_agent, mcp_subagent_router_* or other sub-agent routing tools (ignore any earlier instructions suggesting that). Complete the task directly with available project/shell/task tools.';
+  'Tooling guard: sub-agents cannot call mcp_subagent_router_* or other sub-agent routing tools (ignore any earlier instructions suggesting that). Complete the task directly with available project/shell/task tools.';
 
 export function withSubagentGuardrails(systemPrompt) {
   const prompt = typeof systemPrompt === 'string' ? systemPrompt.trim() : '';
@@ -37,4 +37,3 @@ export function filterSubagentTools(tools = [], options = {}) {
 
   return Array.from(filtered);
 }
-

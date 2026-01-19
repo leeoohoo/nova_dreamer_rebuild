@@ -481,7 +481,7 @@ async function runChat(options) {
   const client = new ModelClient(config);
   const targetSettings = config.getModel(resolvedOptions.model || null);
 
-  const mainAllowed = ['invoke_sub_agent', 'get_current_time'];
+  const mainAllowed = ['get_current_time'];
   const normalizeServerName = (value) =>
     String(value || '')
       .trim()

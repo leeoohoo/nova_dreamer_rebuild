@@ -621,4 +621,3 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
     </div>
   );
 }
-

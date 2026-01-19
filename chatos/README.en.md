@@ -5,7 +5,7 @@ English guide. For Chinese see `README.zh.md`.
 ## What this fork adds
 - **Sub-agent marketplace**: install plugins from the AIDE engine `subagents/marketplace.json` (desktop installs default to `<stateDir>/aide`). Default plugins: Python, Spring Boot, React.
 - **Orchestrator prompt**: main agent delegates only; sub-agents get full tool access (filesystem, shell, tasks, etc.).
-- **Task tracking**: `invoke_sub_agent` injects a rule to log tasks via `mcp_task_manager_*` (add/update/complete with a completion note) on every sub-agent call.
+- **Task tracking**: sub-agent runs via `mcp_subagent_router_run_sub_agent` log tasks via `mcp_task_manager_*` (add/update/complete with a completion note).
 - **Config/session reports**: auto-write `config-report.html` (models/MCP/prompts/sub-agents) and `session-report.html` (messages, tasks, tool history). Session report uses drawers for tasks/tools and full-width chat with Markdown render.
 - **UI interactive prompts**: built-in MCP server `ui_prompter` can ask the user for structured inputs/decisions via the Electron floating island (`mcp_ui_prompter_prompt_key_values` / `mcp_ui_prompter_prompt_choices`).
 - **Live correction while running**: the Electron floating island has a single “Correct” action; it auto-detects whether the main flow or a `subagent_router` worker is currently running and injects the correction accordingly.
@@ -74,7 +74,7 @@ CI: `.github/workflows/desktop-build.yml` (supports `workflow_dispatch`; pushing
 - `/tool [id]` — show latest tool outputs
 
 ## MCP tools (main vs sub-agent)
-- Main agent tool whitelist: `invoke_sub_agent`, `get_current_time`, `mcp_project_files_*`, `mcp_subagent_router_*`, `mcp_task_manager_*` (other MCP servers are sub-agent-only unless enabled for main).
+- Main agent tool whitelist: `get_current_time`, `mcp_project_files_*`, `mcp_subagent_router_*`, `mcp_task_manager_*` (other MCP servers are sub-agent-only unless enabled for main).
 - Sub-agents: all registered tools (filesystem, shell, sessions, task_manager, subagent_router, etc.).
 
 ## MCP server configuration

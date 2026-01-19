@@ -23,6 +23,10 @@ export function ChatSidebar({
   onRenameSession,
   onRefresh,
   onCollapse,
+  headerLabel = '会话',
+  renameTitle = '重命名会话',
+  emptyLabel = '未命名会话',
+  namePlaceholder = '会话名称',
 }) {
   const [renameState, setRenameState] = useState(null);
 
@@ -45,7 +49,7 @@ export function ChatSidebar({
     <div style={{ padding: 14, height: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Text type="secondary" style={{ flex: 1 }}>
-          会话
+          {headerLabel}
         </Text>
         {onCollapse ? <Button size="small" icon={<MenuFoldOutlined />} onClick={() => onCollapse?.()} /> : null}
         <Button size="small" icon={<ReloadOutlined />} onClick={() => onRefresh?.()} />
@@ -74,7 +78,7 @@ export function ChatSidebar({
                 ]}
               >
                 <List.Item.Meta
-                  title={<span style={{ fontWeight: selected ? 600 : 500 }}>{item.title || '未命名会话'}</span>}
+                  title={<span style={{ fontWeight: selected ? 600 : 500 }}>{item.title || emptyLabel}</span>}
                   description={<Text type="secondary">{formatTime(item.updatedAt || item.createdAt)}</Text>}
                 />
               </List.Item>
@@ -85,7 +89,7 @@ export function ChatSidebar({
 
       <Modal
         open={Boolean(renameState)}
-        title="重命名会话"
+        title={renameTitle}
         okText="保存"
         cancelText="取消"
         onCancel={() => setRenameState(null)}
@@ -100,7 +104,7 @@ export function ChatSidebar({
         <Input
           value={renameState?.title || ''}
           onChange={(e) => setRenameState((prev) => (prev ? { ...prev, title: e.target.value } : prev))}
-          placeholder="会话名称"
+          placeholder={namePlaceholder}
         />
       </Modal>
     </div>

@@ -51,7 +51,10 @@ export function createChatStore(db) {
   const updateAgent = (id, patch) => db.update('chatAgents', id, parsePartial(chatAgentSchema, patch));
   const removeAgent = (id) => db.remove('chatAgents', id);
 
-  const listSessions = () => sortUpdatedDesc(db.list('chatSessions') || []);
+  const listSessions = () => {
+    const list = sortUpdatedDesc(db.list('chatSessions') || []);
+    return list.filter((entry) => String(entry?.mode || 'session') !== 'room');
+  };
   const getSession = (id) => db.get('chatSessions', id);
   const createSession = (payload) => db.insert('chatSessions', parse(chatSessionSchema, payload));
   const updateSession = (id, patch) => db.update('chatSessions', id, parsePartial(chatSessionSchema, patch));
@@ -130,6 +133,7 @@ export function createChatStore(db) {
     return createSession({
       title,
       agentId: normalizedAgentId,
+      mode: 'session',
       workspaceRoot,
     });
   };

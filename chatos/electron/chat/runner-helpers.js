@@ -161,7 +161,7 @@ export function buildSystemPrompt({
   const capabilityLines = [];
   if (selectedSubagents.length > 0) {
     const names = selectedSubagents.map((s) => s.name || s.id).filter(Boolean).slice(0, 12);
-    capabilityLines.push(`- 可用子代理（invoke_sub_agent）: ${names.join(', ')}`);
+    capabilityLines.push(`- 可用子代理: ${names.join(', ')}`);
   }
   if (skills.length > 0) {
     capabilityLines.push(`- 偏好 skills: ${skills.slice(0, 24).join(', ')}`);

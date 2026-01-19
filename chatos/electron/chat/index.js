@@ -174,14 +174,19 @@ export function registerChatApi(ipcMain, options = {}) {
     return { ok: true, session };
   });
 
-  ipcMain.handle('chat:sessions:list', async () => ({ ok: true, sessions: store.sessions.list() }));
+  ipcMain.handle('chat:sessions:list', async (_event, payload = {}) => {
+    const sessions = store.sessions.list();
+    return { ok: true, sessions };
+  });
   ipcMain.handle('chat:sessions:create', async (_event, payload = {}) => {
     const desiredWorkspaceRoot = normalizeId(payload?.workspaceRoot) ? validateWorkspaceRoot(payload.workspaceRoot) : defaultWorkspaceRoot;
-    return { ok: true, session: store.sessions.create({ ...payload, workspaceRoot: desiredWorkspaceRoot }) };
+    return { ok: true, session: store.sessions.create({ ...payload, mode: 'session', workspaceRoot: desiredWorkspaceRoot }) };
   });
   ipcMain.handle('chat:sessions:update', async (_event, payload = {}) => {
     const id = normalizeId(payload?.id);
     if (!id) throw new Error('id is required');
+    const existing = store.sessions.get(id);
+    if (!existing) throw new Error('session not found');
     const patch = payload?.data && typeof payload.data === 'object' ? { ...payload.data } : {};
     if (Object.prototype.hasOwnProperty.call(patch, 'workspaceRoot')) {
       patch.workspaceRoot = normalizeId(patch.workspaceRoot) ? validateWorkspaceRoot(patch.workspaceRoot) : '';
@@ -193,6 +198,8 @@ export function registerChatApi(ipcMain, options = {}) {
   ipcMain.handle('chat:sessions:delete', async (_event, payload = {}) => {
     const id = normalizeId(payload?.id);
     if (!id) throw new Error('id is required');
+    const existing = store.sessions.get(id);
+    if (!existing) throw new Error('session not found');
     store.messages.removeForSession(id);
     return { ok: true, removed: store.sessions.remove(id) };
   });

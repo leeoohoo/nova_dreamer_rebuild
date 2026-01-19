@@ -53,6 +53,7 @@ export const chatSessionSchema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().trim().optional().default('新会话'),
   agentId: z.string().trim().optional().default(''),
+  mode: z.literal('session').optional().default('session'),
   workspaceRoot: z.string().trim().optional().default(''),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),

@@ -29,12 +29,13 @@ let engineDepsPromise = null;
 async function loadEngineDeps() {
   if (engineDepsPromise) return engineDepsPromise;
   engineDepsPromise = (async () => {
-    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod] = await Promise.all([
+    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod, toolsMod] = await Promise.all([
       import(pathToFileURL(resolveEngineModule('session.js')).href),
       import(pathToFileURL(resolveEngineModule('client.js')).href),
       import(pathToFileURL(resolveEngineModule('config.js')).href),
       import(pathToFileURL(resolveEngineModule('mcp/runtime.js')).href),
       import(pathToFileURL(resolveEngineModule('subagents/runtime.js')).href),
+      import(pathToFileURL(resolveEngineModule('tools/index.js')).href),
     ]);
     return {
       ChatSession: sessionMod.ChatSession,
@@ -42,6 +43,7 @@ async function loadEngineDeps() {
       createAppConfigFromModels: configMod.createAppConfigFromModels,
       initializeMcpRuntime: mcpRuntimeMod.initializeMcpRuntime,
       runWithSubAgentContext: subagentRuntimeMod.runWithSubAgentContext,
+      registerTool: toolsMod.registerTool,
     };
   })();
   return engineDepsPromise;
@@ -49,6 +51,18 @@ async function loadEngineDeps() {
 
 function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function uniqueIds(list) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(list) ? list : []).forEach((item) => {
+    const value = normalizeId(item);
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    out.push(value);
+  });
+  return out;
 }
 
 function normalizeWorkspaceRoot(value) {
@@ -200,7 +214,7 @@ function buildSystemPrompt({ agent, prompts, subagents, mcpServers, language, ex
   const capabilityLines = [];
   if (selectedSubagents.length > 0) {
     const names = selectedSubagents.map((s) => s.name || s.id).filter(Boolean).slice(0, 12);
-    capabilityLines.push(`- 可用子代理（invoke_sub_agent）: ${names.join(', ')}`);
+    capabilityLines.push(`- 可用子代理: ${names.join(', ')}`);
   }
   if (skills.length > 0) {
     capabilityLines.push(`- 偏好 skills: ${skills.slice(0, 24).join(', ')}`);
@@ -417,7 +431,9 @@ export function createChatRunner({
     workspaceRoot: desiredWorkspaceRoot,
     extraServers,
     skipServers,
+    emitEvent,
   } = {}) => {
+    const notify = typeof emitEvent === 'function' ? emitEvent : sendEvent;
     const effectiveWorkspaceRoot =
       normalizeWorkspaceRoot(desiredWorkspaceRoot) || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
     const signature = computeMcpSignature(extraServers, skipServers);
@@ -468,7 +484,7 @@ export function createChatRunner({
           mcpWorkspaceRoot = '';
           mcpConfigMtimeMs = null;
           mcpSignature = '';
-          sendEvent({
+          notify({
             type: 'notice',
             message: `[MCP] 初始化失败（root=${effectiveWorkspaceRoot}）：${err?.message || String(err)}`,
           });
@@ -492,7 +508,7 @@ export function createChatRunner({
         }),
       ]);
       if (result === MCP_INIT_TIMEOUT) {
-        sendEvent({
+        notify({
           type: 'notice',
           message: `[MCP] 初始化超过 ${timeoutMs}ms，已跳过（后台仍会继续初始化）。`,
         });
@@ -510,7 +526,15 @@ export function createChatRunner({
     }
   };
 
-  const start = async ({ sessionId, agentId, userMessageId, assistantMessageId, text, attachments } = {}) => {
+  const start = async ({
+    sessionId,
+    agentId,
+    userMessageId,
+    assistantMessageId,
+    text,
+    attachments,
+    onComplete,
+  } = {}) => {
     const sid = normalizeId(sessionId);
     const normalizedText = typeof text === 'string' ? text.trim() : '';
     const initialAssistantMessageId = normalizeId(assistantMessageId);
@@ -526,10 +550,18 @@ export function createChatRunner({
 
     const controller = new AbortController();
     activeRuns.set(sid, { controller, messageId: initialAssistantMessageId });
+    const completionCallback = typeof onComplete === 'function' ? onComplete : null;
 
+    const baseSendEvent = sendEvent;
     const sessionRecord = store.sessions.get(sid);
+    const scopedSendEvent = baseSendEvent;
+
     const sessionWorkspaceRoot = normalizeWorkspaceRoot(sessionRecord?.workspaceRoot);
-    const effectiveAgentId = normalizeId(agentId) || normalizeId(sessionRecord?.agentId);
+    const requestedAgentId = normalizeId(agentId);
+    const effectiveAgentId = requestedAgentId || normalizeId(sessionRecord?.agentId);
+    if (!effectiveAgentId) {
+      throw new Error('agentId is required');
+    }
     const agentRecord = effectiveAgentId ? store.agents.get(effectiveAgentId) : null;
     if (!agentRecord) {
       throw new Error('agent not found for session');
@@ -897,7 +929,7 @@ export function createChatRunner({
     }
 
     if (missingUiAppServers.length > 0) {
-      sendEvent({
+      scopedSendEvent({
         type: 'notice',
         message: `[UI Apps] 未找到 MCP server：${missingUiAppServers.slice(0, 6).join(', ')}${
           missingUiAppServers.length > 6 ? ' ...' : ''
@@ -905,7 +937,7 @@ export function createChatRunner({
       });
     }
     if (deniedUiAppServers.length > 0) {
-      sendEvent({
+      scopedSendEvent({
         type: 'notice',
         message: `[UI Apps] MCP server 未授权：${deniedUiAppServers.slice(0, 6).join(', ')}${
           deniedUiAppServers.length > 6 ? ' ...' : ''
@@ -913,7 +945,7 @@ export function createChatRunner({
       });
     }
     if (missingUiAppPrompts.length > 0) {
-      sendEvent({
+      scopedSendEvent({
         type: 'notice',
         message: `[UI Apps] 未找到 Prompt：${missingUiAppPrompts.slice(0, 6).join(', ')}${
           missingUiAppPrompts.length > 6 ? ' ...' : ''
@@ -921,7 +953,7 @@ export function createChatRunner({
       });
     }
     if (deniedUiAppPrompts.length > 0) {
-      sendEvent({
+      scopedSendEvent({
         type: 'notice',
         message: `[UI Apps] Prompt 未授权：${deniedUiAppPrompts.slice(0, 6).join(', ')}${
           deniedUiAppPrompts.length > 6 ? ' ...' : ''
@@ -930,7 +962,7 @@ export function createChatRunner({
     }
     if (untrustedUiApps.size > 0) {
       const list = Array.from(untrustedUiApps);
-      sendEvent({
+      scopedSendEvent({
         type: 'notice',
         message: `[UI Apps] 插件未受信任：${list.slice(0, 6).join(', ')}${list.length > 6 ? ' ...' : ''}`,
       });
@@ -984,10 +1016,11 @@ export function createChatRunner({
       await ensureMcp({
         workspaceRoot: effectiveWorkspaceRoot,
         extraServers: extraRuntimeServers,
+        emitEvent: scopedSendEvent,
       });
     }
 
-    const toolsOverride = resolveAllowedTools({
+    let toolsOverride = resolveAllowedTools({
       agent: effectiveAgent,
       mcpServers: mergedMcpServers,
     });
@@ -1001,7 +1034,9 @@ export function createChatRunner({
     const history = store.messages
       .list(sid)
       .filter((msg) => msg?.id !== userMessageId && msg?.id !== initialAssistantMessageId);
-    const chatSession = new ChatSession(systemPrompt || null, { sessionId: sid });
+    const chatSession = new ChatSession(systemPrompt || null, {
+      sessionId: sid,
+    });
     let pendingToolCallIds = null;
     history.forEach((msg) => {
       const role = msg?.role;
@@ -1059,7 +1094,7 @@ export function createChatRunner({
       if (!chunk) return;
       const previous = assistantTexts.get(mid) || '';
       assistantTexts.set(mid, `${previous}${chunk}`);
-      sendEvent({ type: 'assistant_delta', sessionId: sid, messageId: mid, delta: chunk });
+      scopedSendEvent({ type: 'assistant_delta', sessionId: sid, messageId: mid, delta: chunk });
     };
 
     const appendAssistantReasoning = (messageId, delta) => {
@@ -1069,7 +1104,7 @@ export function createChatRunner({
       if (!chunk) return;
       const previous = assistantReasonings.get(mid) || '';
       assistantReasonings.set(mid, `${previous}${chunk}`);
-      sendEvent({ type: 'assistant_reasoning_delta', sessionId: sid, messageId: mid, delta: chunk });
+      scopedSendEvent({ type: 'assistant_reasoning_delta', sessionId: sid, messageId: mid, delta: chunk });
     };
 
     const syncAssistantRecord = (messageId, patch) => {
@@ -1099,7 +1134,7 @@ export function createChatRunner({
       try {
         record = store.messages.create({ sessionId: sid, role: 'assistant', content: '' });
       } catch (err) {
-        sendEvent({ type: 'notice', message: `[Chat] 创建消息失败：${err?.message || String(err)}` });
+        scopedSendEvent({ type: 'notice', message: `[Chat] 创建消息失败：${err?.message || String(err)}` });
         return;
       }
       currentAssistantId = normalizeId(record?.id) || currentAssistantId;
@@ -1110,7 +1145,7 @@ export function createChatRunner({
         assistantReasonings.set(currentAssistantId, '');
       }
       activeRuns.set(sid, { controller, messageId: currentAssistantId });
-      sendEvent({ type: 'assistant_start', sessionId: sid, message: record });
+      scopedSendEvent({ type: 'assistant_start', sessionId: sid, message: record });
     };
 
     const onToken = (delta) => {
@@ -1150,7 +1185,7 @@ export function createChatRunner({
         toolName,
         content,
       });
-      sendEvent({ type: 'tool_result', sessionId: sid, message: record });
+      scopedSendEvent({ type: 'tool_result', sessionId: sid, message: record });
     };
 
     const run = async () => {
@@ -1197,7 +1232,22 @@ export function createChatRunner({
           finalReasoning ? { content: finalText, reasoning: finalReasoning } : { content: finalText }
         );
         store.sessions.update(sid, { updatedAt: new Date().toISOString() });
-        sendEvent({ type: 'assistant_done', sessionId: sid, messageId: finalId });
+        scopedSendEvent({ type: 'assistant_done', sessionId: sid, messageId: finalId });
+        if (completionCallback) {
+          try {
+            completionCallback({
+              ok: true,
+              aborted: false,
+              sessionId: sid,
+              agentId: effectiveAgentId,
+              messageId: finalId,
+              text: finalText,
+              reasoning: finalReasoning,
+            });
+          } catch {
+            // ignore
+          }
+        }
       } catch (err) {
         const aborted = err?.name === 'AbortError' || controller.signal.aborted;
         const message = aborted ? '已停止' : err?.message || String(err);
@@ -1209,12 +1259,28 @@ export function createChatRunner({
           ...(existingReasoning ? { reasoning: existingReasoning } : {}),
         });
         store.sessions.update(sid, { updatedAt: new Date().toISOString() });
-        sendEvent({
+        scopedSendEvent({
           type: aborted ? 'assistant_aborted' : 'assistant_error',
           sessionId: sid,
           messageId: mid,
           message,
         });
+        if (completionCallback) {
+          try {
+            completionCallback({
+              ok: false,
+              aborted,
+              sessionId: sid,
+              agentId: effectiveAgentId,
+              messageId: mid,
+              text: existing || (aborted ? '' : `[error] ${message}`),
+              reasoning: existingReasoning,
+              error: message,
+            });
+          } catch {
+            // ignore
+          }
+        }
       } finally {
         activeRuns.delete(sid);
       }

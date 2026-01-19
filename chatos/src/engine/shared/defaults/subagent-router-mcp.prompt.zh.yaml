@@ -20,12 +20,9 @@ prompt: |
     </available_tools>
 
     <recommended_workflow>
-      0) 若主流程已提供 `invoke_sub_agent`：优先用它（自动选 agent，并注入任务追踪规则）。
-      1) 需要手动路由/固定 agent 时：先 `mcp_subagent_router_suggest_sub_agent` 获取推荐 agent/skills/command
-      2) 再按需 `mcp_subagent_router_get_sub_agent` 校验其能力/默认命令/模型
-      3) 最后 `mcp_subagent_router_run_sub_agent` 执行并收集结果（内部会轮询直到完成/超时）
-
-      备注：如果你在主流程里也有 `invoke_sub_agent` 工具，可以直接用它；它会在本地市场自动挑选并运行子代理。
+      0) 需要手动路由/固定 agent 时：先 `mcp_subagent_router_suggest_sub_agent` 获取推荐 agent/skills/command
+      1) 再按需 `mcp_subagent_router_get_sub_agent` 校验其能力/默认命令/模型
+      2) 最后 `mcp_subagent_router_run_sub_agent` 执行并收集结果（内部会轮询直到完成/超时）
     </recommended_workflow>
 
     <example>

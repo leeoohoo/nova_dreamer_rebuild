@@ -7,19 +7,21 @@ const EXTRA_CSS = `
         flex-wrap: nowrap;
       }
       .ds-nav-merged.ds-nav-fixed {
-        width: 460px;
+        width: clamp(320px, 52vw, 460px);
         max-width: 100%;
         display: grid;
-        grid-template-columns: 1fr auto 1fr;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
         align-items: center;
         justify-items: center;
       }
       .ds-nav-merged.ds-nav-fixed .ds-seg {
         width: 100%;
+        min-width: 0;
         justify-content: center;
       }
       .ds-nav-merged.ds-nav-fixed .ant-segmented-group {
         width: 100%;
+        min-width: 0;
         justify-content: center;
       }
       .ds-admin-page {

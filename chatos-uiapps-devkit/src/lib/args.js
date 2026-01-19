@@ -1,5 +1,20 @@
 export function parseArgs(argv) {
-  const raw = Array.isArray(argv) ? argv.slice(2) : [];
+  const rawArgs = Array.isArray(argv) ? argv.slice() : [];
+  const head = rawArgs[0] || '';
+  const second = rawArgs[1] || '';
+  const hasRuntimePrefix =
+    head.endsWith('node') ||
+    head.endsWith('node.exe') ||
+    head.includes('/node') ||
+    head.includes('\\node') ||
+    head.endsWith('bun') ||
+    head.endsWith('bun.exe') ||
+    head.includes('/bun') ||
+    head.includes('\\bun') ||
+    second.endsWith('.js') ||
+    second.endsWith('.mjs') ||
+    second.endsWith('.cjs');
+  const raw = hasRuntimePrefix ? rawArgs.slice(2) : rawArgs;
   const flags = {};
   const positionals = [];
 
@@ -46,4 +61,3 @@ export function parseArgs(argv) {
 
   return { positionals, flags };
 }
-

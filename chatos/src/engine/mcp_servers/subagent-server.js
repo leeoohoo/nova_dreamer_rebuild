@@ -151,7 +151,7 @@ const mcpConfigPath =
 const SESSION_ROOT = resolveSessionRoot({ preferCwd: true });
 const WORKSPACE_ROOT = process.env.MODEL_CLI_WORKSPACE_ROOT || process.env.MODEL_CLI_SESSION_ROOT || process.cwd();
 const RUN_ID = typeof process.env.MODEL_CLI_RUN_ID === 'string' ? process.env.MODEL_CLI_RUN_ID.trim() : '';
-const TOOL_ALLOW_LIST = ['invoke_sub_agent', 'get_current_time', 'echo_text'];
+const TOOL_ALLOW_LIST = ['get_current_time', 'echo_text'];
 let TOOL_ALLOW_PREFIXES = null;
 const TOOL_DENY_PREFIXES = ['mcp_subagent_router_']; // block recursive routing; allow all other MCP tools
 const eventLogPath =

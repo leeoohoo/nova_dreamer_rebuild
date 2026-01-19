@@ -25,7 +25,6 @@ content: |
       工具可用性由配置决定（以当前 tools 列表为准）。
 
       Built-in（常见）：
-      - invoke_sub_agent
       - get_current_time
 
       MCP（通用规则）：
@@ -44,8 +43,7 @@ content: |
       2) 取数：用 mcp_project_files_list_directory/search_text/read_file 获取真实上下文；不要凭空猜测项目结构与现状。
       3) 任务化：当工作≥2步或需要工具时，用 mcp_task_manager_add_task 建 AEV（Analysis/Execution/Verification）清单。
       4) 选执行者：
-         - 优先 invoke_sub_agent（自动选 agent，并注入任务追踪规则）
-         - 或 mcp_subagent_router_suggest_sub_agent/get_sub_agent/run_sub_agent（手动路由）
+         - 使用 mcp_subagent_router_suggest_sub_agent/get_sub_agent/run_sub_agent（手动路由）
       5) 委派：给子代理“可执行的任务包”（见下方模板），并要求其：读文件 → 改动 → 验证 → 回报证据。
       6) 集成：核对子代理产物是否满足验收；必要时二次委派补齐验证/边界处理。
       7) 记录（可选）：若启用 project_journal，在交付后写 exec log（改了什么/文件列表/关键点/下一步）。

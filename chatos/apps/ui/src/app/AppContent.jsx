@@ -24,7 +24,8 @@ export function AppContent({
   onNavigate,
 }) {
   const rawMenu = typeof menu === 'string' ? menu : 'chat/session';
-  const normalizedMenu = rawMenu === 'chat' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
+  const normalizedMenu =
+    rawMenu === 'chat' || rawMenu === 'chat/rooms' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
   const legacyCliMenu =
     normalizedMenu === 'cli' ||
     normalizedMenu === 'session' ||

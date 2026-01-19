@@ -18,8 +18,7 @@ test('filterSubagentTools blocks nested sub-agent tools', () => {
   assert.deepEqual(filtered.sort(), ['get_current_time', 'mcp_task_manager_add_task'].sort());
 });
 
-test('withSubagentGuardrails mentions invoke_sub_agent', () => {
+test('withSubagentGuardrails mentions subagent router tools', () => {
   const text = withSubagentGuardrails('base prompt');
-  assert.ok(text.includes('invoke_sub_agent'));
+  assert.ok(text.includes('mcp_subagent_router_'));
 });
-

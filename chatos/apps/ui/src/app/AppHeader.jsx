@@ -23,7 +23,8 @@ export function AppHeader({
   const rawMenu = typeof menu === 'string' ? menu : '';
   const currentMenu = rawMenu;
   const setMenu = typeof onMenuChange === 'function' ? onMenuChange : () => {};
-  const normalizedMenu = rawMenu === 'chat' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
+  const normalizedMenu =
+    rawMenu === 'chat' || rawMenu === 'chat/rooms' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
   const legacyCliMenu =
     normalizedMenu === 'cli' ||
     normalizedMenu === 'session' ||
