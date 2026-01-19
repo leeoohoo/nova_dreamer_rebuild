@@ -7,6 +7,7 @@ Goal: address the four agreed improvement items in order, with focus on config i
 - Ensure agent and 灵动岛 follow their own config; remove conflicting/extra MCP config sources.
 - Align root/engine MCP config files so they no longer diverge.
 - Seed admin DB from the same MCP config file used at runtime.
+- Removed environment overrides for land_config and UI terminal mode, and forced the ChatOS host app in CLI entrypoints so runtime settings stay authoritative.
 
 ## 2) Subagent Command De-duplication
 - Status: done

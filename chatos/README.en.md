@@ -130,7 +130,7 @@ README.en.md / README.zh.md
 - **`mcp_*` request timed out**: long MCP tools (sub-agents, shell) now allow 10m by default; bump via the env vars above if a task still cancels early.
 - **Long commands timing out**: use `session_run` + `session_capture_output`.
 - **History too long**: rely on auto-prune or `/reset` to start fresh.
-- **Windows “stdin closed” / can’t type**: reopen a new terminal and retry; try `cmd /c "chatos-desktop chat"` (legacy desktop installs used `chatos`); set `MODEL_CLI_FORCE_CONSOLE_STDIN=1` to force console stdin; if you want the UI to be the only message source, set `MODEL_CLI_DISABLE_CONSOLE_STDIN=1` or use headless UI terminals (`MODEL_CLI_UI_TERMINAL_MODE=headless`).
+- **Windows “stdin closed” / can’t type**: reopen a new terminal and retry; try `cmd /c "chatos-desktop chat"` (legacy desktop installs used `chatos`); set `MODEL_CLI_FORCE_CONSOLE_STDIN=1` to force console stdin; if you want the UI to be the only message source, set `MODEL_CLI_DISABLE_CONSOLE_STDIN=1` or switch the Floating Island terminal mode to `headless`.
 - **Windows garbled Unicode output**: your console code page is likely not UTF-8 (65001). Run `chcp 65001` before starting; the CLI also tries to switch to UTF-8 at startup (disable via `MODEL_CLI_DISABLE_WIN_UTF8=1`).
 
 ## License

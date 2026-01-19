@@ -37,7 +37,6 @@ export function createTerminalManager({
   defaultPaths,
   adminServices,
   mainWindowGetter,
-  uiTerminalModeEnv = 'MODEL_CLI_UI_TERMINAL_MODE',
   uiTerminalStdio = ['pipe', 'ignore', 'ignore'],
 } = {}) {
   const baseProjectRoot =
@@ -100,13 +99,6 @@ export function createTerminalManager({
       return fromSettings;
     }
 
-    const raw = typeof process.env[uiTerminalModeEnv] === 'string' ? process.env[uiTerminalModeEnv].trim() : '';
-    if (raw) {
-      const normalized = raw.toLowerCase();
-      if (['headless', 'system', 'auto'].includes(normalized)) {
-        return normalized;
-      }
-    }
     if (fromSettings === 'auto') {
       return fromSettings;
     }

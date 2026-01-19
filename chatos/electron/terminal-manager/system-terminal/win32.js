@@ -19,7 +19,6 @@ export const win32SystemTerminalLauncher = {
     const resolvedTerminalsDir =
       typeof terminalsDir === 'string' && terminalsDir.trim() ? terminalsDir.trim() : process.cwd();
     const hostApp = typeof process.env.MODEL_CLI_HOST_APP === 'string' ? process.env.MODEL_CLI_HOST_APP.trim() : '';
-    const resolvedLandConfigId = typeof landConfigId === 'string' ? landConfigId.trim() : '';
 
     const scriptPath = path.join(resolvedTerminalsDir, `${rid}.launch.cmd`);
     const script = [
@@ -32,7 +31,6 @@ export const win32SystemTerminalLauncher = {
       `set \"MODEL_CLI_SESSION_ROOT=${escapeCmdBatchString(resolvedSessionRoot)}\"`,
       `set \"MODEL_CLI_RUN_ID=${escapeCmdBatchString(rid)}\"`,
       ...(hostApp ? [`set \"MODEL_CLI_HOST_APP=${escapeCmdBatchString(hostApp)}\"`] : []),
-      ...(resolvedLandConfigId ? [`set \"MODEL_CLI_LAND_CONFIG_ID=${escapeCmdBatchString(resolvedLandConfigId)}\"`] : []),
       'set \"MODEL_CLI_UI_BRIDGE=1\"',
       'set \"MODEL_CLI_DISABLE_INK=1\"',
       'set \"ELECTRON_RUN_AS_NODE=1\"',

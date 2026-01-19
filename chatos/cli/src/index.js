@@ -40,9 +40,7 @@ const COMMANDS = {
   CHAT: 'chat',
 };
 
-if (!process.env.MODEL_CLI_HOST_APP) {
-  process.env.MODEL_CLI_HOST_APP = 'chatos';
-}
+process.env.MODEL_CLI_HOST_APP = 'chatos';
 
 main().catch((err) => {
   log.error('Unexpected failure', err);
@@ -272,11 +270,6 @@ function appendPromptBlock(baseText, extraText) {
 
 function applyRuntimeSettings(config) {
   const normalized = {};
-  const envLandConfigId =
-    typeof process.env.MODEL_CLI_LAND_CONFIG_ID === 'string' ? process.env.MODEL_CLI_LAND_CONFIG_ID.trim() : '';
-  if (envLandConfigId) {
-    normalized.landConfigId = envLandConfigId;
-  }
   if (!config || typeof config !== 'object') {
     return normalized;
   }
@@ -311,7 +304,7 @@ function applyRuntimeSettings(config) {
     normalized.promptLanguage = promptLanguage;
     process.env.MODEL_CLI_PROMPT_LANGUAGE = promptLanguage;
   }
-  if (!envLandConfigId && typeof config.landConfigId === 'string') {
+  if (typeof config.landConfigId === 'string') {
     normalized.landConfigId = config.landConfigId.trim();
   }
   setFlag('MODEL_CLI_AUTO_ROUTE', Boolean(config.autoRoute));

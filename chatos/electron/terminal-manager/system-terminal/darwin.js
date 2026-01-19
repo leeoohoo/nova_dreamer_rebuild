@@ -20,14 +20,10 @@ export const darwinSystemTerminalLauncher = {
       typeof terminalsDir === 'string' && terminalsDir.trim() ? terminalsDir.trim() : process.cwd();
     const hostApp = typeof process.env.MODEL_CLI_HOST_APP === 'string' ? process.env.MODEL_CLI_HOST_APP.trim() : '';
     const hostEnv = hostApp ? `MODEL_CLI_HOST_APP=${escapeShell(hostApp)}` : '';
-    const resolvedLandConfigId = typeof landConfigId === 'string' ? landConfigId.trim() : '';
-    const landConfigEnv = resolvedLandConfigId ? `MODEL_CLI_LAND_CONFIG_ID=${escapeShell(resolvedLandConfigId)}` : '';
-
     const envPrefix = [
       `MODEL_CLI_SESSION_ROOT=${escapeShell(resolvedSessionRoot)}`,
       `MODEL_CLI_RUN_ID=${escapeShell(rid)}`,
       hostEnv,
-      landConfigEnv,
       'MODEL_CLI_UI_BRIDGE=1',
       'MODEL_CLI_DISABLE_INK=1',
       'ELECTRON_RUN_AS_NODE=1',

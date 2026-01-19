@@ -117,7 +117,6 @@ export function createTerminalDispatch({
       MODEL_CLI_SESSION_ROOT: baseSessionRoot,
       MODEL_CLI_RUN_ID: rid,
       MODEL_CLI_UI_BRIDGE: '1',
-      ...(landConfigId ? { MODEL_CLI_LAND_CONFIG_ID: landConfigId } : {}),
     };
     const stdio = Array.isArray(uiTerminalStdio) ? uiTerminalStdio : ['pipe', 'ignore', 'ignore'];
     let child;
@@ -237,14 +236,14 @@ export function createTerminalDispatch({
         created,
         textLength,
       });
-      return {
-        ok: false,
-        reason: 'not_ready',
-        runId,
-        message:
-          '终端/CLI 未启动或未就绪（未检测到状态上报）。请确认系统 Terminal 可被拉起；如需无终端模式可在灵动岛关闭「拉起终端」或设置 MODEL_CLI_UI_TERMINAL_MODE=headless。',
-      };
-    }
+        return {
+          ok: false,
+          reason: 'not_ready',
+          runId,
+          message:
+            '终端/CLI 未启动或未就绪（未检测到状态上报）。请确认系统 Terminal 可被拉起；如需无终端模式可在灵动岛关闭「拉起终端」或将终端模式切换为 headless。',
+        };
+      }
 
     const busy = alive && status.state === 'running';
     if (busy && !force) {

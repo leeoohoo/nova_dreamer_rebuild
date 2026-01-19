@@ -90,7 +90,6 @@ let uiAppsManager = null;
 const MAX_VIEW_FILE_BYTES = 512 * 1024;
 const MAX_LIST_DIR_ENTRIES = 600;
 const UI_TERMINAL_STDIO = ['pipe', 'ignore', 'ignore'];
-const UI_TERMINAL_MODE_ENV = 'MODEL_CLI_UI_TERMINAL_MODE';
 // 桌面 App 里安装的终端命令（无需系统 Node.js）
 const DEFAULT_CLI_COMMAND_NAME = 'chatos';
 // Windows 上桌面版通过 WindowsApps 放一个 .cmd，很容易和 npm 全局安装的 `chatos` 发生 PATH 冲突；
@@ -464,7 +463,6 @@ terminalManager = createTerminalManager({
   defaultPaths,
   adminServices,
   mainWindowGetter: () => mainWindow,
-  uiTerminalModeEnv: UI_TERMINAL_MODE_ENV,
   uiTerminalStdio: UI_TERMINAL_STDIO,
 });
 
