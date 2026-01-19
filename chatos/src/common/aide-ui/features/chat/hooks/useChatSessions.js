@@ -102,7 +102,7 @@ export function useChatSessions() {
   };
 
   const refreshSessions = async () => {
-    const res = await api.invoke('chat:sessions:list');
+    const res = await api.invoke('chat:sessions:list', { mode: 'session' });
     if (res?.ok === false) throw new Error(res?.message || '加载会话失败');
     setSessions(Array.isArray(res?.sessions) ? res.sessions : []);
   };
@@ -146,7 +146,7 @@ export function useChatSessions() {
       try {
         const ensured = await api.invoke('chat:agents:ensureDefault');
         const ensuredAgentId = normalizeId(ensured?.agent?.id);
-        const sessionsRes = await api.invoke('chat:sessions:list');
+        const sessionsRes = await api.invoke('chat:sessions:list', { mode: 'session' });
         const nextSessions = Array.isArray(sessionsRes?.sessions) ? sessionsRes.sessions : [];
         setSessions(nextSessions);
 
@@ -175,6 +175,7 @@ export function useChatSessions() {
 
     const unsub = api.on('chat:event', (payload) => {
       if (!payload || typeof payload !== 'object') return;
+      if (payload.scope === 'room') return;
       const type = String(payload.type || '');
       if (type === 'notice') {
         const text = typeof payload.message === 'string' ? payload.message : '';

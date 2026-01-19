@@ -628,6 +628,16 @@ function htmlPage() {
       }
       #container { flex: 1 1 auto; min-height:0; overflow:hidden; }
       #containerInner { height:100%; overflow:auto; }
+      body[data-surface='compact'] #headerSlot {
+        width: 50vw;
+        align-self: flex-end;
+        border-left: 1px solid var(--ds-panel-border);
+      }
+      body[data-surface='compact'] #container {
+        width: 50vw;
+        align-self: flex-end;
+        border-left: 1px solid var(--ds-panel-border);
+      }
       .muted { opacity: 0.7; font-size: 12px; }
       .bar { display:flex; gap:10px; align-items:center; justify-content:space-between; }
       .btn {
@@ -724,6 +734,43 @@ function htmlPage() {
         flex-direction: column;
         gap: 10px;
       }
+      #mcpPanel {
+        position: fixed;
+        right: 12px;
+        top: 72px;
+        width: 520px;
+        max-height: 70vh;
+        display: none;
+        flex-direction: column;
+        background: var(--ds-panel-bg);
+        border: 1px solid var(--ds-panel-border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 14px 40px rgba(0,0,0,0.16);
+        z-index: 12;
+      }
+      #mcpPanelHeader {
+        padding: 10px 12px;
+        display:flex;
+        align-items:center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--ds-panel-border);
+      }
+      #mcpPanelBody {
+        padding: 10px 12px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      #mcpPaths {
+        max-height: 140px;
+        overflow: auto;
+      }
+      #mcpOutput {
+        max-height: 240px;
+        overflow: auto;
+      }
       .section-title { font-size: 12px; font-weight: 700; opacity: 0.8; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
       input, textarea, select {
@@ -757,6 +804,8 @@ function htmlPage() {
             <div id="themeStatus" class="muted"></div>
             <div id="sandboxContext" class="muted"></div>
             <button id="btnLlmConfig" class="btn" type="button">AI Config</button>
+            <button id="btnMcpTest" class="btn" type="button">MCP Test</button>
+            <button id="btnHalfApp" class="btn" type="button">半屏</button>
             <button id="btnInspectorToggle" class="btn" type="button">Inspect</button>
             <button id="btnReload" class="btn" type="button">Reload</button>
           </div>
@@ -803,6 +852,50 @@ function htmlPage() {
           <button id="btnLlmClear" class="btn" type="button">Clear Key</button>
         </div>
         <div id="llmStatus" class="muted"></div>
+      </div>
+    </div>
+
+    <div id="mcpPanel" aria-hidden="true">
+      <div id="mcpPanelHeader">
+        <div style="font-weight:800">MCP Test</div>
+        <div class="row">
+          <button id="btnMcpClear" class="btn" type="button">Clear</button>
+          <button id="btnMcpClose" class="btn" type="button">Close</button>
+        </div>
+      </div>
+      <div id="mcpPanelBody">
+        <div class="card">
+          <div class="section-title">Paths</div>
+          <pre id="mcpPaths" class="mono"></pre>
+          <label for="mcpWorkdir">Workdir Override (optional)</label>
+          <input id="mcpWorkdir" type="text" placeholder="留空则使用默认 workdir" />
+        </div>
+        <div class="card">
+          <div class="section-title">Model</div>
+          <label for="mcpModelId">Model ID (optional)</label>
+          <input id="mcpModelId" type="text" placeholder="留空则使用 AI Config 中的 Model ID" />
+          <div id="mcpConfigHint" class="muted"></div>
+        </div>
+        <div class="card">
+          <label for="mcpSystem">System Prompt (optional)</label>
+          <textarea id="mcpSystem" placeholder="留空则使用 MCP Prompt / 空"></textarea>
+        </div>
+        <div class="card">
+          <label for="mcpMessage">User Message</label>
+          <textarea id="mcpMessage" placeholder="输入测试消息"></textarea>
+          <div class="row" style="margin-top:8px; align-items:center; justify-content:space-between;">
+            <label style="display:flex; gap:6px; align-items:center;">
+              <input id="mcpDisableTools" type="checkbox" style="width:auto;" />
+              Disable tools
+            </label>
+            <button id="btnMcpSend" class="btn" type="button">Send</button>
+          </div>
+          <div id="mcpStatus" class="muted"></div>
+        </div>
+        <div class="card">
+          <div class="section-title">Output</div>
+          <pre id="mcpOutput" class="mono"></pre>
+        </div>
       </div>
     </div>
 
@@ -867,6 +960,21 @@ const llmBaseUrl = $('#llmBaseUrl');
 const llmModelId = $('#llmModelId');
 const llmStatus = $('#llmStatus');
 const llmKeyStatus = $('#llmKeyStatus');
+const btnMcpTest = $('#btnMcpTest');
+const btnHalfApp = $('#btnHalfApp');
+const mcpPanel = $('#mcpPanel');
+const btnMcpClose = $('#btnMcpClose');
+const btnMcpClear = $('#btnMcpClear');
+const btnMcpSend = $('#btnMcpSend');
+const mcpPaths = $('#mcpPaths');
+const mcpWorkdir = $('#mcpWorkdir');
+const mcpModelId = $('#mcpModelId');
+const mcpSystem = $('#mcpSystem');
+const mcpMessage = $('#mcpMessage');
+const mcpDisableTools = $('#mcpDisableTools');
+const mcpStatus = $('#mcpStatus');
+const mcpOutput = $('#mcpOutput');
+const mcpConfigHint = $('#mcpConfigHint');
 
 const setPanelOpen = (open) => { panel.style.display = open ? 'flex' : 'none'; };
 fab.addEventListener('click', () => setPanelOpen(panel.style.display !== 'flex'));
@@ -925,8 +1033,37 @@ const updateContextStatus = () => {
   sandboxContext.textContent = __SANDBOX__.pluginId + ':' + __SANDBOX__.appId;
 };
 
+const entryCompactUrl = __SANDBOX__.entryCompactUrl || '';
+const hasCompactEntry = Boolean(entryCompactUrl);
+let currentSurface = 'full';
+
+const updateSurfaceState = (surface) => {
+  currentSurface = surface === 'compact' ? 'compact' : 'full';
+  document.body.dataset.surface = currentSurface;
+  if (btnHalfApp) {
+    if (!hasCompactEntry) {
+      btnHalfApp.disabled = true;
+      btnHalfApp.title = 'plugin.json 未配置 entry.compact.path';
+      delete btnHalfApp.dataset.active;
+    } else {
+      btnHalfApp.disabled = false;
+      btnHalfApp.title = '';
+      btnHalfApp.dataset.active = currentSurface === 'compact' ? '1' : '0';
+    }
+  }
+  if (host?.ui) host.ui.surface = currentSurface;
+};
+
+const toggleCompactSurface = () => {
+  if (!hasCompactEntry) return;
+  updateSurfaceState(currentSurface === 'compact' ? 'full' : 'compact');
+  loadAndMount().catch(renderError);
+  updateInspectorIfOpen();
+};
+
 const isInspectorOpen = () => sandboxInspector && sandboxInspector.style.display === 'flex';
 const isLlmPanelOpen = () => llmPanel && llmPanel.style.display === 'flex';
+const isMcpPanelOpen = () => mcpPanel && mcpPanel.style.display === 'flex';
 
 const setLlmStatus = (text, isError) => {
   if (!llmStatus) return;
@@ -993,6 +1130,94 @@ const formatJson = (value) => {
   }
 };
 
+const sandboxPaths = __SANDBOX__.paths || {};
+
+const setMcpStatus = (text, isError) => {
+  if (!mcpStatus) return;
+  mcpStatus.textContent = text || '';
+  mcpStatus.style.color = isError ? '#ef4444' : '';
+};
+
+const appendMcpOutput = (label, payload) => {
+  if (!mcpOutput) return;
+  const ts = new Date().toISOString();
+  const content = typeof payload === 'string' ? payload : formatJson(payload);
+  mcpOutput.textContent += '[' + ts + '] ' + label + '\\n' + content + '\\n\\n';
+  mcpOutput.scrollTop = mcpOutput.scrollHeight;
+};
+
+const refreshMcpPaths = () => {
+  if (!mcpPaths) return;
+  mcpPaths.textContent = formatJson(sandboxPaths);
+};
+
+const refreshMcpConfigHint = async () => {
+  if (!mcpConfigHint) return;
+  try {
+    mcpConfigHint.textContent = 'Loading...';
+    const r = await fetch('/api/sandbox/llm-config');
+    const j = await r.json();
+    if (!j?.ok) throw new Error(j?.message || 'Failed to load config');
+    const cfg = j?.config || {};
+    const modelText = cfg.modelId ? 'model=' + cfg.modelId : 'model=unset';
+    const baseText = cfg.baseUrl ? 'base=' + cfg.baseUrl : 'base=default';
+    const keyText = cfg.hasApiKey ? 'key=ok' : 'key=missing';
+    mcpConfigHint.textContent = modelText + ' · ' + baseText + ' · ' + keyText;
+  } catch (err) {
+    mcpConfigHint.textContent = err?.message || String(err);
+  }
+};
+
+const setMcpPanelOpen = (open) => {
+  if (!mcpPanel) return;
+  mcpPanel.style.display = open ? 'flex' : 'none';
+  mcpPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (open) {
+    refreshMcpConfigHint();
+    refreshMcpPaths();
+  }
+};
+
+const runMcpTest = async () => {
+  const sendBtn = btnMcpSend;
+  try {
+    const message = mcpMessage ? String(mcpMessage.value || '').trim() : '';
+    if (!message) {
+      setMcpStatus('Message is required.', true);
+      return;
+    }
+    if (sendBtn) sendBtn.disabled = true;
+    const payload = {
+      messages: [{ role: 'user', text: message }],
+      modelId: mcpModelId ? String(mcpModelId.value || '').trim() : '',
+      systemPrompt: mcpSystem ? String(mcpSystem.value || '').trim() : '',
+      disableTools: Boolean(mcpDisableTools?.checked),
+    };
+    const workdirOverride = mcpWorkdir ? String(mcpWorkdir.value || '').trim() : '';
+    if (workdirOverride) {
+      payload.callMeta = { workdir: workdirOverride };
+    }
+    setMcpStatus('Sending...');
+    appendMcpOutput('request', payload);
+    const r = await fetch('/api/llm/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!j?.ok) throw new Error(j?.message || 'MCP test failed');
+    appendMcpOutput('assistant', j?.content || '');
+    if (Array.isArray(j?.toolTrace) && j.toolTrace.length > 0) {
+      appendMcpOutput('toolTrace', j.toolTrace);
+    }
+    setMcpStatus('Done');
+  } catch (err) {
+    setMcpStatus(err?.message || String(err), true);
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+  }
+};
+
 const tokenNameList = Array.isArray(__SANDBOX__.tokenNames) ? __SANDBOX__.tokenNames : [];
 
 const collectTokens = () => {
@@ -1014,7 +1239,13 @@ const collectTokens = () => {
 const readHostContext = () => {
   if (!inspectorEnabled) return null;
   if (typeof host?.context?.get === 'function') return host.context.get();
-  return { pluginId: __SANDBOX__.pluginId, appId: __SANDBOX__.appId, theme: currentTheme, bridge: { enabled: true } };
+  return {
+    pluginId: __SANDBOX__.pluginId,
+    appId: __SANDBOX__.appId,
+    theme: currentTheme,
+    surface: currentSurface,
+    bridge: { enabled: true },
+  };
 };
 
 const readThemeInfo = () => ({
@@ -1093,6 +1324,18 @@ if (btnLlmClose) btnLlmClose.addEventListener('click', () => setLlmPanelOpen(fal
 if (btnLlmRefresh) btnLlmRefresh.addEventListener('click', () => refreshLlmConfig());
 if (btnLlmSave) btnLlmSave.addEventListener('click', () => saveLlmConfig());
 if (btnLlmClear) btnLlmClear.addEventListener('click', () => saveLlmConfig({ clearKey: true }));
+if (btnMcpTest) btnMcpTest.addEventListener('click', () => setMcpPanelOpen(!isMcpPanelOpen()));
+if (btnHalfApp) btnHalfApp.addEventListener('click', () => toggleCompactSurface());
+if (btnMcpClose) btnMcpClose.addEventListener('click', () => setMcpPanelOpen(false));
+if (btnMcpClear)
+  btnMcpClear.addEventListener('click', () => {
+    if (mcpOutput) mcpOutput.textContent = '';
+    setMcpStatus('');
+  });
+if (btnMcpSend)
+  btnMcpSend.addEventListener('click', () => {
+    runMcpTest();
+  });
 if (btnInspectorToggle) btnInspectorToggle.addEventListener('click', () => setInspectorOpen(!isInspectorOpen()));
 if (btnInspectorClose) btnInspectorClose.addEventListener('click', () => setInspectorOpen(false));
 if (btnInspectorRefresh) btnInspectorRefresh.addEventListener('click', () => updateInspector());
@@ -1275,7 +1518,15 @@ const getTheme = () => currentTheme || resolveTheme();
 
 const host = {
   bridge: { enabled: true },
-  context: { get: () => ({ pluginId: __SANDBOX__.pluginId, appId: __SANDBOX__.appId, theme: getTheme(), bridge: { enabled: true } }) },
+  context: {
+    get: () => ({
+      pluginId: __SANDBOX__.pluginId,
+      appId: __SANDBOX__.appId,
+      theme: getTheme(),
+      surface: currentSurface,
+      bridge: { enabled: true },
+    }),
+  },
   theme: {
     get: getTheme,
     onChange: (listener) => {
@@ -1328,7 +1579,7 @@ const host = {
     close: () => (setPanelOpen(false), { ok: true }),
     toggle: () => (setPanelOpen(panel.style.display !== 'flex'), { ok: true }),
   },
-  ui: { navigate: (menu) => ({ ok: true, menu }) },
+  ui: { navigate: (menu) => ({ ok: true, menu }), surface: 'full' },
   chat: (() => {
     const clone = (v) => JSON.parse(JSON.stringify(v));
 
@@ -1583,6 +1834,8 @@ const host = {
   })(),
 };
 
+updateSurfaceState('full');
+
 inspectorEnabled = true;
 updateInspector();
 
@@ -1592,7 +1845,7 @@ async function loadAndMount() {
   if (typeof dispose === 'function') { try { await dispose(); } catch {} dispose = null; }
   container.textContent = '';
 
-  const entryUrl = __SANDBOX__.entryUrl;
+  const entryUrl = currentSurface === 'compact' && entryCompactUrl ? entryCompactUrl : __SANDBOX__.entryUrl;
   const mod = await import(entryUrl + (entryUrl.includes('?') ? '&' : '?') + 't=' + Date.now());
   const mount = mod?.mount || mod?.default?.mount || (typeof mod?.default === 'function' ? mod.default : null);
   if (typeof mount !== 'function') throw new Error('module entry must export mount()');
@@ -1655,7 +1908,13 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   const entryAbs = resolveInsideDir(pluginDir, entryRel);
   if (!isFile(entryAbs)) throw new Error(`module entry not found: ${entryRel}`);
 
+  const entryCompactRel = String(app?.entry?.compact?.path || '').trim();
   const entryUrl = `/plugin/${encodeURIComponent(entryRel).replaceAll('%2F', '/')}`;
+  const entryCompactAbs = entryCompactRel ? resolveInsideDir(pluginDir, entryCompactRel) : '';
+  const entryCompactUrl =
+    entryCompactAbs && isFile(entryCompactAbs)
+      ? `/plugin/${encodeURIComponent(entryCompactRel).replaceAll('%2F', '/')}`
+      : '';
 
   let backendInstance = null;
   let backendFactory = null;
@@ -1746,7 +2005,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
     return { ...next };
   };
 
-  const runSandboxChat = async ({ messages, modelId, modelName, systemPrompt, disableTools, signal } = {}) => {
+  const runSandboxChat = async ({ messages, modelId, modelName, systemPrompt, disableTools, signal, callMeta } = {}) => {
     const cfg = getSandboxLlmConfig();
     const apiKey = normalizeText(cfg.apiKey || process.env.SANDBOX_LLM_API_KEY);
     const baseUrl = normalizeText(cfg.baseUrl) || DEFAULT_LLM_BASE_URL;
@@ -1773,11 +2032,15 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
 
     let toolEntries = [];
     let toolMap = new Map();
+    let effectiveCallMeta = sandboxCallMeta;
     if (!disableTools) {
       const runtime = await ensureMcpRuntime();
       if (runtime?.toolEntries?.length) {
         toolEntries = runtime.toolEntries;
         toolMap = runtime.toolMap || new Map();
+      }
+      if (callMeta && typeof callMeta === 'object') {
+        effectiveCallMeta = mergeCallMeta(sandboxCallMeta, callMeta);
       }
     }
     const toolDefs = toolEntries.map((entry) => entry.definition);
@@ -1821,7 +2084,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
               const toolResult = await toolEntry.client.callTool({
                 name: toolEntry.toolName,
                 arguments: args,
-                ...(sandboxCallMeta ? { _meta: sandboxCallMeta } : {}),
+                ...(effectiveCallMeta ? { _meta: effectiveCallMeta } : {}),
               });
               resultText = formatMcpToolResult(toolEntry.serverName, toolEntry.toolName, toolResult);
             }
@@ -1850,12 +2113,14 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
         const input = typeof payload?.input === 'string' ? payload.input : '';
         const normalized = String(input || '').trim();
         if (!normalized) throw new Error('input is required');
+        const callMeta = payload?.callMeta && typeof payload.callMeta === 'object' ? payload.callMeta : null;
         const result = await runSandboxChat({
           messages: [{ role: 'user', text: normalized }],
           modelId: typeof payload?.modelId === 'string' ? payload.modelId : '',
           modelName: typeof payload?.modelName === 'string' ? payload.modelName : '',
           systemPrompt: typeof payload?.systemPrompt === 'string' ? payload.systemPrompt : '',
           disableTools: payload?.disableTools === true,
+          callMeta,
         });
         return {
           ok: true,
@@ -1951,12 +2216,22 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
 
       if (req.method === 'GET' && pathname === '/sandbox.mjs') {
         const tokenNames = loadTokenNames();
+        const sandboxPaths = {
+          workdir: sandboxCallMeta?.workdir || '',
+          dataDir: ctxBase.dataDir || '',
+          pluginDir: ctxBase.pluginDir || '',
+          stateDir: ctxBase.stateDir || '',
+          sessionRoot: ctxBase.sessionRoot || '',
+          projectRoot: ctxBase.projectRoot || '',
+        };
         const js = sandboxClientJs()
           .replaceAll('__SANDBOX__.pluginId', JSON.stringify(ctxBase.pluginId))
           .replaceAll('__SANDBOX__.appId', JSON.stringify(effectiveAppId))
           .replaceAll('__SANDBOX__.entryUrl', JSON.stringify(entryUrl))
+          .replaceAll('__SANDBOX__.entryCompactUrl', JSON.stringify(entryCompactUrl))
           .replaceAll('__SANDBOX__.registryApp', JSON.stringify({ plugin: { id: ctxBase.pluginId }, id: effectiveAppId, entry: { type: 'module', url: entryUrl } }))
-          .replaceAll('__SANDBOX__.tokenNames', JSON.stringify(tokenNames));
+          .replaceAll('__SANDBOX__.tokenNames', JSON.stringify(tokenNames))
+          .replaceAll('__SANDBOX__.paths', JSON.stringify(sandboxPaths));
         return sendText(res, 200, js, 'text/javascript; charset=utf-8');
       }
 
@@ -2012,12 +2287,14 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
         try {
           const payload = await readJsonBody(req);
           const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+          const callMeta = payload?.callMeta && typeof payload.callMeta === 'object' ? payload.callMeta : null;
           const result = await runSandboxChat({
             messages,
             modelId: typeof payload?.modelId === 'string' ? payload.modelId : '',
             modelName: typeof payload?.modelName === 'string' ? payload.modelName : '',
             systemPrompt: typeof payload?.systemPrompt === 'string' ? payload.systemPrompt : '',
             disableTools: payload?.disableTools === true,
+            callMeta,
           });
           return sendJson(res, 200, {
             ok: true,

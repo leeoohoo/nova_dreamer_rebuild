@@ -29,12 +29,13 @@ let engineDepsPromise = null;
 async function loadEngineDeps() {
   if (engineDepsPromise) return engineDepsPromise;
   engineDepsPromise = (async () => {
-    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod] = await Promise.all([
+    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod, toolsMod] = await Promise.all([
       import(pathToFileURL(resolveEngineModule('session.js')).href),
       import(pathToFileURL(resolveEngineModule('client.js')).href),
       import(pathToFileURL(resolveEngineModule('config.js')).href),
       import(pathToFileURL(resolveEngineModule('mcp/runtime.js')).href),
       import(pathToFileURL(resolveEngineModule('subagents/runtime.js')).href),
+      import(pathToFileURL(resolveEngineModule('tools/index.js')).href),
     ]);
     return {
       ChatSession: sessionMod.ChatSession,
@@ -42,6 +43,7 @@ async function loadEngineDeps() {
       createAppConfigFromModels: configMod.createAppConfigFromModels,
       initializeMcpRuntime: mcpRuntimeMod.initializeMcpRuntime,
       runWithSubAgentContext: subagentRuntimeMod.runWithSubAgentContext,
+      registerTool: toolsMod.registerTool,
     };
   })();
   return engineDepsPromise;
@@ -49,6 +51,23 @@ async function loadEngineDeps() {
 
 function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeSessionMode(value) {
+  const mode = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return mode === 'room' ? 'room' : 'session';
+}
+
+function uniqueIds(list) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(list) ? list : []).forEach((item) => {
+    const value = normalizeId(item);
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    out.push(value);
+  });
+  return out;
 }
 
 function normalizeWorkspaceRoot(value) {
@@ -417,7 +436,9 @@ export function createChatRunner({
     workspaceRoot: desiredWorkspaceRoot,
     extraServers,
     skipServers,
+    emitEvent,
   } = {}) => {
+    const notify = typeof emitEvent === 'function' ? emitEvent : sendEvent;
     const effectiveWorkspaceRoot =
       normalizeWorkspaceRoot(desiredWorkspaceRoot) || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
     const signature = computeMcpSignature(extraServers, skipServers);
@@ -468,7 +489,7 @@ export function createChatRunner({
           mcpWorkspaceRoot = '';
           mcpConfigMtimeMs = null;
           mcpSignature = '';
-          sendEvent({
+          notify({
             type: 'notice',
             message: `[MCP] 初始化失败（root=${effectiveWorkspaceRoot}）：${err?.message || String(err)}`,
           });
@@ -492,7 +513,7 @@ export function createChatRunner({
         }),
       ]);
       if (result === MCP_INIT_TIMEOUT) {
-        sendEvent({
+        notify({
           type: 'notice',
           message: `[MCP] 初始化超过 ${timeoutMs}ms，已跳过（后台仍会继续初始化）。`,
         });
@@ -508,6 +529,147 @@ export function createChatRunner({
         }
       }
     }
+  };
+
+  let chatAgentToolReady = false;
+  const ensureChatAgentTool = async () => {
+    if (chatAgentToolReady) return;
+    const { ChatSession, ModelClient, createAppConfigFromModels, runWithSubAgentContext, registerTool } = await loadEngineDeps();
+    if (typeof registerTool !== 'function') return;
+    registerTool({
+      name: 'invoke_chat_agent',
+      description: 'Invoke a chat room member agent to handle a specific task.',
+      parameters: {
+        type: 'object',
+        properties: {
+          agent_id: { type: 'string', description: 'Target agent id in the room.' },
+          agent_name: { type: 'string', description: 'Target agent name in the room.' },
+          task: { type: 'string', description: 'Task or question for the agent.' },
+        },
+        required: ['task'],
+      },
+      handler: async ({ agent_id: agentId, agent_name: agentName, task }, toolContext = {}) => {
+        const taskText = typeof task === 'string' ? task.trim() : '';
+        if (!taskText) throw new Error('task is required');
+        const roomId = normalizeId(toolContext?.session?.sessionId);
+        if (!roomId) throw new Error('room sessionId is required');
+        const room = store.rooms.get(roomId);
+        if (!room) throw new Error('room not found');
+
+        const hostId = normalizeId(room?.hostAgentId) || normalizeId(room?.agentId);
+        const memberIds = Array.isArray(room?.memberAgentIds) ? room.memberAgentIds : [];
+        const allowedIds = uniqueIds([hostId, ...memberIds]);
+        const allowedAgents = allowedIds.map((id) => store.agents.get(id)).filter(Boolean);
+
+        const normalizeAgentName = (value) =>
+          String(value || '')
+            .trim()
+            .replace(/^@+/, '')
+            .toLowerCase();
+        const targetId = normalizeId(agentId);
+        const targetName = normalizeAgentName(agentName);
+        let targetAgent = null;
+        if (targetId) {
+          targetAgent = allowedAgents.find((agent) => normalizeId(agent?.id) === targetId) || null;
+        }
+        if (!targetAgent && targetName) {
+          targetAgent = allowedAgents.find((agent) => normalizeAgentName(agent?.name || agent?.id) === targetName) || null;
+        }
+        if (!targetAgent) {
+          const available = allowedAgents.map((agent) => agent?.name || agent?.id).filter(Boolean);
+          throw new Error(`agent not found in room. available: ${available.slice(0, 8).join(', ')}`);
+        }
+
+        const roomWorkspaceRoot = normalizeWorkspaceRoot(room?.workspaceRoot);
+        const agentWorkspaceRoot = normalizeWorkspaceRoot(targetAgent?.workspaceRoot);
+        const effectiveWorkspaceRoot =
+          agentWorkspaceRoot || roomWorkspaceRoot || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
+
+        const models = adminServices.models.list();
+        const modelRecord = models.find((m) => m?.id === targetAgent.modelId);
+        if (!modelRecord) throw new Error('model not found for agent');
+
+        applySecretsToProcessEnv(adminServices);
+        const secrets = adminServices.secrets?.list ? adminServices.secrets.list() : [];
+        const config = createAppConfigFromModels(models, secrets);
+        const client = new ModelClient(config);
+
+        const runtimeConfig = adminServices.settings?.getRuntimeConfig ? adminServices.settings.getRuntimeConfig() : null;
+        const promptLanguage = runtimeConfig?.promptLanguage || null;
+        const prompts = adminServices.prompts.list();
+        const subagents = adminServices.subagents.list();
+        const mcpServers = adminServices.mcpServers.list();
+
+        const memberRule = [
+          '【聊天室成员规则】',
+          `你是聊天室的成员 Agent（${targetAgent?.name || targetAgent?.id || '未知'}）。`,
+          '你只需要完成当前任务并输出结论。',
+          '不要 @ 其他 Agent，也不要尝试调度其他 Agent。',
+        ].join('\n');
+
+        const systemPrompt = buildSystemPrompt({
+          agent: targetAgent,
+          prompts,
+          subagents,
+          mcpServers,
+          language: promptLanguage,
+        });
+
+        const toolsOverride = resolveAllowedTools({ agent: targetAgent, mcpServers });
+        const shouldInitMcp =
+          Array.isArray(toolsOverride) && toolsOverride.some((toolName) => String(toolName || '').startsWith('mcp_'));
+        if (shouldInitMcp) {
+          await ensureMcp({
+            workspaceRoot: effectiveWorkspaceRoot,
+            emitEvent: (payload) => sendEvent({ ...payload, scope: 'room' }),
+          });
+        }
+
+        const restrictedManager = subAgentManager
+          ? createRestrictedSubAgentManager(subAgentManager, {
+              allowedPluginIds: targetAgent.subagentIds,
+              allowedSkills: targetAgent.skills,
+            })
+          : null;
+
+        const subSession = new ChatSession(systemPrompt || null, {
+          sessionId: `room_${roomId}_${normalizeId(targetAgent?.id) || 'agent'}`,
+          extraSystemPrompts: [memberRule],
+        });
+        subSession.addUser(taskText);
+
+        const runChat = async () =>
+          client.chat(modelRecord.name, subSession, {
+            stream: false,
+            toolsOverride,
+            caller: 'room_agent',
+            signal: toolContext?.signal,
+          });
+
+        let responseText = '';
+        if (restrictedManager) {
+          const context = {
+            manager: restrictedManager,
+            getClient: () => client,
+            getCurrentModel: () => modelRecord.name,
+            userPrompt: '',
+            subagentUserPrompt: '',
+            subagentMcpAllowPrefixes: null,
+            toolHistory: null,
+            registerToolResult: null,
+            eventLogger: null,
+          };
+          responseText = await runWithSubAgentContext(context, runChat);
+        } else {
+          responseText = await runChat();
+        }
+
+        const label = targetAgent?.name || targetAgent?.id || 'Agent';
+        const finalText = typeof responseText === 'string' ? responseText.trim() : String(responseText || '').trim();
+        return `【${label}】\n${finalText || '(no response)'}`;
+      },
+    });
+    chatAgentToolReady = true;
   };
 
   const start = async ({ sessionId, agentId, userMessageId, assistantMessageId, text, attachments } = {}) => {
@@ -527,13 +689,27 @@ export function createChatRunner({
     const controller = new AbortController();
     activeRuns.set(sid, { controller, messageId: initialAssistantMessageId });
 
+    const baseSendEvent = sendEvent;
     const sessionRecord = store.sessions.get(sid);
+    const sessionMode = normalizeSessionMode(sessionRecord?.mode);
+    const isRoom = sessionMode === 'room';
+    const sendEvent = isRoom ? (payload) => baseSendEvent({ ...payload, scope: 'room' }) : baseSendEvent;
+
     const sessionWorkspaceRoot = normalizeWorkspaceRoot(sessionRecord?.workspaceRoot);
-    const effectiveAgentId = normalizeId(agentId) || normalizeId(sessionRecord?.agentId);
+    const hostAgentId = normalizeId(sessionRecord?.hostAgentId) || normalizeId(sessionRecord?.agentId);
+    const requestedAgentId = normalizeId(agentId);
+    if (isRoom && !hostAgentId) {
+      throw new Error('hostAgentId is required');
+    }
+    if (isRoom && requestedAgentId && hostAgentId && requestedAgentId !== hostAgentId) {
+      throw new Error('agentId does not match room host');
+    }
+    const effectiveAgentId = isRoom ? hostAgentId : requestedAgentId || normalizeId(sessionRecord?.agentId);
     const agentRecord = effectiveAgentId ? store.agents.get(effectiveAgentId) : null;
     if (!agentRecord) {
       throw new Error('agent not found for session');
     }
+    const roomPrompt = isRoom && typeof sessionRecord?.roomPrompt === 'string' ? sessionRecord.roomPrompt.trim() : '';
     const agentWorkspaceRoot = normalizeWorkspaceRoot(agentRecord?.workspaceRoot);
     const effectiveWorkspaceRoot =
       agentWorkspaceRoot || sessionWorkspaceRoot || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
@@ -551,6 +727,9 @@ export function createChatRunner({
       createAppConfigFromModels,
       runWithSubAgentContext,
     } = await loadEngineDeps();
+    if (isRoom) {
+      await ensureChatAgentTool();
+    }
 
     applySecretsToProcessEnv(adminServices);
     const secrets = adminServices.secrets?.list ? adminServices.secrets.list() : [];
@@ -984,13 +1163,19 @@ export function createChatRunner({
       await ensureMcp({
         workspaceRoot: effectiveWorkspaceRoot,
         extraServers: extraRuntimeServers,
+        emitEvent: sendEvent,
       });
     }
 
-    const toolsOverride = resolveAllowedTools({
+    let toolsOverride = resolveAllowedTools({
       agent: effectiveAgent,
       mcpServers: mergedMcpServers,
     });
+    if (isRoom) {
+      const list = Array.isArray(toolsOverride) ? toolsOverride.slice() : [];
+      if (!list.includes('invoke_chat_agent')) list.push('invoke_chat_agent');
+      toolsOverride = list;
+    }
     const restrictedManager = subAgentManager
       ? createRestrictedSubAgentManager(subAgentManager, {
           allowedPluginIds: effectiveAgent.subagentIds,
@@ -1001,7 +1186,10 @@ export function createChatRunner({
     const history = store.messages
       .list(sid)
       .filter((msg) => msg?.id !== userMessageId && msg?.id !== initialAssistantMessageId);
-    const chatSession = new ChatSession(systemPrompt || null, { sessionId: sid });
+    const chatSession = new ChatSession(systemPrompt || null, {
+      sessionId: sid,
+      ...(roomPrompt ? { extraSystemPrompts: [roomPrompt] } : {}),
+    });
     let pendingToolCallIds = null;
     history.forEach((msg) => {
       const role = msg?.role;

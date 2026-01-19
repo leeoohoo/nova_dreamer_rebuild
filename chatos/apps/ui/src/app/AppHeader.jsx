@@ -7,6 +7,7 @@ import {
   RobotOutlined,
   SettingOutlined,
   SunOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Header } = Layout;
@@ -131,6 +132,15 @@ export function AppHeader({
                             </Space>
                           ),
                           value: 'chat/session',
+                        },
+                        {
+                          label: (
+                            <Space size={6}>
+                              <TeamOutlined />
+                              聊天室
+                            </Space>
+                          ),
+                          value: 'chat/rooms',
                         },
                         {
                           label: (

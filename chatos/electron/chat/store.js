@@ -27,6 +27,13 @@ function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizeSessionMode(value) {
+  const mode = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (mode === 'room') return 'room';
+  if (mode === 'all') return 'all';
+  return 'session';
+}
+
 function parseMs(ts) {
   const ms = Date.parse(ts);
   return Number.isFinite(ms) ? ms : 0;
@@ -51,7 +58,15 @@ export function createChatStore(db) {
   const updateAgent = (id, patch) => db.update('chatAgents', id, parsePartial(chatAgentSchema, patch));
   const removeAgent = (id) => db.remove('chatAgents', id);
 
-  const listSessions = () => sortUpdatedDesc(db.list('chatSessions') || []);
+  const listSessions = (options = {}) => {
+    const mode = normalizeSessionMode(options?.mode);
+    const list = sortUpdatedDesc(db.list('chatSessions') || []);
+    if (mode === 'all') return list;
+    if (mode === 'room') {
+      return list.filter((entry) => normalizeSessionMode(entry?.mode) === 'room');
+    }
+    return list.filter((entry) => normalizeSessionMode(entry?.mode) !== 'room');
+  };
   const getSession = (id) => db.get('chatSessions', id);
   const createSession = (payload) => db.insert('chatSessions', parse(chatSessionSchema, payload));
   const updateSession = (id, patch) => db.update('chatSessions', id, parsePartial(chatSessionSchema, patch));
@@ -122,7 +137,7 @@ export function createChatStore(db) {
   };
 
   const ensureDefaultSession = ({ agentId, title = '新会话', workspaceRoot = '' } = {}) => {
-    const sessions = listSessions();
+    const sessions = listSessions({ mode: 'session' });
     if (sessions.length > 0) {
       return sessions[0];
     }
@@ -130,6 +145,7 @@ export function createChatStore(db) {
     return createSession({
       title,
       agentId: normalizedAgentId,
+      mode: 'session',
       workspaceRoot,
     });
   };
@@ -143,6 +159,25 @@ export function createChatStore(db) {
       update: updateSession,
       remove: removeSession,
       ensureDefault: ensureDefaultSession,
+    },
+    rooms: {
+      list: () => listSessions({ mode: 'room' }),
+      get: (id) => {
+        const record = getSession(id);
+        if (!record || normalizeSessionMode(record?.mode) !== 'room') return null;
+        return record;
+      },
+      create: (payload) => createSession({ ...payload, mode: 'room' }),
+      update: (id, patch) => {
+        const record = getSession(id);
+        if (!record || normalizeSessionMode(record?.mode) !== 'room') return null;
+        return updateSession(id, { ...patch, mode: 'room' });
+      },
+      remove: (id) => {
+        const record = getSession(id);
+        if (!record || normalizeSessionMode(record?.mode) !== 'room') return false;
+        return removeSession(id);
+      },
     },
     messages: {
       list: listMessages,

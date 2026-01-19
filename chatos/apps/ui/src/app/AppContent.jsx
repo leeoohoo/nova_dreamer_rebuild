@@ -7,6 +7,7 @@ import {
 } from '../features/admin/AdminManagers.jsx';
 import { ChatView } from '../features/chat/ChatView.jsx';
 import { ChatAgentsView } from '../features/chat/ChatAgentsView.jsx';
+import { ChatRoomsView } from '../features/chat/ChatRoomsView.jsx';
 import { AppsHubView } from '../features/apps/AppsHubView.jsx';
 import { AppsPluginView } from '../features/apps/AppsPluginView.jsx';
 
@@ -115,6 +116,14 @@ export function AppContent({
     return (
       <div style={{ flex: 1, minHeight: 0 }}>
         <ChatAgentsView admin={admin} />
+      </div>
+    );
+  }
+
+  if (currentMenu === 'chat/rooms') {
+    return (
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ChatRoomsView admin={admin} />
       </div>
     );
   }
