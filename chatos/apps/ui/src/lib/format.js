@@ -1,1 +1,1 @@
-export * from '../../../../src/common/aide-ui/lib/format.js';
+export * from '../../../../packages/common/aide-ui/lib/format.js';

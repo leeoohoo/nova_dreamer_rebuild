@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const root = path.resolve(__dirname, '..');
-const sharedUiSrc = path.resolve(root, 'src', 'common', 'aide-ui');
+const sharedUiSrc = path.resolve(root, 'packages', 'common', 'aide-ui');
 const uiSrc = path.join(root, 'apps', 'ui');
 const entry = path.join(uiSrc, 'src', 'index.jsx');
 const dist = path.join(uiSrc, 'dist');
@@ -111,7 +111,7 @@ async function main() {
     nodePaths: [
       path.resolve(root, '..', 'node_modules'),
       path.join(root, 'node_modules'),
-      path.resolve(root, 'src', 'engine', 'node_modules'),
+      path.resolve(root, 'packages', 'aide', 'node_modules'),
     ],
   });
   const html = fs.readFileSync(htmlSrc, 'utf8');

@@ -16,7 +16,7 @@ This README focuses on **desktop UI usage** (terminal/CLI instructions are inten
 Nova Dreamer 是一个以 **ChatOS 桌面端**为宿主、以 **AIDE** 为核心引擎的工作台，主打“UI 优先”的使用体验：
 
 - **ChatOS（宿主）**：桌面端 Electron 应用（工作区：`chatos/`），提供对话、Agent、应用中心与管理台。
-- **AIDE（引擎）**：模型调用/工具/MCP/子代理等能力（工作区：`chatos/aide/`），并以内置应用的形式提供可视化面板。
+- **AIDE（引擎）**：模型调用/工具/MCP/子代理等能力（工作区：`chatos/packages/aide/`），并以内置应用的形式提供可视化面板。
 - **UI Apps（嵌入应用）**：可在「应用」中心安装/打开的小应用插件（例如 Git/记事本/WSL/AIDE 面板）。
 - **DevKit（可选）**：用于开发/校验/打包 UI Apps 的工具（工作区：`chatos-uiapps-devkit/`）。
 
@@ -158,7 +158,7 @@ Nova Dreamer 是一个以 **ChatOS 桌面端**为宿主、以 **AIDE** 为核心
 Nova Dreamer is a **UI-first** workspace built around a **ChatOS desktop host** and the **AIDE engine**:
 
 - **ChatOS (host)**: Electron desktop app (workspace: `chatos/`) — chat, agents, apps, and admin panels.
-- **AIDE (engine)**: model runtime + tools/MCP/sub-agents (workspace: `chatos/aide/`) — also shipped as a built-in UI app.
+- **AIDE (engine)**: model runtime + tools/MCP/sub-agents (workspace: `chatos/packages/aide/`) — also shipped as a built-in UI app.
 - **UI Apps (embedded apps)**: plugins you can install and open in the `Apps` center (e.g. Git/Notepad/WSL/AIDE panel).
 - **DevKit (optional)**: tooling to develop/validate/package UI Apps (workspace: `chatos-uiapps-devkit/`).
 

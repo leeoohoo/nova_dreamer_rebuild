@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const internalEngineRoot = path.resolve(projectRoot, 'src', 'engine');
+const internalEngineRoot = path.resolve(projectRoot, 'packages', 'aide');
 const externalAideRoot = [path.resolve(projectRoot, '..', 'aide')].find(
   (candidate) => isDirectory(candidate) && path.resolve(candidate) !== internalEngineRoot
 );
@@ -102,7 +102,7 @@ function main() {
       return;
     }
     console.error('[sync:engine] External aide directory not found.');
-    console.error('[sync:engine] Expected monorepo layout: <repo>/chatos (with src/engine/) or <repo>/aide.');
+    console.error('[sync:engine] Expected monorepo layout: <repo>/chatos (with packages/aide/) or <repo>/aide.');
     process.exit(1);
   }
 

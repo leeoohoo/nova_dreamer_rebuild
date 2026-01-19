@@ -4,8 +4,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 import { createRestrictedSubAgentManager } from './subagent-restriction.js';
 import { resolveAllowedTools } from './tool-selection.js';
-import { applySecretsToProcessEnv } from '../../src/common/secrets-env.js';
-import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../src/common/host-app.js';
+import { applySecretsToProcessEnv } from '../../packages/common/secrets-env.js';
+import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../packages/common/host-app.js';
 import { resolveEngineRoot } from '../../src/engine-paths.js';
 import { getRegistryCenter } from '../backend/registry-center.js';
 
@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..', '..');
 const ENGINE_ROOT = resolveEngineRoot({ projectRoot });
 if (!ENGINE_ROOT) {
-  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+  throw new Error('Engine sources not found (expected ./packages/aide relative to chatos).');
 }
 
 function resolveEngineModule(relativePath) {

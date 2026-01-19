@@ -27,14 +27,14 @@ import { registerChatApi } from './chat/index.js';
 import { ensureAllSubagentsInstalled, maybePurgeUiAppsSyncedAdminData, readLegacyState } from './main-helpers.js';
 import { resolveEngineRoot } from '../src/engine-paths.js';
 import { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
-import { ensureAppStateDir } from '../src/common/state-core/state-paths.js';
-import { resolveRuntimeLogPath } from '../src/common/state-core/runtime-log.js';
-import { createDb } from '../src/common/admin-data/storage.js';
-import { createAdminServices } from '../src/common/admin-data/services/index.js';
-import { syncAdminToFiles } from '../src/common/admin-data/sync.js';
-import { buildAdminSeed } from '../src/common/admin-data/legacy.js';
+import { ensureAppStateDir } from '../packages/common/state-core/state-paths.js';
+import { resolveRuntimeLogPath } from '../packages/common/state-core/runtime-log.js';
+import { createDb } from '../packages/common/admin-data/storage.js';
+import { createAdminServices } from '../packages/common/admin-data/services/index.js';
+import { syncAdminToFiles } from '../packages/common/admin-data/sync.js';
+import { buildAdminSeed } from '../packages/common/admin-data/legacy.js';
 import { createLspInstaller } from './lsp-installer.js';
-import { ConfigApplier } from '../src/core/session/ConfigApplier.js';
+import { ConfigApplier } from '../packages/core/session/ConfigApplier.js';
 import { readLastLinesFromFile } from './sessions/utils.js';
 
 const { app, BrowserWindow, ipcMain, dialog, nativeImage } = electron;
@@ -56,7 +56,7 @@ if (explicitSessionRoot) {
 
 const engineRoot = resolveEngineRoot({ projectRoot });
 if (!engineRoot) {
-  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+  throw new Error('Engine sources not found (expected ./packages/aide relative to chatos).');
 }
 const resolveEngineModule = (relativePath) => {
   const rel = typeof relativePath === 'string' ? relativePath.trim() : '';

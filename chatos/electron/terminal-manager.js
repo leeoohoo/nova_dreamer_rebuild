@@ -1,10 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { parseJsonSafe, safeRead } from '../src/engine/shared/data/legacy.js';
-import { getHostApp } from '../src/common/host-app.js';
-import { resolveAppStateDir } from '../src/common/state-core/state-paths.js';
-import { createRuntimeLogger } from '../src/common/state-core/runtime-log.js';
+import { parseJsonSafe, safeRead } from '../packages/aide/shared/data/legacy.js';
+import { getHostApp } from '../packages/common/host-app.js';
+import { resolveAppStateDir } from '../packages/common/state-core/state-paths.js';
+import { createRuntimeLogger } from '../packages/common/state-core/runtime-log.js';
 
 import { isPidAlive, listProcessTreePidsFromPs, tryKillPid, tryKillProcessGroup } from './terminal-manager/process-utils.js';
 import { isPendingSystemTerminalLaunch, launchCliInSystemTerminal } from './terminal-manager/system-terminal.js';

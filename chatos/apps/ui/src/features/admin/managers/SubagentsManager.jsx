@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Form, Input, Row, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
-import { formatStateDirLabel } from '../../../../../../src/common/aide-ui/lib/state-paths.js';
+import { formatStateDirLabel } from '../../../../../../packages/common/aide-ui/lib/state-paths.js';
 
 const { Text, Paragraph } = Typography;
 const SUBAGENT_INSTALL_HINT =

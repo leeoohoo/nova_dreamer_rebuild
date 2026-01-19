@@ -1,1 +1,1 @@
-export * from '../../../../src/common/aide-ui/components/EntityManager.jsx';
+export * from '../../../../packages/common/aide-ui/components/EntityManager.jsx';

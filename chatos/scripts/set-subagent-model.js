@@ -41,7 +41,7 @@ Usage:
   node scripts/set-subagent-model.js --model <model_id> [--plugins a,b] [--all] [--dry-run] [--root <plugins_dir>]
 
 Defaults:
-  --root defaults to <repo>/chatos/src/engine/subagents/plugins
+  --root defaults to <repo>/chatos/packages/aide/subagents/plugins
   if neither --plugins nor --all is provided, all plugins are scanned.
 `);
 }
@@ -87,7 +87,7 @@ function main() {
     process.exit(1);
   }
   if (!cliRoot) {
-    console.error('Engine sources not found (expected ./src/engine relative to chatos).');
+    console.error('Engine sources not found (expected ./packages/aide relative to chatos).');
     process.exit(1);
   }
   const root = args.root || path.join(cliRoot, 'subagents', 'plugins');

@@ -2,7 +2,7 @@ import assert from 'assert/strict';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-import { getDefaultTtyPaths } from '../src/common/terminal/tty-paths.js';
+import { getDefaultTtyPaths } from '../packages/common/terminal/tty-paths.js';
 import { resolveEngineRoot } from '../src/engine-paths.js';
 import { getSystemTerminalLauncher } from '../electron/terminal-manager/system-terminal/launcher.js';
 
@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const engineRoot = resolveEngineRoot({ projectRoot });
 if (!engineRoot) {
-  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+  throw new Error('Engine sources not found (expected ./packages/aide relative to chatos).');
 }
 
 const importAide = async (relativePath) => {

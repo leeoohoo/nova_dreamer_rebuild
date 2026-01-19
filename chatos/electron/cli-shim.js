@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { STATE_ROOT_DIRNAME, resolveStateRootDir } from '../src/common/state-core/state-paths.js';
+import { STATE_ROOT_DIRNAME, resolveStateRootDir } from '../packages/common/state-core/state-paths.js';
 
 function ensureDir(dirPath) {
   try {

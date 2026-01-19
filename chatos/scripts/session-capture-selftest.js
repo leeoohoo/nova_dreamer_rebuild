@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const cliRoot = resolveEngineRoot({ projectRoot });
 if (!cliRoot) {
-  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+  throw new Error('Engine sources not found (expected ./packages/aide relative to chatos).');
 }
 
 const { createSessionManager } = await import(pathToFileURL(path.join(cliRoot, 'mcp_servers/shell/session-manager.js')).href);

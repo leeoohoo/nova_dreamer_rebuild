@@ -1,1 +1,1 @@
-export * from '../../../../src/common/aide-ui/hooks/useElementSize.js';
+export * from '../../../../packages/common/aide-ui/hooks/useElementSize.js';

@@ -11,7 +11,8 @@
   "files": [
     "bin/**/*",
     "cli/**/*",
-    "src/**/*",
+    "src/*.js",
+    "packages/**/*",
     "build_resources/**/*",
     "electron/**/*",
     "apps/ui/dist/**/*",
@@ -52,21 +53,22 @@
     "afterSign": "scripts/notarize.cjs",
     "extraResources": [
       {
-        "from": "src/common/ui",
-        "to": "src/common/ui"
+        "from": "packages/common/ui",
+        "to": "packages/common/ui"
       }
     ],
     "files": [
       "package.json",
       "electron/**/*",
-      "src/**/*",
+      "src/*.js",
+      "packages/**/*",
       "apps/ui/dist/**/*",
       "ui_apps/plugins/**/*",
       "mcp_config_restore.json",
       "mcp_config_update.json",
       "!**/*.map",
-      "!src/engine/**/node_modules/**",
-      "!src/engine/**/.git/**",
+      "!packages/aide/**/node_modules/**",
+      "!packages/aide/**/.git/**",
       "!**/node_modules/electron/**"
     ],
     "asarUnpack": [

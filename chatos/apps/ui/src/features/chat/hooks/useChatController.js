@@ -1,1 +1,1 @@
-export * from '../../../../../../src/common/aide-ui/features/chat/hooks/useChatController.js';
+export * from '../../../../../../packages/common/aide-ui/features/chat/hooks/useChatController.js';

@@ -7,9 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const root = path.resolve(__dirname, '..');
-const sharedUiSrc = path.resolve(root, 'src', 'common', 'aide-ui');
+const sharedUiSrc = path.resolve(root, 'packages', 'common', 'aide-ui');
 
-const pluginSrcRoot = path.join(root, 'src', 'engine', 'cli-ui');
+const pluginSrcRoot = path.join(root, 'packages', 'aide', 'cli-ui');
 const entry = path.join(pluginSrcRoot, 'src', 'index.jsx');
 const compactEntry = path.join(pluginSrcRoot, 'src', 'compact.mjs');
 
@@ -148,8 +148,8 @@ async function main() {
       path.resolve(root, '..', 'node_modules'),
       path.resolve(root, 'node_modules'),
       path.resolve(root, 'deepseek_cli', 'node_modules'),
-      path.resolve(root, 'src', 'node_modules'),
-      path.resolve(root, 'src', 'engine', 'node_modules'),
+      path.resolve(root, 'packages', 'node_modules'),
+      path.resolve(root, 'packages', 'aide', 'node_modules'),
     ],
   };
 

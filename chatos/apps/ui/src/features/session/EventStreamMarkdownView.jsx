@@ -1,1 +1,1 @@
-export * from '../../../../../src/common/aide-ui/features/session/EventStreamMarkdownView.jsx';
+export * from '../../../../../packages/common/aide-ui/features/session/EventStreamMarkdownView.jsx';

@@ -1,6 +1,6 @@
 import path from 'path';
 
-import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../src/common/host-app.js';
+import { allowExternalOnlyMcpServers, isExternalOnlyMcpServerName } from '../../packages/common/host-app.js';
 
 export function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';

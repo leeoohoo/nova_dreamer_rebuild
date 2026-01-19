@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { GlobalStyles as BaseGlobalStyles } from '../../../../src/common/aide-ui/components/GlobalStyles.jsx';
+import { GlobalStyles as BaseGlobalStyles } from '../../../../packages/common/aide-ui/components/GlobalStyles.jsx';
 
 const EXTRA_CSS = `
       .ds-seg .ant-segmented-group {

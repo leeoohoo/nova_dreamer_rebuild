@@ -6,9 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { createDb } from '../src/common/admin-data/storage.js';
-import { createAdminServices } from '../src/common/admin-data/services/index.js';
-import { resolveLegacyStateDir } from '../src/common/state-core/state-paths.js';
+import { createDb } from '../packages/common/admin-data/storage.js';
+import { createAdminServices } from '../packages/common/admin-data/services/index.js';
+import { resolveLegacyStateDir } from '../packages/common/state-core/state-paths.js';
 import { resolveEngineRoot } from '../src/engine-paths.js';
 import { createSessionApi } from '../electron/session-api.js';
 
@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const cliRoot = resolveEngineRoot({ projectRoot });
 if (!cliRoot) {
-  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+  throw new Error('Engine sources not found (expected ./packages/aide relative to chatos).');
 }
 
 const ROOT =

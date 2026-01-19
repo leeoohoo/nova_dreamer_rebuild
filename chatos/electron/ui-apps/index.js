@@ -5,7 +5,7 @@ import { uiAppsPluginSchema } from './schemas.js';
 import { isUiAppsPluginTrusted, setUiAppsPluginTrust } from './trust-store.js';
 import { resolveUiAppsAi, syncUiAppsAiContributes } from './ai.js';
 import { getRegistryCenter } from '../backend/registry-center.js';
-import { createRuntimeLogger } from '../../src/common/state-core/runtime-log.js';
+import { createRuntimeLogger } from '../../packages/common/state-core/runtime-log.js';
 
 const DEFAULT_MANIFEST_FILE = 'plugin.json';
 const DEFAULT_MAX_MANIFEST_BYTES = 256 * 1024;

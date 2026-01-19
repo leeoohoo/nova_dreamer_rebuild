@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
 import initSqlJs from 'sql.js';
-import { resolveAppDbFileName, resolveAppStateDir } from '../../src/common/state-core/state-paths.js';
-import { normalizeHostApp } from '../../src/common/state-core/utils.js';
+import { resolveAppDbFileName, resolveAppStateDir } from '../../packages/common/state-core/state-paths.js';
+import { normalizeHostApp } from '../../packages/common/state-core/utils.js';
 
 const require = createRequire(import.meta.url);
 

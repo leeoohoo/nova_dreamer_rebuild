@@ -1,7 +1,7 @@
 import {
   persistSessionRoot as persistSessionRootCore,
   resolveSessionRoot as resolveSessionRootCore,
-} from './common/state-core/session-root.js';
+} from '../packages/common/state-core/session-root.js';
 
 export function resolveSessionRoot(options = {}) {
   return resolveSessionRootCore({ ...options, fallbackHostApp: 'chatos' });

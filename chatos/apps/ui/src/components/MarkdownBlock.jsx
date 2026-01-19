@@ -1,1 +1,1 @@
-export * from '../../../../src/common/aide-ui/components/MarkdownBlock.jsx';
+export * from '../../../../packages/common/aide-ui/components/MarkdownBlock.jsx';

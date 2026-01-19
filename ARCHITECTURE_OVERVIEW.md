@@ -7,11 +7,11 @@ This document is a concise, code‑oriented map of the system. It focuses on res
 | Component | Responsibility | Primary location |
 |---|---|---|
 | **ChatOS (Host)** | Desktop shell, UI, admin panel, plugin loading, registry, config application | `chatos/electron/`, `chatos/apps/ui/` |
-| **AIDE (Engine)** | Model runtime, tools/MCP, sub‑agents, core CLI behaviors | `chatos/src/engine/` |
+| **AIDE (Engine)** | Model runtime, tools/MCP, sub‑agents, core CLI behaviors | `chatos/packages/aide/` |
 | **UI Apps (Plugins)** | Embedded apps loaded by host; may provide MCP/Prompts | `chatos/ui_apps/` (built‑ins), user plugins under stateDir |
 | **DevKit** | Scaffold, validate, run plugin sandbox | `chatos-uiapps-devkit/` |
-| **State Core** | Paths, migration, state/db utilities | `chatos/src/common/state-core/` |
-| **Admin Data** | Admin DB + services + sync to mirrors | `chatos/src/common/admin-data/` |
+| **State Core** | Paths, migration, state/db utilities | `chatos/packages/common/state-core/` |
+| **Admin Data** | Admin DB + services + sync to mirrors | `chatos/packages/common/admin-data/` |
 
 ## 2) Runtime Entry Points
 
@@ -19,7 +19,7 @@ This document is a concise, code‑oriented map of the system. It focuses on res
   - Loads Admin DB, UI, registry, UI Apps manager, config applier.
 - **CLI**: `chatos/src/cli.js`
   - Uses engine config source, admin data, MCP servers.
-- **Engine runtime**: `chatos/src/engine/src/*`
+- **Engine runtime**: `chatos/packages/aide/src/*`
   - MCP runtime, tools, sub‑agents, prompts, config source.
 - **DevKit sandbox**: `chatos-uiapps-devkit/src/sandbox/server.js`
   - Runs plugin UI with Host API mocks.
@@ -72,12 +72,12 @@ Compatibility: legacy `legacyStateRoot/<hostApp>/` is auto‑migrated on startup
 
 ## 6) Where to Look in Code (Practical Index)
 
-- State paths + migration: `chatos/src/common/state-core/state-paths.js`
-- Session root marker: `chatos/src/common/state-core/session-root.js`
-- Admin DB services: `chatos/src/common/admin-data/`
+- State paths + migration: `chatos/packages/common/state-core/state-paths.js`
+- Session root marker: `chatos/packages/common/state-core/session-root.js`
+- Admin DB services: `chatos/packages/common/admin-data/`
 - Host bootstrap: `chatos/electron/main.js`
 - UI Apps manager: `chatos/electron/ui-apps/index.js`
 - UI Apps schema: `chatos/electron/ui-apps/schemas.js`
-- Engine config source: `chatos/src/engine/src/config-source.js`
-- MCP runtime: `chatos/src/engine/src/mcp/runtime.js`
+- Engine config source: `chatos/packages/aide/src/config-source.js`
+- MCP runtime: `chatos/packages/aide/src/mcp/runtime.js`
 - DevKit sandbox: `chatos-uiapps-devkit/src/sandbox/server.js`

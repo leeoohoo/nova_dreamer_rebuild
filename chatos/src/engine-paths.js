@@ -25,7 +25,7 @@ function looksLikeEngineRoot(rootDir) {
 export function resolveEngineRoot({ projectRoot }) {
   const root = typeof projectRoot === 'string' ? projectRoot.trim() : '';
   if (!root) return null;
-  const internal = path.resolve(root, 'src', 'engine');
+  const internal = path.resolve(root, 'packages', 'aide');
   if (isDirectory(internal) && looksLikeEngineRoot(internal)) return internal;
   return null;
 }
@@ -35,11 +35,11 @@ export function resolveEnginePath({ projectRoot, relativePath, purpose = '' }) {
   if (!root) {
     const normalizedPurpose = typeof purpose === 'string' ? purpose.trim() : '';
     const label = normalizedPurpose ? `${normalizedPurpose}: ` : '';
-    const internal = path.resolve(projectRoot || '', 'src', 'engine');
+    const internal = path.resolve(projectRoot || '', 'packages', 'aide');
     throw new Error(
       `${label}Engine sources not found.\n` +
         `Expected: ${internal}\n` +
-        `Ensure the engine sources are present in the repo (./src/engine).\n`
+        `Ensure the engine sources are present in the repo (./packages/aide).\n`
     );
   }
   const rel = typeof relativePath === 'string' ? relativePath.trim() : '';

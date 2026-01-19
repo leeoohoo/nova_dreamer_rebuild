@@ -2,14 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
 import initSqlJs from 'sql.js';
-import { normalizeHostApp } from '../../src/common/state-core/utils.js';
+import { normalizeHostApp } from '../../packages/common/state-core/utils.js';
 import {
   maybeMigrateLegacyDbFiles,
   resolveAppDbFileName,
   resolveAppStateDir,
   resolveCompatStateRootDir,
   resolveStateRootDir,
-} from '../../src/common/state-core/state-paths.js';
+} from '../../packages/common/state-core/state-paths.js';
 
 const require = createRequire(import.meta.url);
 

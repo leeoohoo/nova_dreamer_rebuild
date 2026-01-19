@@ -7,14 +7,14 @@ import { fileURLToPath } from 'url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { resolveEngineRoot } from '../src/engine-paths.js';
-import { resolveAppStateDir } from '../src/engine/shared/state-paths.js';
+import { resolveAppStateDir } from '../packages/aide/shared/state-paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 const engineRoot = resolveEngineRoot({ projectRoot: repoRoot });
 if (!engineRoot) {
-  throw new Error('Engine sources not found (expected ./src/engine relative to chatos).');
+  throw new Error('Engine sources not found (expected ./packages/aide relative to chatos).');
 }
 
 const activeTransports = new Set();

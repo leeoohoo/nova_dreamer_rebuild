@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const internalEngineRoot = path.resolve(projectRoot, 'src', 'engine');
+const internalEngineRoot = path.resolve(projectRoot, 'packages', 'aide');
 
 try {
   fs.rmSync(internalEngineRoot, { recursive: true, force: true });

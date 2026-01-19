@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..');
-const engineRoot = path.resolve(projectRoot, 'src', 'engine');
+const engineRoot = path.resolve(projectRoot, 'packages', 'aide');
 const docRoot = path.join(projectRoot, 'doc', 'agents');
 const sourcePluginsDir = path.join(docRoot, 'plugins');
 const destinationRoot = path.join(engineRoot, 'subagents');

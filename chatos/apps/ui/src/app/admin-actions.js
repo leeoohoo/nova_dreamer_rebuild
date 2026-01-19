@@ -1,1 +1,1 @@
-export * from '../../../../src/common/aide-ui/app/admin-actions.js';
+export * from '../../../../packages/common/aide-ui/app/admin-actions.js';

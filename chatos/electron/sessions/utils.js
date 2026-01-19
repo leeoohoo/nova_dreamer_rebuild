@@ -1,8 +1,8 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { getHostApp } from '../../src/common/host-app.js';
-import { resolveAppStateDir } from '../../src/common/state-core/state-paths.js';
+import { getHostApp } from '../../packages/common/host-app.js';
+import { resolveAppStateDir } from '../../packages/common/state-core/state-paths.js';
 
 export function ensureDir(dirPath) {
   try {
