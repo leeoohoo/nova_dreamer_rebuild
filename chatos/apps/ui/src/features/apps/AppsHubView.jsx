@@ -4,6 +4,7 @@ import { AppstoreOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { useUiAppsRegistry } from './hooks/useUiAppsRegistry.js';
 import { api, hasApi } from '../../lib/api.js';
+import { RuntimeLogModal } from '../../components/RuntimeLogModal.jsx';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -14,6 +15,8 @@ export function AppsHubView({ onNavigate }) {
   const loadErrors = useMemo(() => (Array.isArray(data?.errors) ? data.errors : []), [data]);
 
   const [packageInstalling, setPackageInstalling] = useState(false);
+  const [installLogId, setInstallLogId] = useState('');
+  const [logOpen, setLogOpen] = useState(false);
 
   const installPackage = useCallback(async () => {
     if (!hasApi) {
@@ -21,18 +24,34 @@ export function AppsHubView({ onNavigate }) {
       return;
     }
     setPackageInstalling(true);
+    let logId = '';
     try {
       const result = await api.invoke('uiApps:plugins:install');
+      logId = typeof result?.logId === 'string' ? result.logId.trim() : '';
+      if (logId) setInstallLogId(logId);
       if (result?.ok === false) {
         if (result?.canceled) return;
-        throw new Error(result?.message || '导入失败');
+        const errorMessage = result?.message || '导入失败';
+        if (logId) {
+          message.error(`${errorMessage}（日志ID: ${logId}）`);
+          setLogOpen(true);
+          return;
+        }
+        message.error(errorMessage);
+        return;
       }
       const installed = Array.isArray(result?.plugins) ? result.plugins : [];
       const hint = installed.length ? `（${installed.length} 个插件）` : '';
       message.success(`应用包已导入${hint}。`);
       await refresh();
     } catch (err) {
-      message.error(err?.message || '导入失败');
+      const errorMessage = err?.message || '导入失败';
+      if (logId) {
+        message.error(`${errorMessage}（日志ID: ${logId}）`);
+        setLogOpen(true);
+      } else {
+        message.error(errorMessage);
+      }
     } finally {
       setPackageInstalling(false);
     }
@@ -51,6 +70,11 @@ export function AppsHubView({ onNavigate }) {
         <Button type="primary" loading={packageInstalling} onClick={installPackage} disabled={loading}>
           导入应用包
         </Button>
+        {installLogId ? (
+          <Button onClick={() => setLogOpen(true)} disabled={loading || packageInstalling}>
+            安装日志
+          </Button>
+        ) : null}
         <Button
           icon={<ReloadOutlined />}
           onClick={() => {
@@ -136,6 +160,14 @@ export function AppsHubView({ onNavigate }) {
           </div>
         )}
       </div>
+      <RuntimeLogModal
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        actionId={installLogId}
+        title="应用安装日志"
+        emptyText="未找到相关日志记录。"
+        refreshLabel="刷新日志"
+      />
     </div>
   );
 }

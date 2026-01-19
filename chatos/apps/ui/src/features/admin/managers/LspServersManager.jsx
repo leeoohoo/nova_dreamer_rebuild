@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Checkbox, Space, Tag, Typography, message } from 'antd';
 
 import { api, hasApi } from '../../../lib/api.js';
+import { RuntimeLogModal } from '../../../components/RuntimeLogModal.jsx';
 
 const { Text, Paragraph, Title } = Typography;
 
@@ -9,6 +10,8 @@ export function LspServersManager() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
   const [selected, setSelected] = useState([]);
   const [installing, setInstalling] = useState(false);
+  const [installLogId, setInstallLogId] = useState('');
+  const [logOpen, setLogOpen] = useState(false);
 
   const items = useMemo(() => (Array.isArray(state?.data?.items) ? state.data.items : []), [state]);
 
@@ -52,10 +55,19 @@ export function LspServersManager() {
       return;
     }
     setInstalling(true);
+    let logId = '';
     try {
       const res = await api.invoke('lsp:install', { ids });
+      logId = typeof res?.logId === 'string' ? res.logId.trim() : '';
+      if (logId) setInstallLogId(logId);
       if (res?.ok === false) {
-        throw new Error(res?.message || '安装失败');
+        const errorMessage = res?.message || '安装失败';
+        if (logId) {
+          message.error(`${errorMessage}（日志ID: ${logId}）`);
+          setLogOpen(true);
+          return;
+        }
+        throw new Error(errorMessage);
       }
       const results = Array.isArray(res?.results) ? res.results : [];
       const okCount = results.filter((r) => r && r.ok === true && r.skipped !== true).length;
@@ -70,7 +82,13 @@ export function LspServersManager() {
       }
       setSelected((prev) => (Array.isArray(prev) ? prev.filter((id) => !results.some((r) => r?.id === id && r.ok === true)) : prev));
     } catch (err) {
-      message.error(err?.message || '安装失败');
+      const errorMessage = err?.message || '安装失败';
+      if (logId) {
+        message.error(`${errorMessage}（日志ID: ${logId}）`);
+        setLogOpen(true);
+      } else {
+        message.error(errorMessage);
+      }
     } finally {
       setInstalling(false);
     }
@@ -159,6 +177,11 @@ export function LspServersManager() {
             <Button type="primary" loading={installing} onClick={installSelected} disabled={state.loading || !hasApi}>
               安装选中
             </Button>
+            {installLogId ? (
+              <Button size="small" onClick={() => setLogOpen(true)} disabled={state.loading || installing || !hasApi}>
+                查看安装日志
+              </Button>
+            ) : null}
             <Button size="small" onClick={refresh} disabled={state.loading || installing || !hasApi}>
               刷新状态
             </Button>
@@ -170,6 +193,14 @@ export function LspServersManager() {
           </Paragraph>
         </Card>
       </Space>
+      <RuntimeLogModal
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        actionId={installLogId}
+        title="LSP 安装日志"
+        emptyText="未找到相关日志记录。"
+        refreshLabel="刷新日志"
+      />
     </div>
   );
 }

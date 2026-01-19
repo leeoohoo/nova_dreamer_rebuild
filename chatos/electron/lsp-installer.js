@@ -3,6 +3,13 @@ import os from 'os';
 import path from 'path';
 import { spawn } from 'child_process';
 
+function logWith(logger, level, message, meta, err) {
+  if (!logger) return;
+  const fn = typeof logger[level] === 'function' ? logger[level] : logger.info;
+  if (typeof fn !== 'function') return;
+  fn(message, meta, err);
+}
+
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -480,9 +487,10 @@ function runCommand({ cmd, args, cwd, env, timeoutMs }) {
   });
 }
 
-export function createLspInstaller({ rootDir, env } = {}) {
+export function createLspInstaller({ rootDir, env, logger } = {}) {
   const root = normalizeString(rootDir) || process.cwd();
   const baseEnv = env && typeof env === 'object' ? env : process.env;
+  const installLogger = logger || null;
 
   const catalog = buildDefaultCatalog();
 
@@ -517,79 +525,114 @@ export function createLspInstaller({ rootDir, env } = {}) {
     };
   };
 
-  const install = async ({ ids, timeout_ms } = {}) => {
-      const idList = Array.isArray(ids) ? ids.map(normalizeString).filter(Boolean) : [];
-      if (idList.length === 0) {
-        return { ok: false, message: 'ids is required' };
+  const install = async ({ ids, timeout_ms, actionId } = {}) => {
+    const idList = Array.isArray(ids) ? ids.map(normalizeString).filter(Boolean) : [];
+    const logMeta = (meta) => (actionId ? { actionId, ...meta } : meta);
+    const log = (level, message, meta, err) => logWith(installLogger, level, message, logMeta(meta), err);
+    const includeOutput = (ok) =>
+      !ok || (typeof process.env.MODEL_CLI_LOG_INSTALL_OUTPUT === 'string' && process.env.MODEL_CLI_LOG_INSTALL_OUTPUT === '1');
+
+    if (idList.length === 0) {
+      log('warn', 'lsp.install.missing_ids', {});
+      return { ok: false, message: 'ids is required' };
+    }
+
+    log('info', 'lsp.install.begin', { ids: idList, root, timeout_ms });
+    const managers = buildManagers(baseEnv);
+    const itemsById = new Map(catalog.map((i) => [normalizeString(i.id), i]));
+    const results = [];
+
+    for (const id of idList) {
+      const item = itemsById.get(id);
+      if (!item) {
+        log('warn', 'lsp.install.unknown_id', { id });
+        results.push({ id, ok: false, skipped: true, reason: 'unknown_id' });
+        continue;
       }
 
-      const managers = buildManagers(baseEnv);
-      const itemsById = new Map(catalog.map((i) => [normalizeString(i.id), i]));
-      const results = [];
+      log('info', 'lsp.install.item_start', { id });
+      const installedInfo = computeInstalledInfo(item, baseEnv);
+      if (installedInfo.installed) {
+        log('info', 'lsp.install.already_installed', { id, found: installedInfo.found });
+        results.push({ id, ok: true, skipped: true, reason: 'already_installed', found: installedInfo.found });
+        continue;
+      }
 
-      for (const id of idList) {
-        const item = itemsById.get(id);
-        if (!item) {
-          results.push({ id, ok: false, skipped: true, reason: 'unknown_id' });
-          continue;
-        }
-
-        const installedInfo = computeInstalledInfo(item, baseEnv);
-        if (installedInfo.installed) {
-          results.push({ id, ok: true, skipped: true, reason: 'already_installed', found: installedInfo.found });
-          continue;
-        }
-
-        const install = computeInstallInfo(item, managers);
-        if (!install.available) {
-          results.push({
-            id,
-            ok: false,
-            skipped: true,
-            reason: install.reason,
-            missing_requirements: install.missing_requirements || [],
-            hint: install.display || '',
-          });
-          continue;
-        }
-
-        const stepResults = [];
-        let itemOk = true;
-        for (const step of install.steps) {
-          const stepCmd = normalizeString(step?.cmd);
-          const stepArgs = Array.isArray(step?.args) ? step.args : [];
-          const res = await runCommand({
-            cmd: stepCmd,
-            args: stepArgs,
-            cwd: root,
-            env: baseEnv,
-            timeoutMs: clampNumber(timeout_ms, 1000, 60 * 60 * 1000, 20 * 60 * 1000),
-          });
-          stepResults.push({ cmd: stepCmd, args: stepArgs, ...res });
-          if (!res.ok) {
-            itemOk = false;
-            break;
-          }
-        }
-
-        const after = computeInstalledInfo(item, baseEnv);
+      const install = computeInstallInfo(item, managers);
+      if (!install.available) {
+        log('warn', 'lsp.install.unavailable', {
+          id,
+          reason: install.reason,
+          missing_requirements: install.missing_requirements || [],
+          hint: install.display || '',
+        });
         results.push({
           id,
-          ok: itemOk && after.installed,
-          skipped: false,
-          steps: stepResults,
-          installed: after.installed,
-          found: after.found,
-          missing: after.missing,
+          ok: false,
+          skipped: true,
+          reason: install.reason,
+          missing_requirements: install.missing_requirements || [],
+          hint: install.display || '',
         });
+        continue;
       }
 
-      const nextCatalog = await getCatalog();
-      return {
-        ok: true,
-        results,
-        catalog: nextCatalog,
+      const stepResults = [];
+      let itemOk = true;
+      for (const step of install.steps) {
+        const stepCmd = normalizeString(step?.cmd);
+        const stepArgs = Array.isArray(step?.args) ? step.args : [];
+        const res = await runCommand({
+          cmd: stepCmd,
+          args: stepArgs,
+          cwd: root,
+          env: baseEnv,
+          timeoutMs: clampNumber(timeout_ms, 1000, 60 * 60 * 1000, 20 * 60 * 1000),
+        });
+        stepResults.push({ cmd: stepCmd, args: stepArgs, ...res });
+        const output = includeOutput(res.ok) ? { stdout: res.stdout, stderr: res.stderr } : {};
+        log(res.ok ? 'info' : 'warn', 'lsp.install.step', {
+          id,
+          cmd: stepCmd,
+          args: stepArgs,
+          ok: res.ok,
+          code: res.code,
+          signal: res.signal,
+          timedOut: res.timedOut,
+          ...output,
+        });
+        if (!res.ok) {
+          itemOk = false;
+          break;
+        }
+      }
+
+      const after = computeInstalledInfo(item, baseEnv);
+      const entry = {
+        id,
+        ok: itemOk && after.installed,
+        skipped: false,
+        steps: stepResults,
+        installed: after.installed,
+        found: after.found,
+        missing: after.missing,
       };
+      log(entry.ok ? 'info' : 'warn', 'lsp.install.item_complete', {
+        id,
+        ok: entry.ok,
+        installed: entry.installed,
+        missing: entry.missing,
+      });
+      results.push(entry);
+    }
+
+    const nextCatalog = await getCatalog();
+    log('info', 'lsp.install.done', { results: results.length });
+    return {
+      ok: true,
+      results,
+      catalog: nextCatalog,
+    };
   };
 
   return { getCatalog, install };

@@ -5,6 +5,13 @@ import { ensureUiAppsPluginTrustRecord } from './trust-store.js';
 
 const DEFAULT_PLUGINS_DIRNAME = 'ui_apps/plugins';
 
+function logWith(logger, level, message, meta, err) {
+  if (!logger) return;
+  const fn = typeof logger[level] === 'function' ? logger[level] : logger.info;
+  if (typeof fn !== 'function') return;
+  fn(message, meta, err);
+}
+
 function isDirectory(dirPath) {
   const normalized = typeof dirPath === 'string' ? dirPath.trim() : '';
   if (!normalized) return false;
@@ -95,7 +102,7 @@ function detectPluginRoots(extractedRoot) {
   }
 }
 
-export async function installUiAppsPlugins({ inputPath, stateDir }) {
+export async function installUiAppsPlugins({ inputPath, stateDir, logger, actionId }) {
   const normalizedInput = typeof inputPath === 'string' ? inputPath.trim() : '';
   const state = typeof stateDir === 'string' ? stateDir.trim() : '';
   if (!normalizedInput) throw new Error('inputPath is required');
@@ -107,7 +114,14 @@ export async function installUiAppsPlugins({ inputPath, stateDir }) {
 
   const stagingBase = fs.mkdtempSync(path.join(os.tmpdir(), 'chatos-uiapps-'));
   let extractedRoot = '';
+  const logMeta = (meta) => (actionId ? { actionId, ...meta } : meta);
+  const log = (level, message, meta, err) => logWith(logger, level, message, logMeta(meta), err);
   try {
+    log('info', 'uiapps.install.prepare', {
+      inputPath: normalizedInput,
+      stateDir: state,
+      stagingBase,
+    });
     if (isDirectory(normalizedInput)) {
       extractedRoot = normalizedInput;
     } else if (isFile(normalizedInput) && normalizedInput.toLowerCase().endsWith('.zip')) {
@@ -122,39 +136,57 @@ export async function installUiAppsPlugins({ inputPath, stateDir }) {
     if (roots.length === 0) {
       throw new Error('Invalid plugin package: plugin.json not found');
     }
+    log('info', 'uiapps.install.detected', { extractedRoot, rootCount: roots.length });
 
     const results = [];
-    roots.forEach((pluginDir) => {
-      const manifestPath = path.join(pluginDir, 'plugin.json');
-      const manifest = safeReadJson(manifestPath);
-      const id = typeof manifest?.id === 'string' ? manifest.id.trim() : '';
-      if (!id) {
-        throw new Error(`Invalid plugin manifest (missing id): ${manifestPath}`);
+    for (const pluginDir of roots) {
+      try {
+        const manifestPath = path.join(pluginDir, 'plugin.json');
+        const manifest = safeReadJson(manifestPath);
+        const id = typeof manifest?.id === 'string' ? manifest.id.trim() : '';
+        if (!id) {
+          throw new Error(`Invalid plugin manifest (missing id): ${manifestPath}`);
+        }
+
+        const dirName = sanitizeDirComponent(id);
+        if (!dirName) {
+          throw new Error(`Invalid plugin id: ${id}`);
+        }
+
+        const destDir = path.join(pluginsRoot, dirName);
+        const replaced = isDirectory(destDir);
+        rmForce(destDir);
+        ensureDir(path.dirname(destDir));
+        copyDir(pluginDir, destDir);
+
+        const record = {
+          id,
+          name: typeof manifest?.name === 'string' ? manifest.name.trim() : '',
+          version: typeof manifest?.version === 'string' ? manifest.version.trim() : '',
+          pluginDir: destDir,
+          replaced,
+        };
+        results.push(record);
+        log('info', 'uiapps.install.plugin', {
+          pluginId: id,
+          name: record.name,
+          version: record.version,
+          pluginDir: destDir,
+          replaced,
+        });
+
+        ensureUiAppsPluginTrustRecord({ pluginId: id, stateDir: state });
+      } catch (err) {
+        log('error', 'uiapps.install.plugin_failed', { pluginDir }, err);
+        throw err;
       }
+    }
 
-      const dirName = sanitizeDirComponent(id);
-      if (!dirName) {
-        throw new Error(`Invalid plugin id: ${id}`);
-      }
-
-      const destDir = path.join(pluginsRoot, dirName);
-      const replaced = isDirectory(destDir);
-      rmForce(destDir);
-      ensureDir(path.dirname(destDir));
-      copyDir(pluginDir, destDir);
-
-      results.push({
-        id,
-        name: typeof manifest?.name === 'string' ? manifest.name.trim() : '',
-        version: typeof manifest?.version === 'string' ? manifest.version.trim() : '',
-        pluginDir: destDir,
-        replaced,
-      });
-
-      ensureUiAppsPluginTrustRecord({ pluginId: id, stateDir: state });
-    });
-
+    log('info', 'uiapps.install.complete', { pluginCount: results.length, pluginsRoot });
     return { ok: true, plugins: results, pluginsRoot };
+  } catch (err) {
+    log('error', 'uiapps.install.failed', { inputPath: normalizedInput, extractedRoot }, err);
+    throw err;
   } finally {
     rmForce(stagingBase);
   }

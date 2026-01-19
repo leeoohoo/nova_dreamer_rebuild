@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import crypto from 'crypto';
 // electron 是 CommonJS，需要用 default import 解构
 import electron from 'electron';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -81,6 +82,27 @@ const hostApp =
 const stateDir = ensureAppStateDir(sessionRoot, { hostApp, fallbackHostApp: 'chatos' });
 const authDir = path.join(stateDir, 'auth');
 const terminalsDir = path.join(stateDir, 'terminals');
+
+const installLogger = createRuntimeLogger({
+  sessionRoot,
+  hostApp,
+  scope: 'INSTALL',
+  runId: 'desktop',
+});
+
+function createActionId(prefix) {
+  const base = typeof prefix === 'string' && prefix.trim() ? prefix.trim() : 'action';
+  const short = crypto.randomUUID().split('-')[0];
+  return `${base}-${Date.now().toString(36)}-${short}`;
+}
+
+function logInstall(level, message, meta, err) {
+  const logger = installLogger;
+  if (!logger) return;
+  const fn = typeof logger[level] === 'function' ? logger[level] : logger.info;
+  if (typeof fn !== 'function') return;
+  fn(message, meta, err);
+}
 
 let mainWindow = null;
 let chatApi = null;
@@ -277,10 +299,17 @@ function patchProcessPath() {
 
 function registerUiAppsPluginInstallerIpc() {
   ipcMain.handle('uiApps:plugins:install', async (_event, payload = {}) => {
+    const actionId = createActionId('uiapps_install');
+    logInstall('info', 'uiapps.install.start', {
+      actionId,
+      fromDialog: !payload?.path,
+      platform: process.platform,
+    });
     let selectedPath = typeof payload?.path === 'string' ? payload.path.trim() : '';
     if (!selectedPath) {
       if (!dialog || typeof dialog.showOpenDialog !== 'function') {
-        return { ok: false, message: 'dialog not available' };
+        logInstall('error', 'uiapps.install.dialog_unavailable', { actionId });
+        return { ok: false, message: 'dialog not available', logId: actionId };
       }
       let result = null;
       if (process.platform === 'win32') {
@@ -296,7 +325,8 @@ function registerUiAppsPluginInstallerIpc() {
             cancelId: 2,
           });
           if (selection?.response === 2) {
-            return { ok: false, canceled: true };
+            logInstall('info', 'uiapps.install.canceled', { actionId, stage: 'mode_select' });
+            return { ok: false, canceled: true, logId: actionId };
           }
           mode = selection?.response === 1 ? 'dir' : 'zip';
         }
@@ -316,25 +346,40 @@ function registerUiAppsPluginInstallerIpc() {
         });
       }
       if (result.canceled) {
-        return { ok: false, canceled: true };
+        logInstall('info', 'uiapps.install.canceled', { actionId, stage: 'path_select' });
+        return { ok: false, canceled: true, logId: actionId };
       }
       selectedPath = Array.isArray(result.filePaths) ? result.filePaths[0] : '';
       if (!selectedPath) {
-        return { ok: false, canceled: true };
+        logInstall('info', 'uiapps.install.canceled', { actionId, stage: 'path_empty' });
+        return { ok: false, canceled: true, logId: actionId };
       }
     }
 
     try {
-      return await installUiAppsPlugins({ inputPath: selectedPath, stateDir });
+      logInstall('info', 'uiapps.install.selected', { actionId, selectedPath });
+      const result = await installUiAppsPlugins({
+        inputPath: selectedPath,
+        stateDir,
+        logger: installLogger,
+        actionId,
+      });
+      logInstall('info', 'uiapps.install.complete', {
+        actionId,
+        pluginCount: Array.isArray(result?.plugins) ? result.plugins.length : 0,
+        pluginsRoot: result?.pluginsRoot || '',
+      });
+      return { ...result, logId: actionId };
     } catch (err) {
-      return { ok: false, message: err?.message || String(err) };
+      logInstall('error', 'uiapps.install.failed', { actionId, selectedPath }, err);
+      return { ok: false, message: err?.message || String(err), logId: actionId };
     }
   });
 }
 
 registerUiAppsPluginInstallerIpc();
 
-const lspInstaller = createLspInstaller({ rootDir: projectRoot });
+const lspInstaller = createLspInstaller({ rootDir: projectRoot, logger: installLogger });
 ipcMain.handle('lsp:catalog', async () => {
   try {
     return await lspInstaller.getCatalog();
@@ -343,12 +388,21 @@ ipcMain.handle('lsp:catalog', async () => {
   }
 });
 ipcMain.handle('lsp:install', async (_event, payload = {}) => {
+  const actionId = createActionId('lsp_install');
   try {
     const ids = Array.isArray(payload?.ids) ? payload.ids : [];
     const timeout_ms = payload?.timeout_ms;
-    return await lspInstaller.install({ ids, timeout_ms });
+    logInstall('info', 'lsp.install.start', { actionId, ids, timeout_ms });
+    const result = await lspInstaller.install({ ids, timeout_ms, actionId });
+    logInstall('info', 'lsp.install.complete', {
+      actionId,
+      ok: result?.ok === true,
+      results: Array.isArray(result?.results) ? result.results.length : 0,
+    });
+    return { ...result, logId: actionId };
   } catch (err) {
-    return { ok: false, message: err?.message || String(err) };
+    logInstall('error', 'lsp.install.failed', { actionId }, err);
+    return { ok: false, message: err?.message || String(err), logId: actionId };
   }
 });
 
@@ -645,39 +699,79 @@ ipcMain.handle('cli:status', async () => {
   };
 });
 ipcMain.handle('cli:install', async (_event, payload = {}) => {
+  const actionId = createActionId('cli_install');
   const force = payload?.force === true;
+  logInstall('info', 'cli.install.start', { actionId, force, command: CLI_COMMAND_NAME });
   const result = cliShim.installCliCommand({ force });
-  if (!legacyCliShim) return result;
+  if (!legacyCliShim) {
+    logInstall('info', 'cli.install.complete', {
+      actionId,
+      ok: result?.ok === true,
+      reason: result?.reason || '',
+      installedPath: result?.installedPath || '',
+    });
+    return { ...result, logId: actionId };
+  }
   const legacy = legacyCliShim.getCliCommandStatus();
   const shouldRemoveLegacy = result?.ok === true || result?.reason === 'exists';
   if (!shouldRemoveLegacy) {
-    return {
+    const payloadResult = {
       ...result,
       legacyCommand: legacy.command,
       legacyInstalled: legacy.installed,
       legacyInstalledPath: legacy.installedPath,
     };
+    logInstall('warn', 'cli.install.legacy_preserved', {
+      actionId,
+      ok: payloadResult?.ok === true,
+      reason: payloadResult?.reason || '',
+    });
+    return { ...payloadResult, logId: actionId };
   }
   const legacyRemoved = legacyCliShim.uninstallCliCommand();
-  return {
+  const payloadResult = {
     ...result,
     legacyCommand: legacyRemoved.command,
     legacyInstalled: legacyRemoved.installed,
     legacyInstalledPath: legacyRemoved.installedPath,
     legacyRemovedPath: legacyRemoved.removedPath,
   };
+  logInstall('info', 'cli.install.complete', {
+    actionId,
+    ok: payloadResult?.ok === true,
+    reason: payloadResult?.reason || '',
+    installedPath: payloadResult?.installedPath || '',
+    legacyRemovedPath: payloadResult?.legacyRemovedPath || '',
+  });
+  return { ...payloadResult, logId: actionId };
 });
 ipcMain.handle('cli:uninstall', async () => {
+  const actionId = createActionId('cli_uninstall');
+  logInstall('info', 'cli.uninstall.start', { actionId, command: CLI_COMMAND_NAME });
   const result = cliShim.uninstallCliCommand();
-  if (!legacyCliShim) return result;
+  if (!legacyCliShim) {
+    logInstall('info', 'cli.uninstall.complete', {
+      actionId,
+      ok: result?.ok === true,
+      removedPath: result?.removedPath || '',
+    });
+    return { ...result, logId: actionId };
+  }
   const legacyRemoved = legacyCliShim.uninstallCliCommand();
-  return {
+  const payloadResult = {
     ...result,
     legacyCommand: legacyRemoved.command,
     legacyInstalled: legacyRemoved.installed,
     legacyInstalledPath: legacyRemoved.installedPath,
     legacyRemovedPath: legacyRemoved.removedPath,
   };
+  logInstall('info', 'cli.uninstall.complete', {
+    actionId,
+    ok: payloadResult?.ok === true,
+    removedPath: payloadResult?.removedPath || '',
+    legacyRemovedPath: payloadResult?.legacyRemovedPath || '',
+  });
+  return { ...payloadResult, logId: actionId };
 });
 
 ipcMain.handle('subagents:setModel', async (_event, payload = {}) => {
@@ -734,14 +828,18 @@ ipcMain.handle('subagents:marketplace:addSource', async (_event, payload = {}) =
   }
 });
 ipcMain.handle('subagents:plugins:install', async (_event, payload = {}) => {
+  const actionId = createActionId('subagent_install');
   if (!UI_DEVELOPER_MODE && !UI_EXPOSE_SUBAGENTS) {
-    return { ok: false, message: 'Sub-agents 管理未开启（需要开发者模式或开启 Sub-agents 暴露开关）。' };
+    logInstall('warn', 'subagents.install.denied', { actionId });
+    return { ok: false, message: 'Sub-agents 管理未开启（需要开发者模式或开启 Sub-agents 暴露开关）。', logId: actionId };
   }
   const pluginId = typeof payload?.id === 'string' ? payload.id.trim() : typeof payload?.pluginId === 'string' ? payload.pluginId.trim() : '';
   if (!pluginId) {
-    return { ok: false, message: 'pluginId is required' };
+    logInstall('warn', 'subagents.install.missing_id', { actionId });
+    return { ok: false, message: 'pluginId is required', logId: actionId };
   }
   try {
+    logInstall('info', 'subagents.install.start', { actionId, pluginId });
     const changed = subAgentManager.install(pluginId);
     adminDefaults.maybeReseedSubagentsFromPlugins();
     syncAdminToFiles(adminServices.snapshot(), {
@@ -763,20 +861,26 @@ ipcMain.handle('subagents:plugins:install', async (_event, payload = {}) => {
       });
       mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
     }
-    return { ok: true, changed };
+    logInstall('info', 'subagents.install.complete', { actionId, pluginId, changed });
+    return { ok: true, changed, logId: actionId };
   } catch (err) {
-    return { ok: false, message: err?.message || String(err) };
+    logInstall('error', 'subagents.install.failed', { actionId, pluginId }, err);
+    return { ok: false, message: err?.message || String(err), logId: actionId };
   }
 });
 ipcMain.handle('subagents:plugins:uninstall', async (_event, payload = {}) => {
+  const actionId = createActionId('subagent_uninstall');
   if (!UI_DEVELOPER_MODE && !UI_EXPOSE_SUBAGENTS) {
-    return { ok: false, message: 'Sub-agents 管理未开启（需要开发者模式或开启 Sub-agents 暴露开关）。' };
+    logInstall('warn', 'subagents.uninstall.denied', { actionId });
+    return { ok: false, message: 'Sub-agents 管理未开启（需要开发者模式或开启 Sub-agents 暴露开关）。', logId: actionId };
   }
   const pluginId = typeof payload?.id === 'string' ? payload.id.trim() : typeof payload?.pluginId === 'string' ? payload.pluginId.trim() : '';
   if (!pluginId) {
-    return { ok: false, message: 'pluginId is required' };
+    logInstall('warn', 'subagents.uninstall.missing_id', { actionId });
+    return { ok: false, message: 'pluginId is required', logId: actionId };
   }
   try {
+    logInstall('info', 'subagents.uninstall.start', { actionId, pluginId });
     const removed = subAgentManager.uninstall(pluginId);
     adminDefaults.maybeReseedSubagentsFromPlugins();
     syncAdminToFiles(adminServices.snapshot(), {
@@ -798,9 +902,11 @@ ipcMain.handle('subagents:plugins:uninstall', async (_event, payload = {}) => {
       });
       mainWindow.webContents.send('config:update', sessionApi.readConfigPayload());
     }
-    return { ok: true, removed };
+    logInstall('info', 'subagents.uninstall.complete', { actionId, pluginId, removed });
+    return { ok: true, removed, logId: actionId };
   } catch (err) {
-    return { ok: false, message: err?.message || String(err) };
+    logInstall('error', 'subagents.uninstall.failed', { actionId, pluginId }, err);
+    return { ok: false, message: err?.message || String(err), logId: actionId };
   }
 });
 ipcMain.handle('sessions:list', async () => listSessions({ sessionRoot }));
