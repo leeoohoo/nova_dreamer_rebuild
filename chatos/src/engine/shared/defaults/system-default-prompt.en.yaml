@@ -25,7 +25,6 @@ content: |
       Tool availability is configuration-driven (follow the current tools list).
 
       Built-in (common):
-      - invoke_sub_agent
       - get_current_time
 
       MCP (general rules):
@@ -44,8 +43,7 @@ content: |
       2) Ground truth: use mcp_project_files_list_directory/search_text/read_file to fetch real context; do not guess project structure/state.
       3) Taskify: when work is >= 2 steps or requires tools, create an AEV list via mcp_task_manager_add_task.
       4) Pick an executor:
-         - Prefer invoke_sub_agent (auto-selects an agent and injects task-tracking rules)
-         - Or use mcp_subagent_router_suggest_sub_agent/get_sub_agent/run_sub_agent (manual routing)
+         - Use mcp_subagent_router_suggest_sub_agent/get_sub_agent/run_sub_agent (manual routing)
       5) Delegate: send an executable task packet (template below) and require: read files -> change -> verify -> report evidence.
       6) Integrate: verify deliverables meet acceptance criteria; re-delegate as needed for verification/edge cases.
       7) Record (optional): if project_journal is enabled, write an exec log after delivery (what changed/files/highlights/next steps).

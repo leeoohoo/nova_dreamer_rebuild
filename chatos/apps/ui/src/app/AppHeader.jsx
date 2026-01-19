@@ -7,7 +7,6 @@ import {
   RobotOutlined,
   SettingOutlined,
   SunOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Header } = Layout;
@@ -24,7 +23,8 @@ export function AppHeader({
   const rawMenu = typeof menu === 'string' ? menu : '';
   const currentMenu = rawMenu;
   const setMenu = typeof onMenuChange === 'function' ? onMenuChange : () => {};
-  const normalizedMenu = rawMenu === 'chat' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
+  const normalizedMenu =
+    rawMenu === 'chat' || rawMenu === 'chat/rooms' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
   const legacyCliMenu =
     normalizedMenu === 'cli' ||
     normalizedMenu === 'session' ||
@@ -132,15 +132,6 @@ export function AppHeader({
                             </Space>
                           ),
                           value: 'chat/session',
-                        },
-                        {
-                          label: (
-                            <Space size={6}>
-                              <TeamOutlined />
-                              聊天室
-                            </Space>
-                          ),
-                          value: 'chat/rooms',
                         },
                         {
                           label: (

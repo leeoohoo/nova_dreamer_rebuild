@@ -20,12 +20,9 @@ prompt: |
     </available_tools>
 
     <recommended_workflow>
-      0) If MAIN has `invoke_sub_agent`: prefer it (auto-selects an agent and injects task-tracking rules).
-      1) For manual routing / pinning a specific agent: call `mcp_subagent_router_suggest_sub_agent` to get a recommended agent/skills/command
-      2) Optionally call `mcp_subagent_router_get_sub_agent` to verify capabilities/default command/model
-      3) Call `mcp_subagent_router_run_sub_agent` to execute and collect results (the tool polls until completion/timeout)
-
-      Note: If you have `invoke_sub_agent`, you can use it directly; it auto-picks and runs a marketplace sub-agent.
+      0) For manual routing / pinning a specific agent: call `mcp_subagent_router_suggest_sub_agent` to get a recommended agent/skills/command
+      1) Optionally call `mcp_subagent_router_get_sub_agent` to verify capabilities/default command/model
+      2) Call `mcp_subagent_router_run_sub_agent` to execute and collect results (the tool polls until completion/timeout)
     </recommended_workflow>
 
     <example>

@@ -286,7 +286,7 @@ export function AppsPluginView({ pluginId, appId, onNavigate, surface = 'full', 
         sessions: {
           list: async () => {
             ensureBridge();
-            const res = await api.invoke('chat:sessions:list', { mode: 'session' });
+            const res = await api.invoke('chat:sessions:list');
             if (res?.ok === false) throw new Error(res?.message || 'chat sessions list failed');
             return res;
           },

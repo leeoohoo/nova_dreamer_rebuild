@@ -7,7 +7,6 @@ import {
 } from '../features/admin/AdminManagers.jsx';
 import { ChatView } from '../features/chat/ChatView.jsx';
 import { ChatAgentsView } from '../features/chat/ChatAgentsView.jsx';
-import { ChatRoomsView } from '../features/chat/ChatRoomsView.jsx';
 import { AppsHubView } from '../features/apps/AppsHubView.jsx';
 import { AppsPluginView } from '../features/apps/AppsPluginView.jsx';
 
@@ -25,7 +24,8 @@ export function AppContent({
   onNavigate,
 }) {
   const rawMenu = typeof menu === 'string' ? menu : 'chat/session';
-  const normalizedMenu = rawMenu === 'chat' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
+  const normalizedMenu =
+    rawMenu === 'chat' || rawMenu === 'chat/rooms' ? 'chat/session' : rawMenu === 'apps' ? 'apps/home' : rawMenu;
   const legacyCliMenu =
     normalizedMenu === 'cli' ||
     normalizedMenu === 'session' ||
@@ -116,14 +116,6 @@ export function AppContent({
     return (
       <div style={{ flex: 1, minHeight: 0 }}>
         <ChatAgentsView admin={admin} />
-      </div>
-    );
-  }
-
-  if (currentMenu === 'chat/rooms') {
-    return (
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <ChatRoomsView admin={admin} />
       </div>
     );
   }

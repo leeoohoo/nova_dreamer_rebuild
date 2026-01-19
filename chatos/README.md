@@ -5,7 +5,7 @@
 
 ## Overview
 Enhanced fork of `model-cli-js` with:
-- Sub-agent marketplace (Python / Spring Boot / React) + `invoke_sub_agent`
+- Sub-agent marketplace (Python / Spring Boot / React)
 - Task tracking MCP tools
 - Shell MCP with built-in sessions for long-running commands
 - UI prompt MCP (`ui_prompter`) to ask the user for structured inputs/decisions via the Electron floating island
@@ -34,14 +34,14 @@ Common in-chat commands:
 - `/reset` (clear session)
 
 ## Tooling & Permissions
-- **Main agent tools**: `invoke_sub_agent`, `get_current_time`, `mcp_project_files_*`, `mcp_subagent_router_*`, `mcp_task_manager_*` (no shell by default; other MCP servers are sub-agent-only unless enabled for main).
+- **Main agent tools**: `get_current_time`, `mcp_project_files_*`, `mcp_subagent_router_*`, `mcp_task_manager_*` (no shell by default; other MCP servers are sub-agent-only unless enabled for main).
 - **Sub-agents**: all registered tools (filesystem, shell, sessions, tasks, etc.).
 - Shell MCP: `mcp_shell_tasks_run_shell_command` (short), `mcp_shell_tasks_session_run`, `mcp_shell_tasks_session_capture_output`.
 
 ## Sub-Agents
 - Plugins live in the AIDE engine: `subagents/plugins/*`, listed in `subagents/marketplace.json` (desktop installs default to `<stateDir>/aide`).
 - Each plugin: `plugin.json` + `agents/*.md` (prompts) + `skills/*.md` (instructions).
-- `invoke_sub_agent` injects task-tracking rules (add/update/complete) into sub-agent prompts automatically.
+- Use `mcp_subagent_router_run_sub_agent` to invoke sub-agents and track tasks via MCP.
 
 ## Reports
 - `config-report.html`: models, MCP servers, prompts, installed sub-agents.
@@ -77,7 +77,7 @@ Common in-chat commands:
 
 ## 中文概览
 本仓库在 `model-cli-js` 基础上增强：
-- 子代理市场（Python / Spring Boot / React），`invoke_sub_agent` 自动委派
+- 子代理市场（Python / Spring Boot / React）
 - 任务管理 MCP 工具
 - Shell MCP 内置会话，适合长命令
 - 启动自动生成配置/会话 HTML 报告
@@ -92,7 +92,7 @@ node src/cli.js chat
 常用指令：`/sub marketplace`、`/sub install <id>`、`/sub agents`、`/sub run <agent> <任务> [--skills ...]`、`/prompt`、`/summary`、`/tool`、`/reset`
 
 工具权限：
-- 主代理：`invoke_sub_agent`、`get_current_time`、`mcp_project_files_*`、`mcp_subagent_router_*`、`mcp_task_manager_*`（默认不含 shell；其它 MCP 默认仅子代理可用）
+- 主代理：`get_current_time`、`mcp_project_files_*`、`mcp_subagent_router_*`、`mcp_task_manager_*`（默认不含 shell；其它 MCP 默认仅子代理可用）
 - 子代理：全部工具；Shell 提供 `run_shell_command`、`session_run`、`session_capture_output`
 
 自动总结：超过阈值（默认 60000 估算 token 或 `MODEL_CLI_SUMMARY_TOKENS`）后，历史裁剪为「系统 prompt + 最新总结 + 当前用户消息」，子代理同样适用。

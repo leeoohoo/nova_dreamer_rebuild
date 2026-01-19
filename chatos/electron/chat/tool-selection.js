@@ -32,7 +32,6 @@ function normalize(value) {
 
 export function resolveAllowedTools({ agent, mcpServers = [], allowedMcpPrefixes } = {}) {
   const agentRecord = agent && typeof agent === 'object' ? agent : {};
-  const allowSubagents = Array.isArray(agentRecord.subagentIds) && agentRecord.subagentIds.length > 0;
 
   const serverAllowed = (server) => {
     if (isExternalOnlyMcpServerName(server?.name) && !allowExternalOnlyMcpServers()) {
@@ -44,7 +43,6 @@ export function resolveAllowedTools({ agent, mcpServers = [], allowedMcpPrefixes
   const toolNames = listTools();
   const out = new Set();
   out.add('get_current_time');
-  if (allowSubagents) out.add('invoke_sub_agent');
 
   const usePrefixAllowList = Array.isArray(allowedMcpPrefixes);
   if (usePrefixAllowList) {

@@ -27,7 +27,7 @@ content: |
     <tool_heuristics>
       - Need code context: mcp_project_files_search_text -> mcp_project_files_read_file
       - Need multi-step tracking: create an AEV list via mcp_task_manager_add_task; update progress per phase
-      - Need execution: invoke_sub_agent (preferred) or mcp_subagent_router_run_sub_agent
+      - Need execution: mcp_subagent_router_run_sub_agent
     </tool_heuristics>
 
     <handoff_quality>
