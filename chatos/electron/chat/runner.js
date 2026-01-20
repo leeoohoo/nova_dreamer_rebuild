@@ -591,6 +591,8 @@ export function createChatRunner({
 
     const runtimeConfig = adminServices.settings?.getRuntimeConfig ? adminServices.settings.getRuntimeConfig() : null;
     const promptLanguage = runtimeConfig?.promptLanguage || null;
+    const runtimeWorkdir = normalizeWorkspaceRoot(runtimeConfig?.uiPromptWorkdir);
+    const effectiveToolWorkdir = runtimeWorkdir || effectiveWorkspaceRoot;
 
     const prompts = adminServices.prompts.list();
     const subagents = adminServices.subagents.list();
@@ -1211,6 +1213,7 @@ export function createChatRunner({
             toolsOverride,
             caller: 'main',
             signal: controller.signal,
+            ...(effectiveToolWorkdir ? { workdir: effectiveToolWorkdir } : {}),
             onBeforeRequest,
             onToken,
             onReasoning,

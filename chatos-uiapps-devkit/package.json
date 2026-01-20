@@ -1,6 +1,6 @@
 {
   "name": "@leeoohoo/ui-apps-devkit",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "ChatOS UI Apps DevKit (CLI + templates + sandbox) for building installable ChatOS UI Apps plugins.",
   "license": "MIT",
   "type": "module",

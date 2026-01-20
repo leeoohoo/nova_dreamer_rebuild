@@ -93,7 +93,6 @@ function buildUiAppCallMeta({ rawCallMeta, context } = {}) {
             ...(ctx.projectRoot ? { projectRoot: ctx.projectRoot } : null),
           },
         },
-        workdir: ctx.dataDir || ctx.pluginDir || ctx.projectRoot || ctx.sessionRoot || '',
       }
     : null;
 
@@ -471,4 +470,3 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
 
   return changed;
 }
-

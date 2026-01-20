@@ -53,6 +53,7 @@ export class ModelClient {
     const maxToolPasses = options.maxToolPasses ?? 240;
     let iteration = 0;
     const caller = typeof options?.caller === 'string' && options.caller.trim() ? options.caller.trim() : '';
+    const workdir = typeof options?.workdir === 'string' ? options.workdir.trim() : '';
     while (iteration < maxToolPasses) {
       throwIfAborted(options.signal);
       if (onBeforeRequest) {
@@ -152,6 +153,7 @@ export class ModelClient {
                 signal: options.signal,
                 toolCallId: call.id,
                 ...(caller ? { caller } : {}),
+                ...(workdir ? { workdir } : {}),
               });
               const toolResultText = formatToolResultText(toolResult);
               const toolResultForSession = sanitizeToolResultForSession(toolResultText, {

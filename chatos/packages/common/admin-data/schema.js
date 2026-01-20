@@ -280,6 +280,7 @@ export const runtimeSettingsSchema = z.object({
   confirmMainTaskCreate: z.boolean().optional().default(false),
   confirmSubTaskCreate: z.boolean().optional().default(false),
   confirmFileChanges: z.boolean().optional().default(false),
+  uiPromptWorkdir: z.string().trim().optional().default(''),
   uiTerminalMode: z.enum(['auto', 'system', 'headless']).optional().default('auto'),
 });
 
@@ -331,6 +332,7 @@ export const DEFAULT_RUNTIME_SETTINGS = {
   confirmMainTaskCreate: false,
   confirmSubTaskCreate: false,
   confirmFileChanges: false,
+  uiPromptWorkdir: '',
   uiTerminalMode: 'auto',
 };
 

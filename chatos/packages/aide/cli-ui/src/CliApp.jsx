@@ -483,6 +483,11 @@ function CliAppBody({ host, mountContainer }) {
         setDispatchCwd(next);
         safeLocalStorageSet(DISPATCH_CWD_STORAGE_KEY, next);
         message.success('已选择目录');
+        try {
+          await saveSettings({ uiPromptWorkdir: next });
+        } catch (err) {
+          message.error(err?.message || '保存目录失败');
+        }
       }
     } catch (err) {
       message.error(err?.message || '选择目录失败');
@@ -492,6 +497,7 @@ function CliAppBody({ host, mountContainer }) {
   const handleClearCwd = () => {
     setDispatchCwd('');
     safeLocalStorageSet(DISPATCH_CWD_STORAGE_KEY, '');
+    saveSettings({ uiPromptWorkdir: '' }).catch(() => {});
   };
 
   const handleSend = async () => {
@@ -794,6 +800,13 @@ function CliAppBody({ host, mountContainer }) {
     if (list.length === 0) return {};
     return list.find((item) => item?.id === 'runtime') || list[0] || {};
   }, [admin]);
+  useEffect(() => {
+    const runtimeWorkdir =
+      typeof runtimeSettings?.uiPromptWorkdir === 'string' ? runtimeSettings.uiPromptWorkdir.trim() : '';
+    if (!runtimeWorkdir || runtimeWorkdir === dispatchCwd) return;
+    setDispatchCwd(runtimeWorkdir);
+    safeLocalStorageSet(DISPATCH_CWD_STORAGE_KEY, runtimeWorkdir);
+  }, [runtimeSettings, dispatchCwd]);
 
   useEffect(() => {
     const allowed = new Set(

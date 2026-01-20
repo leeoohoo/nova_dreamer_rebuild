@@ -58,6 +58,7 @@ export class SettingsService extends BaseService {
       const num = Number(value);
       return Number.isFinite(num) ? num : undefined;
     };
+    const normalizeWorkdir = (value) => (typeof value === 'string' ? value.trim() : '');
     return {
       maxToolPasses: toInt(base.maxToolPasses),
       promptLanguage: normalizeLanguage(base.promptLanguage),
@@ -70,6 +71,7 @@ export class SettingsService extends BaseService {
       retry: toInt(base.retry),
       mcpTimeoutMs: toInt(base.mcpTimeoutMs),
       mcpMaxTimeoutMs: toInt(base.mcpMaxTimeoutMs),
+      uiPromptWorkdir: normalizeWorkdir(base.uiPromptWorkdir),
     };
   }
 }

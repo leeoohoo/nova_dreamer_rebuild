@@ -36,6 +36,7 @@ export async function chatLoop(initialClient, initialModel, session, options = {
     typeof options.userPrompt === 'string' ? options.userPrompt.trim() : '';
   let subagentUserPromptText =
     typeof options.subagentUserPrompt === 'string' ? options.subagentUserPrompt.trim() : '';
+  const workdir = typeof options.workdir === 'string' ? options.workdir.trim() : '';
   const mainTools = typeof options.mainTools === 'function' ? options.mainTools : null;
   const promptStore = options.promptStore || null;
   const autoRouteEnabled = process.env.MODEL_CLI_AUTO_ROUTE === '1';
@@ -525,6 +526,7 @@ export async function chatLoop(initialClient, initialModel, session, options = {
             },
             caller: 'main',
             signal,
+            ...(workdir ? { workdir } : {}),
           };
           finalText = await chatWithContextRecovery({
             client,

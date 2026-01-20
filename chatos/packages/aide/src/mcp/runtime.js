@@ -600,7 +600,6 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
       ? tool.inputSchema
       : { type: 'object', properties: {} };
   const requestOptions = buildRequestOptions(serverEntry);
-  const callMeta = buildCallMeta(serverEntry, runtimeMeta);
   if (normalizedServer === 'subagent_router' && tool.name === 'run_sub_agent') {
     registerTool({
       name: identifier,
@@ -732,6 +731,7 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
         args: injectedArgs,
       });
       let response;
+      const callMeta = buildCallMeta(serverEntry, runtimeMeta, toolContext);
       try {
         response = await client.callTool(
           {
@@ -835,20 +835,30 @@ function formatCallResult(serverName, toolName, result) {
   return `${header}\n${segments.join('\n\n')}`;
 }
 
-function buildCallMeta(serverEntry, runtimeMeta) {
-  const base = runtimeMeta && typeof runtimeMeta === 'object' ? runtimeMeta : null;
+function normalizeWorkdir(value) {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed) return '';
+  return path.resolve(trimmed);
+}
+
+function buildCallMeta(serverEntry, runtimeMeta, toolContext) {
+  const base = runtimeMeta && typeof runtimeMeta === 'object' ? { ...runtimeMeta } : null;
+  const contextWorkdir = normalizeWorkdir(toolContext?.workdir);
+  const baseWithContext = contextWorkdir
+    ? { ...(base || {}), workdir: contextWorkdir }
+    : base;
   const raw = serverEntry?.callMeta ?? serverEntry?.call_meta;
   const override = raw && typeof raw === 'object' ? raw : null;
-  if (!base && !override) return null;
-  if (!base) return { ...override };
-  if (!override) return { ...base };
-  return { ...base, ...override };
+  if (!baseWithContext && !override) return null;
+  if (!baseWithContext) return { ...override };
+  if (!override) return { ...baseWithContext };
+  return { ...baseWithContext, ...override };
 }
 
 function buildRuntimeCallMeta({ workspaceRoot } = {}) {
-  const root = typeof workspaceRoot === 'string' ? workspaceRoot.trim() : '';
+  const root = normalizeWorkdir(workspaceRoot);
   if (!root) return null;
-  return { workdir: path.resolve(root) };
+  return { workdir: root };
 }
 
 function buildRequestOptions(serverEntry) {

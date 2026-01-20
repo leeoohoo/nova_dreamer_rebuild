@@ -29,7 +29,7 @@ import { ensureAllSubagentsInstalled, maybePurgeUiAppsSyncedAdminData, readLegac
 import { resolveEngineRoot } from '../src/engine-paths.js';
 import { resolveSessionRoot, persistSessionRoot } from '../src/session-root.js';
 import { ensureAppStateDir } from '../packages/common/state-core/state-paths.js';
-import { resolveRuntimeLogPath } from '../packages/common/state-core/runtime-log.js';
+import { resolveRuntimeLogPath, createRuntimeLogger } from '../packages/common/state-core/runtime-log.js';
 import { createDb } from '../packages/common/admin-data/storage.js';
 import { createAdminServices } from '../packages/common/admin-data/services/index.js';
 import { syncAdminToFiles } from '../packages/common/admin-data/sync.js';
