@@ -3,9 +3,26 @@ import { Button, Space } from 'antd';
 
 import { UserMessageCard } from './UserMessageCard.jsx';
 import { AssistantTurnCard } from './AssistantTurnCard.jsx';
+import { SystemMessageCard } from './SystemMessageCard.jsx';
 
 function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+const SUMMARY_MESSAGE_NAME = 'conversation_summary';
+
+function isSummaryMessage(message) {
+  if (!message || message.role !== 'system') return false;
+  const name = typeof message?.name === 'string' ? message.name.trim() : '';
+  return name === SUMMARY_MESSAGE_NAME;
+}
+
+function pickLatestSummary(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (isSummaryMessage(list[i])) return list[i];
+  }
+  return null;
 }
 
 function shouldAutoScroll(el) {
@@ -15,7 +32,18 @@ function shouldAutoScroll(el) {
 }
 
 export function ChatMessages({ messages, streaming, hasMore, loadingMore, onLoadMore }) {
-  const list = useMemo(() => (Array.isArray(messages) ? messages : []), [messages]);
+  const allMessages = useMemo(() => (Array.isArray(messages) ? messages.filter(Boolean) : []), [messages]);
+  const summaryMessage = useMemo(() => pickLatestSummary(allMessages), [allMessages]);
+  const summaryId = normalizeId(summaryMessage?.id);
+  const list = useMemo(() => {
+    return allMessages.filter((msg) => {
+      if (!msg) return false;
+      if (normalizeId(msg?.id) === summaryId) return false;
+      if (msg?.hidden === true) return false;
+      if (msg?.role === 'system') return false;
+      return true;
+    });
+  }, [allMessages, summaryId]);
   const turns = useMemo(() => {
     const blocks = [];
     let buffer = [];
@@ -36,6 +64,8 @@ export function ChatMessages({ messages, streaming, hasMore, loadingMore, onLoad
     flush();
     return blocks;
   }, [list]);
+  const summaryContent =
+    summaryMessage && typeof summaryMessage?.content === 'string' ? summaryMessage.content.trim() : '';
   const containerRef = useRef(null);
   const stickToBottomRef = useRef(true);
 
@@ -78,6 +108,7 @@ export function ChatMessages({ messages, streaming, hasMore, loadingMore, onLoad
           }
           return <AssistantTurnCard key={turn.key} messages={turn.messages} streaming={streaming} />;
         })}
+        {summaryContent ? <SystemMessageCard message={summaryMessage} /> : null}
       </Space>
     </div>
   );

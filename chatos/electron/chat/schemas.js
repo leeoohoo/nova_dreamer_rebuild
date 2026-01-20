@@ -62,12 +62,13 @@ export const chatSessionSchema = z.object({
 export const chatMessageSchema = z.object({
   id: z.string().uuid().optional(),
   sessionId: z.string().trim().min(1, 'sessionId is required'),
-  role: z.enum(['user', 'assistant', 'tool']),
+  role: z.enum(['user', 'assistant', 'tool', 'system']),
   content: z.string().optional().default(''),
   reasoning: z.string().optional().default(''),
   attachments: z.array(imageAttachmentSchema).optional().default([]),
   toolCallId: z.string().trim().optional().default(''),
   toolName: z.string().trim().optional().default(''),
   toolCalls: z.array(toolCallSchema).optional(),
+  name: z.string().trim().optional().default(''),
   hidden: z.boolean().optional(),
 });

@@ -336,6 +336,14 @@ export function useChatSessions() {
         });
         return;
       }
+      if (type === 'messages_refresh') {
+        const sid = normalizeId(payload.sessionId);
+        if (sid && normalizeId(selectedSessionIdRef.current) === sid) {
+          void refreshMessages(sid).catch(() => {});
+        }
+        void refreshSessions().catch(() => {});
+        return;
+      }
       if (type === 'assistant_done' || type === 'assistant_error' || type === 'assistant_aborted') {
         const mid = normalizeId(payload.messageId);
         const sid = normalizeId(payload.sessionId);
@@ -557,11 +565,21 @@ export function useChatSessions() {
       const now = new Date().toISOString();
       setComposerText('');
       setComposerAttachments([]);
-      setMessages((prev) => [
-        ...prev,
-        { id: userMessageId || `user_${now}`, sessionId: sid, role: 'user', content: text, attachments, createdAt: now, updatedAt: now },
-        { id: assistantMessageId || `assistant_${now}`, sessionId: sid, role: 'assistant', content: '', createdAt: now, updatedAt: now },
-      ]);
+      setMessages((prev) => {
+        const list = Array.isArray(prev) ? prev : [];
+        const seen = new Set(list.map((m) => normalizeId(m?.id)).filter(Boolean));
+        const next = list.slice();
+        const userId = userMessageId || `user_${now}`;
+        if (userId && !seen.has(userId)) {
+          next.push({ id: userId, sessionId: sid, role: 'user', content: text, attachments, createdAt: now, updatedAt: now });
+          seen.add(userId);
+        }
+        const assistantId = assistantMessageId || `assistant_${now}`;
+        if (assistantId && !seen.has(assistantId)) {
+          next.push({ id: assistantId, sessionId: sid, role: 'assistant', content: '', createdAt: now, updatedAt: now });
+        }
+        return next;
+      });
       if (sid) {
         setStreamStates((prev) => ({ ...prev, [sid]: { sessionId: sid, messageId: assistantMessageId } }));
         if (assistantMessageId) {

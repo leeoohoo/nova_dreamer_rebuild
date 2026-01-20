@@ -29,13 +29,14 @@ let engineDepsPromise = null;
 async function loadEngineDeps() {
   if (engineDepsPromise) return engineDepsPromise;
   engineDepsPromise = (async () => {
-    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod, toolsMod] = await Promise.all([
+    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod, toolsMod, summaryMod] = await Promise.all([
       import(pathToFileURL(resolveEngineModule('session.js')).href),
       import(pathToFileURL(resolveEngineModule('client.js')).href),
       import(pathToFileURL(resolveEngineModule('config.js')).href),
       import(pathToFileURL(resolveEngineModule('mcp/runtime.js')).href),
       import(pathToFileURL(resolveEngineModule('subagents/runtime.js')).href),
       import(pathToFileURL(resolveEngineModule('tools/index.js')).href),
+      import(pathToFileURL(resolveEngineModule('chat/summary.js')).href),
     ]);
     return {
       ChatSession: sessionMod.ChatSession,
@@ -44,6 +45,10 @@ async function loadEngineDeps() {
       initializeMcpRuntime: mcpRuntimeMod.initializeMcpRuntime,
       runWithSubAgentContext: subagentRuntimeMod.runWithSubAgentContext,
       registerTool: toolsMod.registerTool,
+      createSummaryManager: summaryMod.createSummaryManager,
+      summarizeSession: summaryMod.summarizeSession,
+      estimateTokenCount: summaryMod.estimateTokenCount,
+      throwIfAborted: summaryMod.throwIfAborted,
     };
   })();
   return engineDepsPromise;
@@ -129,6 +134,297 @@ function buildUserMessageContent({ text, attachments, allowVisionInput } = {}) {
   if (parts.length === 0) return null;
   if (parts.length === 1 && parts[0].type === 'text') return parts[0].text;
   return parts;
+}
+
+const SUMMARY_MESSAGE_NAME = 'conversation_summary';
+const SUMMARY_SEPARATOR = '\n\n---\n\n';
+
+function isSummaryMessage(record) {
+  if (!record || record.role !== 'system') return false;
+  const name = typeof record?.name === 'string' ? record.name.trim() : '';
+  return name === SUMMARY_MESSAGE_NAME;
+}
+
+function pickLatestSummaryMessage(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const msg = list[i];
+    if (isSummaryMessage(msg)) return msg;
+  }
+  return null;
+}
+
+function appendSummaryText(existing, addition) {
+  const base = typeof existing === 'string' ? existing.trim() : '';
+  const extra = typeof addition === 'string' ? addition.trim() : '';
+  if (!base) return extra;
+  if (!extra) return base;
+  return `${base}${SUMMARY_SEPARATOR}${extra}`;
+}
+
+function estimateMessageTokens(estimateTokenCount, message) {
+  if (typeof estimateTokenCount !== 'function') return 0;
+  return estimateTokenCount([message]);
+}
+
+function computeTailStartIndex(messages, keepRatio, estimateTokenCount) {
+  const list = Array.isArray(messages) ? messages : [];
+  if (list.length < 2) return -1;
+  const totalTokens = estimateTokenCount(list);
+  if (!(totalTokens > 0)) return -1;
+  const ratio =
+    Number.isFinite(keepRatio) && keepRatio > 0 && keepRatio < 1 ? Number(keepRatio) : 0.3;
+  const keepTargetTokens = Math.max(1, Math.ceil(totalTokens * ratio));
+  let keepTokens = 0;
+  let tailStartIndex = list.length - 1;
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    keepTokens += estimateMessageTokens(estimateTokenCount, list[i]);
+    tailStartIndex = i;
+    if (keepTokens >= keepTargetTokens) break;
+  }
+  let lastUserIndex = -1;
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i] && list[i].role === 'user') {
+      lastUserIndex = i;
+      break;
+    }
+  }
+  if (lastUserIndex >= 0 && tailStartIndex > lastUserIndex) {
+    tailStartIndex = lastUserIndex;
+  }
+  if (tailStartIndex <= 0) return -1;
+  return tailStartIndex;
+}
+
+function normalizeConversationMessages(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const normalized = [];
+  let pendingToolCallIds = null;
+  list.forEach((msg) => {
+    if (!msg || typeof msg !== 'object') return;
+    const role = msg.role;
+    if (role === 'user') {
+      normalized.push(msg);
+      pendingToolCallIds = null;
+      return;
+    }
+    if (role === 'assistant') {
+      normalized.push(msg);
+      const toolCalls = Array.isArray(msg?.toolCalls) ? msg.toolCalls.filter(Boolean) : [];
+      if (toolCalls.length > 0) {
+        pendingToolCallIds = new Set(toolCalls.map((call) => normalizeId(call?.id)).filter(Boolean));
+      } else {
+        pendingToolCallIds = null;
+      }
+      return;
+    }
+    if (role === 'tool') {
+      const callId = normalizeId(msg?.toolCallId);
+      if (!callId || !pendingToolCallIds || !pendingToolCallIds.has(callId)) return;
+      normalized.push(msg);
+      pendingToolCallIds.delete(callId);
+    }
+  });
+  return normalized;
+}
+
+function buildChatSessionFromMessages({
+  ChatSession,
+  sessionId,
+  systemPrompt,
+  messages,
+  allowVisionInput,
+  extraSystemPrompts,
+  trailingSystemPrompts,
+} = {}) {
+  const chatSession = new ChatSession(systemPrompt || null, {
+    sessionId,
+    ...(extraSystemPrompts ? { extraSystemPrompts } : {}),
+  });
+  if (trailingSystemPrompts) {
+    chatSession.setTrailingSystemPrompts(trailingSystemPrompts);
+  }
+  let pendingToolCallIds = null;
+  (Array.isArray(messages) ? messages : []).forEach((msg) => {
+    const role = msg?.role;
+    if (role === 'user') {
+      const content = buildUserMessageContent({
+        text: msg?.content || '',
+        attachments: msg?.attachments,
+        allowVisionInput,
+      });
+      if (content) {
+        chatSession.addUser(content);
+      }
+      pendingToolCallIds = null;
+      return;
+    }
+    if (role === 'assistant') {
+      const toolCalls = Array.isArray(msg?.toolCalls) ? msg.toolCalls.filter(Boolean) : null;
+      const usableToolCalls = toolCalls && toolCalls.length > 0 ? toolCalls : null;
+      chatSession.addAssistant(msg?.content || '', usableToolCalls);
+      if (usableToolCalls) {
+        pendingToolCallIds = new Set(usableToolCalls.map((call) => normalizeId(call?.id)).filter(Boolean));
+      } else {
+        pendingToolCallIds = null;
+      }
+      return;
+    }
+    if (role === 'tool') {
+      const callId = normalizeId(msg?.toolCallId);
+      if (!callId) return;
+      if (!pendingToolCallIds || !pendingToolCallIds.has(callId)) return;
+      chatSession.addToolResult(callId, msg?.content || '');
+      pendingToolCallIds.delete(callId);
+    }
+  });
+  return chatSession;
+}
+
+function extractLatestSummaryText(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const msg = list[i];
+    if (!msg || msg.role !== 'system') continue;
+    if (msg.name !== SUMMARY_MESSAGE_NAME) continue;
+    const content = typeof msg.content === 'string' ? msg.content.trim() : '';
+    if (content) return content;
+  }
+  return '';
+}
+
+function isContextLengthError(err) {
+  const info = extractErrorInfo(err);
+  const status = info.status;
+  const messageText = info.messages.join('\n').toLowerCase();
+  const codeText = [info.code, info.type].filter(Boolean).join(' ').toLowerCase();
+  const codePatterns = [
+    /context[_\s-]?length/,
+    /context_length_exceeded/,
+    /max[_\s-]?tokens?/,
+    /token[_\s-]?limit/,
+    /context_window/,
+    /length_exceeded/,
+  ];
+  const messagePatterns = [
+    /maximum context length/,
+    /context length/,
+    /context window/,
+    /token limit/,
+    /max(?:imum)?\s*tokens?/,
+    /too many tokens/,
+    /exceed(?:ed|s)?\s*(?:the )?(?:maximum )?(?:context|token)/,
+    /input.*too long/,
+    /prompt.*too long/,
+    /上下文.*(过长|超出|超长|超过|上限|限制)/,
+    /上下文长度/,
+    /(token|tokens).*(超|超过|上限|限制)/,
+    /最大.*(上下文|token)/,
+    /输入.*过长/,
+  ];
+  const hasCodeHint = matchesAnyPattern(codeText, codePatterns);
+  const hasMessageHint = matchesAnyPattern(messageText, messagePatterns);
+  if (hasCodeHint || hasMessageHint) {
+    return true;
+  }
+  if (status === 400) {
+    const statusHints = /(context|token|length|window|上下文|长度)/i;
+    return statusHints.test(messageText) || statusHints.test(codeText);
+  }
+  return false;
+}
+
+function extractErrorInfo(err) {
+  const status = getErrorStatus(err);
+  const messages = collectErrorMessages(err);
+  const codes = collectErrorCodes(err);
+  const types = collectErrorTypes(err);
+  return {
+    status,
+    messages,
+    message: messages[0] || '',
+    code: codes[0] || '',
+    type: types[0] || '',
+  };
+}
+
+function getErrorStatus(err) {
+  const candidates = [
+    err?.status,
+    err?.statusCode,
+    err?.response?.status,
+    err?.response?.statusCode,
+    err?.response?.data?.status,
+    err?.response?.data?.statusCode,
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  return null;
+}
+
+function collectErrorMessages(err) {
+  const messages = [];
+  const push = (value) => {
+    const text = normalizeErrorText(value);
+    if (text) messages.push(text);
+  };
+  push(err?.message);
+  push(err?.error?.message);
+  push(err?.error?.error?.message);
+  push(err?.response?.data?.error?.message);
+  push(err?.response?.data?.message);
+  push(err?.response?.data?.error_description);
+  push(err?.response?.data?.error?.detail);
+  push(err?.response?.data?.error?.details);
+  if (typeof err?.response?.data === 'string') push(err.response.data);
+  if (typeof err?.data === 'string') push(err.data);
+  if (typeof err?.error === 'string') push(err.error);
+  return Array.from(new Set(messages));
+}
+
+function collectErrorCodes(err) {
+  const codes = [];
+  const push = (value) => {
+    const text = normalizeErrorText(value);
+    if (text) codes.push(text);
+  };
+  push(err?.code);
+  push(err?.error?.code);
+  push(err?.error?.error?.code);
+  push(err?.response?.data?.error?.code);
+  push(err?.response?.data?.code);
+  return Array.from(new Set(codes));
+}
+
+function collectErrorTypes(err) {
+  const types = [];
+  const push = (value) => {
+    const text = normalizeErrorText(value);
+    if (text) types.push(text);
+  };
+  push(err?.type);
+  push(err?.error?.type);
+  push(err?.error?.error?.type);
+  push(err?.response?.data?.error?.type);
+  push(err?.response?.data?.type);
+  return Array.from(new Set(types));
+}
+
+function normalizeErrorText(value) {
+  if (typeof value === 'string') return value.trim();
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error && typeof value.message === 'string') {
+    return value.message.trim();
+  }
+  return '';
+}
+
+function matchesAnyPattern(text, patterns) {
+  if (!text) return false;
+  return patterns.some((pattern) => pattern.test(text));
 }
 
 
@@ -582,6 +878,10 @@ export function createChatRunner({
       ModelClient,
       createAppConfigFromModels,
       runWithSubAgentContext,
+      createSummaryManager,
+      summarizeSession,
+      estimateTokenCount,
+      throwIfAborted,
     } = await loadEngineDeps();
 
     applySecretsToProcessEnv(adminServices);
@@ -593,6 +893,13 @@ export function createChatRunner({
     const promptLanguage = runtimeConfig?.promptLanguage || null;
     const runtimeWorkdir = normalizeWorkspaceRoot(runtimeConfig?.uiPromptWorkdir);
     const effectiveToolWorkdir = runtimeWorkdir || effectiveWorkspaceRoot;
+    const summaryConfigPath = typeof defaultPaths?.models === 'string' ? defaultPaths.models : null;
+    const summaryManager = createSummaryManager({
+      summaryThreshold: runtimeConfig?.summaryTokenThreshold,
+      configPath: summaryConfigPath || undefined,
+    });
+    const summaryThreshold = summaryManager?.threshold;
+    const summaryKeepRatio = summaryManager?.keepRatio;
 
     const prompts = adminServices.prompts.list();
     const subagents = adminServices.subagents.list();
@@ -1033,57 +1340,190 @@ export function createChatRunner({
         })
       : null;
 
-    const history = store.messages
-      .list(sid)
-      .filter((msg) => msg?.id !== userMessageId && msg?.id !== initialAssistantMessageId);
-    const chatSession = new ChatSession(systemPrompt || null, {
-      sessionId: sid,
-    });
-    let pendingToolCallIds = null;
-    history.forEach((msg) => {
-      const role = msg?.role;
-      if (role === 'user') {
-        const content = buildUserMessageContent({
-          text: msg?.content || '',
-          attachments: msg?.attachments,
+    const listSessionMessages = () => store.messages.list(sid);
+    const getConversationSnapshot = () => {
+      const all = listSessionMessages();
+      const summaryRecord = pickLatestSummaryMessage(all);
+      const filtered = all
+        .filter((msg) => msg?.id !== initialAssistantMessageId)
+        .filter((msg) => msg?.role !== 'system');
+      const conversation = normalizeConversationMessages(filtered);
+      return { all, summaryRecord, conversation };
+    };
+    const buildRequestSession = () => {
+      const snapshot = getConversationSnapshot();
+      const summaryRecord = snapshot.summaryRecord;
+      const trailingPrompts =
+        summaryRecord && typeof summaryRecord?.content === 'string' && summaryRecord.content.trim()
+          ? [{ content: summaryRecord.content, name: SUMMARY_MESSAGE_NAME }]
+          : null;
+      return buildChatSessionFromMessages({
+        ChatSession,
+        sessionId: sid,
+        systemPrompt,
+        messages: snapshot.conversation,
+        allowVisionInput,
+        trailingSystemPrompts: trailingPrompts,
+      });
+    };
+    let chatSession = buildRequestSession();
+    const rebuildChatSession = () => {
+      chatSession = buildRequestSession();
+      return chatSession;
+    };
+
+    const estimateConversationTokens = (conversation, summaryRecord) => {
+      const parts = [];
+      if (systemPrompt) {
+        parts.push({ role: 'system', content: systemPrompt });
+      }
+      if (summaryRecord && typeof summaryRecord.content === 'string' && summaryRecord.content.trim()) {
+        parts.push({ role: 'system', content: summaryRecord.content });
+      }
+      parts.push(...(Array.isArray(conversation) ? conversation : []));
+      return estimateTokenCount(parts);
+    };
+
+    const summarizeConversation = async ({ force = false, signal } = {}) => {
+      const defaultThreshold = 60000;
+      const threshold = Number.isFinite(summaryThreshold) ? summaryThreshold : defaultThreshold;
+      const targetThreshold = threshold > 0 ? threshold : defaultThreshold;
+      if (!force && !(threshold > 0)) return false;
+      const keepRatio =
+        Number.isFinite(summaryKeepRatio) && summaryKeepRatio > 0 && summaryKeepRatio < 1
+          ? summaryKeepRatio
+          : 0.3;
+      const maxPasses = force ? 6 : 3;
+      let didSummarize = false;
+
+      for (let pass = 0; pass < maxPasses; pass += 1) {
+        if (typeof throwIfAborted === 'function') {
+          throwIfAborted(signal);
+        } else if (signal?.aborted) {
+          throw new Error('aborted');
+        }
+        const snapshot = getConversationSnapshot();
+        const conversation = snapshot.conversation;
+        if (conversation.length < 2) return didSummarize;
+        const tokenCount = estimateConversationTokens(conversation, snapshot.summaryRecord);
+        if (!force && tokenCount <= threshold) return didSummarize;
+        if (force && tokenCount <= targetThreshold && pass > 0) return didSummarize;
+
+        const summarySession = buildChatSessionFromMessages({
+          ChatSession,
+          sessionId: sid,
+          systemPrompt,
+          messages: conversation,
           allowVisionInput,
+          extraSystemPrompts:
+            snapshot.summaryRecord && typeof snapshot.summaryRecord.content === 'string'
+              ? [{ content: snapshot.summaryRecord.content, name: SUMMARY_MESSAGE_NAME }]
+              : null,
         });
-        if (content) {
-          chatSession.addUser(content);
+
+        let changed = false;
+        try {
+          changed = await summarizeSession(summarySession, client, modelRecord.name, {
+            keepRatio,
+            signal,
+            configPath: summaryConfigPath || undefined,
+          });
+        } catch (err) {
+          if (err?.name === 'AbortError' || signal?.aborted) {
+            throw err;
+          }
+          console.error(`[summary] Failed: ${err?.message || String(err)}`);
+          return didSummarize;
         }
-        pendingToolCallIds = null;
-        return;
-      }
-      if (role === 'assistant') {
-        const toolCalls = Array.isArray(msg?.toolCalls) ? msg.toolCalls.filter(Boolean) : null;
-        const usableToolCalls = toolCalls && toolCalls.length > 0 ? toolCalls : null;
-        chatSession.addAssistant(msg?.content || '', usableToolCalls);
-        if (usableToolCalls) {
-          pendingToolCallIds = new Set(
-            usableToolCalls.map((call) => normalizeId(call?.id)).filter(Boolean)
-          );
+
+        if (!changed) return didSummarize;
+        const summaryText = extractLatestSummaryText(summarySession.messages);
+        if (!summaryText) return didSummarize;
+        const tailStartIndex = computeTailStartIndex(conversation, keepRatio, estimateTokenCount);
+        if (tailStartIndex <= 0) return didSummarize;
+
+        const tail = conversation.slice(tailStartIndex);
+        const keepIds = new Set(tail.map((msg) => normalizeId(msg?.id)).filter(Boolean));
+        const assistantId = normalizeId(initialAssistantMessageId);
+        if (assistantId) keepIds.add(assistantId);
+        const currentUserId = normalizeId(userMessageId);
+        if (currentUserId) keepIds.add(currentUserId);
+
+        let summaryId = null;
+        if (snapshot.summaryRecord?.id) {
+          summaryId = normalizeId(snapshot.summaryRecord.id);
+          if (summaryId) {
+            const combined = appendSummaryText(snapshot.summaryRecord.content, summaryText);
+            store.messages.update(summaryId, {
+              content: combined,
+              name: SUMMARY_MESSAGE_NAME,
+              hidden: true,
+            });
+          }
         } else {
-          pendingToolCallIds = null;
+          const created = store.messages.create({
+            sessionId: sid,
+            role: 'system',
+            content: summaryText,
+            name: SUMMARY_MESSAGE_NAME,
+            hidden: true,
+          });
+          summaryId = normalizeId(created?.id);
         }
-        return;
+        if (summaryId) keepIds.add(summaryId);
+
+        snapshot.all.forEach((msg) => {
+          const mid = normalizeId(msg?.id);
+          if (!mid || keepIds.has(mid)) return;
+          store.messages.remove(mid);
+        });
+        try {
+          store.sessions.update(sid, { updatedAt: new Date().toISOString() });
+        } catch {
+          // ignore
+        }
+        scopedSendEvent({ type: 'messages_refresh', sessionId: sid });
+        didSummarize = true;
       }
-      if (role === 'tool') {
-        const callId = normalizeId(msg?.toolCallId);
-        if (!callId) return;
-        if (!pendingToolCallIds || !pendingToolCallIds.has(callId)) return;
-        chatSession.addToolResult(callId, msg?.content || '');
-        pendingToolCallIds.delete(callId);
+
+      if (didSummarize) {
+        rebuildChatSession();
       }
-    });
-    const currentUserContent = buildUserMessageContent({
-      text: normalizedText,
-      attachments,
-      allowVisionInput,
-    });
-    if (!currentUserContent) {
-      throw new Error('text is required');
-    }
-    chatSession.addUser(currentUserContent);
+      return didSummarize;
+    };
+
+    const hardTrimConversation = () => {
+      const all = listSessionMessages();
+      const summaryRecord = pickLatestSummaryMessage(all);
+      const lastUser = (() => {
+        for (let i = all.length - 1; i >= 0; i -= 1) {
+          const msg = all[i];
+          if (msg && msg.role === 'user') return msg;
+        }
+        return null;
+      })();
+      const keepIds = new Set();
+      const assistantId = normalizeId(initialAssistantMessageId);
+      if (assistantId) keepIds.add(assistantId);
+      const currentUserId = normalizeId(userMessageId);
+      if (currentUserId) keepIds.add(currentUserId);
+      const summaryId = normalizeId(summaryRecord?.id);
+      if (summaryId) keepIds.add(summaryId);
+      const lastUserId = normalizeId(lastUser?.id);
+      if (lastUserId) keepIds.add(lastUserId);
+      all.forEach((msg) => {
+        const mid = normalizeId(msg?.id);
+        if (!mid || keepIds.has(mid)) return;
+        store.messages.remove(mid);
+      });
+      try {
+        store.sessions.update(sid, { updatedAt: new Date().toISOString() });
+      } catch {
+        // ignore
+      }
+      scopedSendEvent({ type: 'messages_refresh', sessionId: sid });
+      rebuildChatSession();
+    };
 
     let currentAssistantId = initialAssistantMessageId;
     const assistantTexts = new Map([[currentAssistantId, '']]);
@@ -1207,6 +1647,8 @@ export function createChatRunner({
             }
           : null;
 
+        await summarizeConversation({ force: false, signal: controller.signal });
+
         const runChat = async () =>
           client.chat(modelRecord.name, chatSession, {
             stream: true,
@@ -1221,10 +1663,29 @@ export function createChatRunner({
             onToolResult,
           });
 
-        if (context) {
-          finalResponseText = await runWithSubAgentContext(context, runChat);
-        } else {
-          finalResponseText = await runChat();
+        const runChatOnce = async () => {
+          if (context) {
+            return await runWithSubAgentContext(context, runChat);
+          }
+          return await runChat();
+        };
+
+        try {
+          finalResponseText = await runChatOnce();
+        } catch (err) {
+          if (!isContextLengthError(err)) {
+            throw err;
+          }
+          await summarizeConversation({ force: true, signal: controller.signal });
+          try {
+            finalResponseText = await runChatOnce();
+          } catch (err2) {
+            if (!isContextLengthError(err2)) {
+              throw err2;
+            }
+            hardTrimConversation();
+            finalResponseText = await runChatOnce();
+          }
         }
 
         const finalId = normalizeId(currentAssistantId) || initialAssistantMessageId;

@@ -6,6 +6,8 @@ import { api, hasApi } from '../../../lib/api.js';
 
 const { Text } = Typography;
 
+const SUMMARY_GRADIENT = 'linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(56, 189, 248, 0.14))';
+
 function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -40,6 +42,44 @@ function parseUiAppKey(key) {
   return { pluginId, appId };
 }
 
+function UiAppCard({ label, metaText, hasMcp, hasPrompt, mcpEnabled, promptEnabled, onToggleMcp, onTogglePrompt }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        border: '1px solid var(--ds-panel-border)',
+        background: hovered
+          ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(56, 189, 248, 0.12))'
+          : 'var(--ds-panel-bg)',
+        borderRadius: 14,
+        padding: '12px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        boxShadow: hovered ? '0 12px 26px rgba(15, 23, 42, 0.12)' : '0 8px 20px rgba(15, 23, 42, 0.08)',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {metaText}
+        </Text>
+      </div>
+      <Space size={10}>
+        <Checkbox checked={mcpEnabled} disabled={!hasMcp} onChange={onToggleMcp}>
+          MCP
+        </Checkbox>
+        <Checkbox checked={promptEnabled} disabled={!hasPrompt} onChange={onTogglePrompt}>
+          Prompt
+        </Checkbox>
+      </Space>
+    </div>
+  );
+}
+
 export function AgentEditorModal({ open, initialValues, models, mcpServers, prompts, uiApps, onCancel, onSave }) {
   const [form] = Form.useForm();
   const [mcpPromptLang, setMcpPromptLang] = useState('zh');
@@ -49,6 +89,29 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       fontSize: 13,
       lineHeight: '20px',
+      background: 'var(--ds-subtle-bg)',
+      borderRadius: 10,
+    }),
+    []
+  );
+  const sectionStyle = useMemo(
+    () => ({
+      border: '1px solid var(--ds-panel-border)',
+      borderRadius: 16,
+      padding: '14px 16px',
+      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(56, 189, 248, 0.05))',
+      boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+    }),
+    []
+  );
+  const gridStyle = useMemo(
+    () => ({
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+      gap: 12,
     }),
     []
   );
@@ -294,150 +357,177 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
         const values = await form.validateFields();
         onSave?.({ ...(initialValues || {}), ...values });
       }}
-      width={720}
+      width="min(760px, 92vw)"
+      centered
       destroyOnClose
+      styles={{
+        content: {
+          padding: 0,
+          borderRadius: 20,
+          overflow: 'hidden',
+          boxShadow: '0 30px 70px rgba(15, 23, 42, 0.25)',
+        },
+        header: {
+          marginBottom: 0,
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--ds-panel-border)',
+          background: SUMMARY_GRADIENT,
+        },
+        body: {
+          padding: '18px 20px 10px',
+          background: 'var(--ds-panel-bg)',
+        },
+        footer: {
+          padding: '12px 20px',
+          borderTop: '1px solid var(--ds-panel-border)',
+          background: 'var(--ds-subtle-bg)',
+        },
+      }}
+      okButtonProps={{ style: { borderRadius: 10, padding: '0 18px' } }}
+      cancelButtonProps={{ style: { borderRadius: 10, padding: '0 18px' } }}
     >
-      <Form form={form} layout="vertical" initialValues={initialValues || {}}>
-        <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-          <Input placeholder="例如：前端助手 / 需求分析师" />
-        </Form.Item>
-        <Form.Item name="description" label="描述">
-          <Input.TextArea
-            placeholder="可选（支持 Markdown）"
-            autoSize={{ minRows: 3, maxRows: 10 }}
-            style={markdownEditorStyle}
-          />
-        </Form.Item>
-        <Form.Item name="prompt" label="Prompt" extra="作为系统提示，在与该 Agent 对话时自动注入（支持 Markdown）。">
-          <Input.TextArea placeholder="可选" autoSize={{ minRows: 6, maxRows: 16 }} style={markdownEditorStyle} />
-        </Form.Item>
-        <Form.Item name="modelId" label="模型" rules={[{ required: true, message: '请选择模型' }]}>
-          <Select options={modelOptions} showSearch optionFilterProp="label" placeholder="选择模型" />
-        </Form.Item>
-        <Form.Item name="mcpServerIds" label="启用的 MCP">
-          <Select
-            mode="multiple"
-            options={mcpOptions}
-            showSearch
-            optionFilterProp="label"
-            placeholder="选择要启用的 MCP（可多选）"
-          />
-        </Form.Item>
-        <Form.Item label="MCP Prompt 语言">
-          <Segmented
-            value={mcpPromptLang}
-            options={[
-              { label: '中文', value: 'zh' },
-              { label: 'English', value: 'en' },
-            ]}
-            onChange={(value) => setMcpPromptLang(value === 'en' ? 'en' : 'zh')}
-          />
-        </Form.Item>
-        <Form.Item name="promptIds" label="启用的 Prompt">
-          <Select
-            mode="multiple"
-            options={promptOptions}
-            showSearch
-            optionFilterProp="label"
-            placeholder="选择要启用的 Prompt（可多选）"
-          />
-        </Form.Item>
-        <Form.Item
-          label="工作目录"
-          extra="可选：留空则使用当前对话设置的目录；如果 Agent 自身设置了目录，将优先生效。"
-        >
-          <Space size={8} align="start" style={{ width: '100%' }}>
-            <Form.Item name="workspaceRoot" noStyle>
-              <Input placeholder="输入工作目录路径（绝对路径）" allowClear />
+      <Form
+        form={form}
+        layout="vertical"
+        colon={false}
+        initialValues={initialValues || {}}
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
+        <div style={sectionStyle}>
+          <Text style={{ fontWeight: 650 }}>基础信息</Text>
+          <div style={gridStyle}>
+            <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+              <Input placeholder="例如：前端助手 / 需求分析师" size="middle" allowClear />
             </Form.Item>
-            <Button icon={<FolderOpenOutlined />} onClick={pickWorkspaceRoot}>
-              选择目录
-            </Button>
-          </Space>
-        </Form.Item>
-        <Form.Item
-          name="uiApps"
-          label="应用（可选暴露 MCP / Prompt）"
-          getValueProps={(value) => ({ value: refsToKeys(value) })}
-          getValueFromEvent={(nextKeys) => keysToRefs(nextKeys, form.getFieldValue('uiApps'))}
-        >
-          <Select
-            mode="multiple"
-            options={uiAppOptions}
-            showSearch
-            optionFilterProp="label"
-            placeholder="选择一个或多个应用"
-          />
-        </Form.Item>
-
-        {selectedUiAppsSafe.length > 0 ? (
-          <div style={{ display: 'grid', gap: 8, marginBottom: 8 }}>
-            {selectedUiAppsSafe.map((ref) => {
-              const key = toUiAppKey(ref.pluginId, ref.appId);
-              const meta = uiAppMetaByKey.get(key) || null;
-              const label = meta?.label || `${ref.pluginId}:${ref.appId}`;
-              const hasMcp = Boolean(meta?.hasMcp);
-              const hasPrompt = Boolean(meta?.hasPrompt);
-              return (
-                <div
-                  key={key}
-                  style={{
-                    border: '1px solid var(--ds-panel-border)',
-                    background: 'var(--ds-panel-bg)',
-                    borderRadius: 12,
-                    padding: '10px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {ref.pluginId}:{ref.appId}
-                    </Text>
-                  </div>
-                  <Space size={10}>
-                    <Checkbox
-                      checked={ref.mcp !== false}
-                      disabled={!hasMcp}
-                      onChange={(e) => {
-                        const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
-                        const next = list.map((item) => {
-                          const k = toUiAppKey(item?.pluginId, item?.appId);
-                          if (k !== key) return item;
-                          return { ...item, mcp: e.target.checked };
-                        });
-                        form.setFieldsValue({ uiApps: next });
-                      }}
-                    >
-                      MCP
-                    </Checkbox>
-                    <Checkbox
-                      checked={ref.prompt !== false}
-                      disabled={!hasPrompt}
-                      onChange={(e) => {
-                        const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
-                        const next = list.map((item) => {
-                          const k = toUiAppKey(item?.pluginId, item?.appId);
-                          if (k !== key) return item;
-                          return { ...item, prompt: e.target.checked };
-                        });
-                        form.setFieldsValue({ uiApps: next });
-                      }}
-                    >
-                      Prompt
-                    </Checkbox>
-                  </Space>
-                </div>
-              );
-            })}
+            <Form.Item name="modelId" label="模型" rules={[{ required: true, message: '请选择模型' }]}>
+              <Select options={modelOptions} showSearch optionFilterProp="label" placeholder="选择模型" />
+            </Form.Item>
           </div>
-        ) : null}
+          <Form.Item name="description" label="描述">
+            <Input.TextArea
+              placeholder="可选（支持 Markdown）"
+              autoSize={{ minRows: 3, maxRows: 10 }}
+              style={markdownEditorStyle}
+            />
+          </Form.Item>
+        </div>
 
-        <Space direction="vertical" size={6}>
+        <div style={sectionStyle}>
+          <Text style={{ fontWeight: 650 }}>系统提示</Text>
+          <Form.Item name="prompt" label="Prompt" extra="作为系统提示，在与该 Agent 对话时自动注入（支持 Markdown）。">
+            <Input.TextArea placeholder="可选" autoSize={{ minRows: 6, maxRows: 16 }} style={markdownEditorStyle} />
+          </Form.Item>
+        </div>
+
+        <div style={sectionStyle}>
+          <Text style={{ fontWeight: 650 }}>能力配置</Text>
+          <div style={gridStyle}>
+            <Form.Item name="mcpServerIds" label="启用的 MCP">
+              <Select
+                mode="multiple"
+                options={mcpOptions}
+                showSearch
+                optionFilterProp="label"
+                placeholder="选择要启用的 MCP（可多选）"
+                maxTagCount="responsive"
+              />
+            </Form.Item>
+            <Form.Item label="MCP Prompt 语言">
+              <Segmented
+                value={mcpPromptLang}
+                options={[
+                  { label: '中文', value: 'zh' },
+                  { label: 'English', value: 'en' },
+                ]}
+                onChange={(value) => setMcpPromptLang(value === 'en' ? 'en' : 'zh')}
+              />
+            </Form.Item>
+          </div>
+          <Form.Item name="promptIds" label="启用的 Prompt">
+            <Select
+              mode="multiple"
+              options={promptOptions}
+              showSearch
+              optionFilterProp="label"
+              placeholder="选择要启用的 Prompt（可多选）"
+              maxTagCount="responsive"
+            />
+          </Form.Item>
+          <Form.Item
+            name="uiApps"
+            label="应用（可选暴露 MCP / Prompt）"
+            getValueProps={(value) => ({ value: refsToKeys(value) })}
+            getValueFromEvent={(nextKeys) => keysToRefs(nextKeys, form.getFieldValue('uiApps'))}
+          >
+            <Select
+              mode="multiple"
+              options={uiAppOptions}
+              showSearch
+              optionFilterProp="label"
+              placeholder="选择一个或多个应用"
+              maxTagCount="responsive"
+            />
+          </Form.Item>
+
+          {selectedUiAppsSafe.length > 0 ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {selectedUiAppsSafe.map((ref) => {
+                const key = toUiAppKey(ref.pluginId, ref.appId);
+                const meta = uiAppMetaByKey.get(key) || null;
+                const label = meta?.label || `${ref.pluginId}:${ref.appId}`;
+                const hasMcp = Boolean(meta?.hasMcp);
+                const hasPrompt = Boolean(meta?.hasPrompt);
+                return (
+                  <UiAppCard
+                    key={key}
+                    label={label}
+                    metaText={`${ref.pluginId}:${ref.appId}`}
+                    hasMcp={hasMcp}
+                    hasPrompt={hasPrompt}
+                    mcpEnabled={ref.mcp !== false}
+                    promptEnabled={ref.prompt !== false}
+                    onToggleMcp={(e) => {
+                      const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
+                      const next = list.map((item) => {
+                        const k = toUiAppKey(item?.pluginId, item?.appId);
+                        if (k !== key) return item;
+                        return { ...item, mcp: e.target.checked };
+                      });
+                      form.setFieldsValue({ uiApps: next });
+                    }}
+                    onTogglePrompt={(e) => {
+                      const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
+                      const next = list.map((item) => {
+                        const k = toUiAppKey(item?.pluginId, item?.appId);
+                        if (k !== key) return item;
+                        return { ...item, prompt: e.target.checked };
+                      });
+                      form.setFieldsValue({ uiApps: next });
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+
+        <div style={sectionStyle}>
+          <Text style={{ fontWeight: 650 }}>工作目录</Text>
+          <Form.Item
+            label="目录"
+            extra="可选：留空则使用当前对话设置的目录；如果 Agent 自身设置了目录，将优先生效。"
+          >
+            <Space size={8} align="start" wrap style={{ width: '100%' }}>
+              <Form.Item name="workspaceRoot" noStyle>
+                <Input placeholder="输入工作目录路径（绝对路径）" allowClear />
+              </Form.Item>
+              <Button icon={<FolderOpenOutlined />} onClick={pickWorkspaceRoot} style={{ borderRadius: 10 }}>
+                选择目录
+              </Button>
+            </Space>
+          </Form.Item>
           <Text type="secondary">提示：选择 MCP 后会自动补全对应的 MCP Prompt。</Text>
-        </Space>
+        </div>
       </Form>
     </Modal>
   );
