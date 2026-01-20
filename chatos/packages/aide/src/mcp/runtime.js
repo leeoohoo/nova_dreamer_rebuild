@@ -841,18 +841,40 @@ function normalizeWorkdir(value) {
   return path.resolve(trimmed);
 }
 
+function applyUiAppWorkdirOverride(meta, workdir) {
+  if (!meta || !workdir) return meta;
+  const uiApp = meta?.chatos?.uiApp;
+  if (!uiApp || typeof uiApp !== 'object') return meta;
+  return {
+    ...meta,
+    workdir,
+    chatos: {
+      ...meta.chatos,
+      uiApp: {
+        ...uiApp,
+        projectRoot: '',
+        sessionRoot: '',
+      },
+    },
+  };
+}
+
 function buildCallMeta(serverEntry, runtimeMeta, toolContext) {
   const base = runtimeMeta && typeof runtimeMeta === 'object' ? { ...runtimeMeta } : null;
-  const contextWorkdir = normalizeWorkdir(toolContext?.workdir);
-  const baseWithContext = contextWorkdir
-    ? { ...(base || {}), workdir: contextWorkdir }
-    : base;
   const raw = serverEntry?.callMeta ?? serverEntry?.call_meta;
-  const override = raw && typeof raw === 'object' ? raw : null;
-  if (!baseWithContext && !override) return null;
-  if (!baseWithContext) return { ...override };
-  if (!override) return { ...baseWithContext };
-  return { ...baseWithContext, ...override };
+  const override = raw && typeof raw === 'object' ? { ...raw } : null;
+  let merged = null;
+  if (base && override) {
+    merged = { ...base, ...override };
+  } else if (base) {
+    merged = { ...base };
+  } else if (override) {
+    merged = { ...override };
+  }
+  const contextWorkdir = normalizeWorkdir(toolContext?.workdir);
+  if (!contextWorkdir) return merged;
+  const withWorkdir = merged ? { ...merged, workdir: contextWorkdir } : { workdir: contextWorkdir };
+  return applyUiAppWorkdirOverride(withWorkdir, contextWorkdir);
 }
 
 function buildRuntimeCallMeta({ workspaceRoot } = {}) {
