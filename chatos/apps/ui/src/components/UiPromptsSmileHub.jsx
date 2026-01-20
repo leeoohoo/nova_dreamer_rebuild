@@ -21,6 +21,7 @@ function getPromptTitle(prompt) {
   if (kind === 'task_confirm') return '任务创建确认';
   if (kind === 'file_change_confirm') return '文件变更确认';
   if (kind === 'choice') return '需要你做出选择';
+  if (kind === 'result') return '执行结果';
   return '需要你补充信息';
 }
 
@@ -116,7 +117,12 @@ export function UiPromptsSmileHub() {
   const promptKind = typeof prompt?.kind === 'string' ? prompt.kind.trim() : '';
   const requestId = typeof selectedEntry?.requestId === 'string' ? selectedEntry.requestId.trim() : '';
   const promptActive = Boolean(
-    requestId && (promptKind === 'kv' || promptKind === 'choice' || promptKind === 'task_confirm' || promptKind === 'file_change_confirm')
+    requestId &&
+      (promptKind === 'kv' ||
+        promptKind === 'choice' ||
+        promptKind === 'task_confirm' ||
+        promptKind === 'file_change_confirm' ||
+        promptKind === 'result')
   );
   const promptRunId = normalizeRunId(selectedEntry?.runId);
   const allowCancel = prompt?.allowCancel !== false;

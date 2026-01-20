@@ -668,10 +668,12 @@ function htmlPage() {
         border-radius:14px;
         overflow:hidden;
         box-shadow: 0 18px 60px rgba(0,0,0,0.18);
+        z-index: 1305;
+        pointer-events: auto;
       }
       #promptsPanelHeader { padding: 10px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom: 1px solid var(--ds-panel-border); }
       #promptsPanelBody { padding: 10px 12px; overflow:auto; display:flex; flex-direction:column; gap:10px; }
-      #promptsFab { position: fixed; right: 16px; bottom: 16px; width: 44px; height: 44px; border-radius: 999px; display:flex; align-items:center; justify-content:center; }
+      #promptsFab { position: fixed; right: 16px; bottom: 16px; width: 44px; height: 44px; border-radius: 999px; display:flex; align-items:center; justify-content:center; z-index: 1305; pointer-events: auto; }
       .card { border: 1px solid var(--ds-panel-border); border-radius: 12px; padding: 10px; background: var(--ds-panel-bg); }
       .row { display:flex; gap:10px; }
       .toolbar-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -867,8 +869,8 @@ function htmlPage() {
         <div class="card">
           <div class="section-title">Paths</div>
           <pre id="mcpPaths" class="mono"></pre>
-          <label for="mcpWorkdir">Workdir Override (optional)</label>
-          <input id="mcpWorkdir" type="text" placeholder="留空则使用默认 workdir" />
+          <label for="mcpWorkdir">ProjectRoot Override (optional)</label>
+          <input id="mcpWorkdir" type="text" placeholder="留空则使用默认 projectRoot" />
         </div>
         <div class="card">
           <div class="section-title">Model</div>
@@ -1146,9 +1148,15 @@ const appendMcpOutput = (label, payload) => {
   mcpOutput.scrollTop = mcpOutput.scrollHeight;
 };
 
+const resolveMcpPaths = () => {
+  const projectRootOverride = mcpWorkdir ? String(mcpWorkdir.value || '').trim() : '';
+  if (!projectRootOverride) return sandboxPaths;
+  return { ...sandboxPaths, projectRoot: projectRootOverride };
+};
+
 const refreshMcpPaths = () => {
   if (!mcpPaths) return;
-  mcpPaths.textContent = formatJson(sandboxPaths);
+  mcpPaths.textContent = formatJson(resolveMcpPaths());
 };
 
 const refreshMcpConfigHint = async () => {
@@ -1193,9 +1201,11 @@ const runMcpTest = async () => {
       systemPrompt: mcpSystem ? String(mcpSystem.value || '').trim() : '',
       disableTools: Boolean(mcpDisableTools?.checked),
     };
-    const workdirOverride = mcpWorkdir ? String(mcpWorkdir.value || '').trim() : '';
-    if (workdirOverride) {
-      payload.callMeta = { workdir: workdirOverride };
+    const projectRootOverride = mcpWorkdir ? String(mcpWorkdir.value || '').trim() : '';
+    if (projectRootOverride) {
+      payload.callMeta = {
+        chatos: { uiApp: { projectRoot: projectRootOverride } },
+      };
     }
     setMcpStatus('Sending...');
     appendMcpOutput('request', payload);
@@ -1327,6 +1337,7 @@ if (btnLlmClear) btnLlmClear.addEventListener('click', () => saveLlmConfig({ cle
 if (btnMcpTest) btnMcpTest.addEventListener('click', () => setMcpPanelOpen(!isMcpPanelOpen()));
 if (btnHalfApp) btnHalfApp.addEventListener('click', () => toggleCompactSurface());
 if (btnMcpClose) btnMcpClose.addEventListener('click', () => setMcpPanelOpen(false));
+if (mcpWorkdir) mcpWorkdir.addEventListener('input', () => refreshMcpPaths());
 if (btnMcpClear)
   btnMcpClear.addEventListener('click', () => {
     if (mcpOutput) mcpOutput.textContent = '';
@@ -1396,6 +1407,7 @@ function renderPrompts() {
     form.style.gap = '10px';
 
     const kind = String(req?.prompt?.kind || '');
+    const allowCancel = req?.prompt?.allowCancel !== false;
 
     const mkBtn = (label, danger) => {
       const btn = document.createElement('button');
@@ -1410,7 +1422,31 @@ function renderPrompts() {
       emitUpdate();
     };
 
-    if (kind === 'kv') {
+    if (kind === 'result') {
+      const markdownText =
+        typeof req?.prompt?.markdown === 'string'
+          ? req.prompt.markdown
+          : typeof req?.prompt?.result === 'string'
+            ? req.prompt.result
+            : typeof req?.prompt?.content === 'string'
+              ? req.prompt.content
+              : '';
+      const markdown = document.createElement('pre');
+      markdown.className = 'mono';
+      markdown.textContent = markdownText || '（无结果内容）';
+      form.appendChild(markdown);
+      const row = document.createElement('div');
+      row.className = 'row';
+      const ok = mkBtn('OK');
+      ok.addEventListener('click', () => submit({ status: 'ok' }));
+      row.appendChild(ok);
+      if (allowCancel) {
+        const cancel = mkBtn('Cancel', true);
+        cancel.addEventListener('click', () => submit({ status: 'cancel' }));
+        row.appendChild(cancel);
+      }
+      form.appendChild(row);
+    } else if (kind === 'kv') {
       const fields = Array.isArray(req?.prompt?.fields) ? req.prompt.fields : [];
       const values = {};
       for (const f of fields) {
@@ -1432,10 +1468,12 @@ function renderPrompts() {
       row.className = 'row';
       const ok = mkBtn('Submit');
       ok.addEventListener('click', () => submit({ status: 'ok', values }));
-      const cancel = mkBtn('Cancel', true);
-      cancel.addEventListener('click', () => submit({ status: 'cancel' }));
       row.appendChild(ok);
-      row.appendChild(cancel);
+      if (allowCancel) {
+        const cancel = mkBtn('Cancel', true);
+        cancel.addEventListener('click', () => submit({ status: 'cancel' }));
+        row.appendChild(cancel);
+      }
       form.appendChild(row);
     } else if (kind === 'choice') {
       const options = Array.isArray(req?.prompt?.options) ? req.prompt.options : [];
@@ -1464,20 +1502,24 @@ function renderPrompts() {
       row.className = 'row';
       const ok = mkBtn('Submit');
       ok.addEventListener('click', () => submit({ status: 'ok', value: multiple ? Array.from(selected) : Array.from(selected)[0] || '' }));
-      const cancel = mkBtn('Cancel', true);
-      cancel.addEventListener('click', () => submit({ status: 'cancel' }));
       row.appendChild(ok);
-      row.appendChild(cancel);
+      if (allowCancel) {
+        const cancel = mkBtn('Cancel', true);
+        cancel.addEventListener('click', () => submit({ status: 'cancel' }));
+        row.appendChild(cancel);
+      }
       form.appendChild(row);
     } else {
       const row = document.createElement('div');
       row.className = 'row';
       const ok = mkBtn('OK');
       ok.addEventListener('click', () => submit({ status: 'ok' }));
-      const cancel = mkBtn('Cancel', true);
-      cancel.addEventListener('click', () => submit({ status: 'cancel' }));
       row.appendChild(ok);
-      row.appendChild(cancel);
+      if (allowCancel) {
+        const cancel = mkBtn('Cancel', true);
+        cancel.addEventListener('click', () => submit({ status: 'cancel' }));
+        row.appendChild(cancel);
+      }
       form.appendChild(row);
     }
 

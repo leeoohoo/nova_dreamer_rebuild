@@ -15,6 +15,7 @@ import {
 } from 'antd';
 
 import { CodeBlock } from '../../../components/CodeBlock.jsx';
+import { MarkdownBlock } from '../../../components/MarkdownBlock.jsx';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -108,6 +109,15 @@ export function FloatingIslandPrompt({
     }
     if (safeKind === 'file_change_confirm') {
       setRemarkDraft(typeof safePrompt?.defaultRemark === 'string' ? safePrompt.defaultRemark : '');
+      setTasksDraft([]);
+      setKvDraft({});
+      setChoiceDraft('');
+      setMultiDraft([]);
+      setPromptSubmitting(false);
+      return;
+    }
+    if (safeKind === 'result') {
+      setRemarkDraft('');
       setTasksDraft([]);
       setKvDraft({});
       setChoiceDraft('');
@@ -209,6 +219,16 @@ export function FloatingIslandPrompt({
           response: { status: 'ok', remark: typeof remarkDraft === 'string' ? remarkDraft : '' },
         });
         message.success('已提交');
+        return;
+      }
+
+      if (safeKind === 'result') {
+        await onUiPromptRespond({
+          requestId: safeRequestId,
+          runId: safeRunId,
+          response: { status: 'ok' },
+        });
+        message.success('已确认');
         return;
       }
 
@@ -494,6 +514,43 @@ export function FloatingIslandPrompt({
           ) : null}
           <Button size="large" type="primary" loading={promptSubmitting} onClick={handlePromptConfirm}>
             确定
+          </Button>
+        </Space>
+      </Space>
+    );
+  }
+
+  if (safeKind === 'result') {
+    const origin = typeof safePrompt?.source === 'string' ? safePrompt.source.trim() : '';
+    const markdownText =
+      typeof safePrompt?.markdown === 'string'
+        ? safePrompt.markdown
+        : typeof safePrompt?.result === 'string'
+          ? safePrompt.result
+          : typeof safePrompt?.content === 'string'
+            ? safePrompt.content
+            : '';
+
+    return (
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <Space align="center" wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space align="center" wrap size={8}>
+            <Text strong>{title || '执行结果'}</Text>
+            {safeRunId ? <Tag color="blue">{safeRunId}</Tag> : null}
+            {origin ? <Tag color="geekblue">{origin}</Tag> : null}
+            {count > 1 ? <Tag color="purple">{count} 个待处理</Tag> : null}
+          </Space>
+        </Space>
+        {desc ? <Text type="secondary">{desc}</Text> : null}
+        <MarkdownBlock text={markdownText || '（无结果内容）'} maxHeight={constrainHeight ? 360 : 520} copyable />
+        <Space size={10} align="center" style={{ width: '100%', justifyContent: 'flex-end' }} wrap>
+          {canCancel ? (
+            <Button size="large" onClick={handlePromptCancel} disabled={promptSubmitting}>
+              关闭
+            </Button>
+          ) : null}
+          <Button size="large" type="primary" loading={promptSubmitting} onClick={handlePromptConfirm}>
+            知道了
           </Button>
         </Space>
       </Space>
