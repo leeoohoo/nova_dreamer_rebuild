@@ -150,18 +150,38 @@ async function initializeMcpRuntime(
       scope: 'MCP',
     });
   const eventLogger = options?.eventLogger || null;
-  let servers;
-  try {
-    ({ servers } = loadMcpConfig(configPath));
-  } catch (err) {
-    log.error('读取 mcp.config.json 失败', err);
-    runtimeLogger?.error('读取 mcp.config.json 失败', { configPath }, err);
-    eventLogger?.log?.('mcp_error', {
-      stage: 'load_config',
-      path: configPath || '',
-      message: err?.message || String(err),
-    });
-    return null;
+  const hasInlineServers =
+    options &&
+    (Object.prototype.hasOwnProperty.call(options, 'servers') ||
+      Object.prototype.hasOwnProperty.call(options, 'serverList'));
+  const explicitBaseDir = typeof options?.baseDir === 'string' ? options.baseDir.trim() : '';
+  let servers = [];
+  let baseDir = '';
+  let resolvedConfigPath = typeof configPath === 'string' ? configPath : '';
+  if (hasInlineServers) {
+    const inlineServers = Array.isArray(options?.servers)
+      ? options.servers
+      : Array.isArray(options?.serverList)
+        ? options.serverList
+        : [];
+    servers = inlineServers;
+    baseDir = explicitBaseDir || (resolvedConfigPath ? path.dirname(resolvedConfigPath) : process.cwd());
+  } else {
+    try {
+      const loaded = loadMcpConfig(configPath);
+      servers = loaded?.servers || [];
+      resolvedConfigPath = typeof loaded?.path === 'string' ? loaded.path : resolvedConfigPath;
+      baseDir = explicitBaseDir || (resolvedConfigPath ? path.dirname(resolvedConfigPath) : process.cwd());
+    } catch (err) {
+      log.error('读取 mcp.config.json 失败', err);
+      runtimeLogger?.error('读取 mcp.config.json 失败', { configPath }, err);
+      eventLogger?.log?.('mcp_error', {
+        stage: 'load_config',
+        path: configPath || '',
+        message: err?.message || String(err),
+      });
+      return null;
+    }
   }
   const extraServers = Array.isArray(options?.extraServers) ? options.extraServers : [];
   const mergedServers = (() => {
@@ -187,7 +207,7 @@ async function initializeMcpRuntime(
     skip.size > 0
       ? enabledServers.filter((entry) => !skip.has(String(entry?.name || '').toLowerCase()))
       : enabledServers;
-  const baseDir = configPath ? path.dirname(configPath) : process.cwd();
+  const baseDirResolved = baseDir || process.cwd();
   const connectTargets = filteredServers.filter((entry) => entry && entry.url);
   const startupConcurrency = resolveConcurrency(
     options?.mcpStartupConcurrency ?? process.env.MODEL_CLI_MCP_STARTUP_CONCURRENCY,
@@ -195,7 +215,7 @@ async function initializeMcpRuntime(
   );
   const runtimeOptions = { ...options, runtimeLogger, eventLogger };
   const settled = await mapAllSettledWithConcurrency(connectTargets, startupConcurrency, (entry) =>
-    connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions)
+    connectMcpServer(entry, baseDirResolved, sessionRoot, workspaceRoot, runtimeOptions)
   );
   const handles = [];
   settled.forEach((result, idx) => {

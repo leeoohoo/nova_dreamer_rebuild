@@ -648,14 +648,39 @@ export function createChatRunner({
     };
   };
 
-  const computeMcpSignature = (servers, skipServers) => {
+  const computeMcpSignature = ({ servers, skipServers, baseDir, mode } = {}) => {
+    const toJson = (value) => {
+      if (!value || typeof value !== 'object') return '';
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '';
+      }
+    };
     const list = Array.isArray(servers) ? servers : [];
     const items = list
       .map((entry) => {
-        const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+        const name = typeof entry?.name === 'string' ? entry.name.trim().toLowerCase() : '';
         const url = typeof entry?.url === 'string' ? entry.url.trim() : '';
         if (!name || !url) return null;
-        return `${name}\u0000${url}`;
+        const enabled = entry?.enabled !== false ? '1' : '0';
+        const apiKeyEnv =
+          typeof entry?.api_key_env === 'string'
+            ? entry.api_key_env.trim()
+            : typeof entry?.apiKeyEnv === 'string'
+              ? entry.apiKeyEnv.trim()
+              : '';
+        const tags = Array.isArray(entry?.tags)
+          ? entry.tags.map((tag) => String(tag || '').trim().toLowerCase()).filter(Boolean).sort().join(',')
+          : '';
+        const auth = entry?.auth && typeof entry.auth === 'object' ? toJson(entry.auth) : '';
+        const callMeta =
+          entry?.callMeta && typeof entry.callMeta === 'object'
+            ? toJson(entry.callMeta)
+            : entry?.call_meta && typeof entry.call_meta === 'object'
+              ? toJson(entry.call_meta)
+              : '';
+        return `${name}\u0000${url}\u0000${enabled}\u0000${apiKeyEnv}\u0000${tags}\u0000${auth}\u0000${callMeta}`;
       })
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
@@ -665,7 +690,86 @@ export function createChatRunner({
           .filter(Boolean)
           .sort((a, b) => a.localeCompare(b))
       : [];
-    return `${items.join('\u0001')}\u0002${skips.join('\u0001')}`;
+    const base = typeof baseDir === 'string' && baseDir.trim() ? path.resolve(baseDir.trim()) : '';
+    const modeTag = typeof mode === 'string' && mode.trim() ? mode.trim() : 'config';
+    return `${modeTag}\u0000${base}\u0001${items.join('\u0001')}\u0002${skips.join('\u0001')}`;
+  };
+
+  const normalizeRuntimeServerEntry = (entry) => {
+    if (!entry || typeof entry !== 'object') return null;
+    const name = typeof entry?.name === 'string' ? entry.name.trim() : '';
+    const url = typeof entry?.url === 'string' ? entry.url.trim() : '';
+    if (!name || !url) return null;
+    const tags = Array.isArray(entry?.tags)
+      ? entry.tags.map((tag) => String(tag || '').trim()).filter(Boolean)
+      : [];
+    const apiKeyEnv =
+      typeof entry?.api_key_env === 'string'
+        ? entry.api_key_env.trim()
+        : typeof entry?.apiKeyEnv === 'string'
+          ? entry.apiKeyEnv.trim()
+          : '';
+    const auth = entry?.auth && typeof entry.auth === 'object' ? entry.auth : entry?.auth;
+    const callMeta =
+      entry?.callMeta && typeof entry.callMeta === 'object'
+        ? entry.callMeta
+        : entry?.call_meta && typeof entry.call_meta === 'object'
+          ? entry.call_meta
+          : undefined;
+    const allowMain = entry?.allowMain === true || entry?.allow_main === true;
+    const allowSub =
+      entry?.allowSub !== false &&
+      entry?.allow_sub !== false &&
+      entry?.allowSubagent !== false &&
+      entry?.allow_subagent !== false;
+    const appId =
+      typeof entry?.app_id === 'string'
+        ? entry.app_id.trim()
+        : typeof entry?.appId === 'string'
+          ? entry.appId.trim()
+          : '';
+    return {
+      name,
+      url,
+      description: typeof entry?.description === 'string' ? entry.description : '',
+      tags,
+      enabled: entry?.enabled !== false,
+      allowMain,
+      allowSub,
+      ...(apiKeyEnv ? { api_key_env: apiKeyEnv } : null),
+      ...(auth ? { auth } : null),
+      ...(callMeta ? { callMeta } : null),
+      ...(appId ? { app_id: appId } : null),
+    };
+  };
+
+  const buildRuntimeMcpServers = ({ selectedIds, servers, extraServers } = {}) => {
+    const selected = new Set(
+      (Array.isArray(selectedIds) ? selectedIds : []).map((id) => normalizeId(id)).filter(Boolean)
+    );
+    const byId = new Map(
+      (Array.isArray(servers) ? servers : [])
+        .filter((srv) => normalizeId(srv?.id))
+        .map((srv) => [normalizeId(srv.id), srv])
+    );
+    const seen = new Set();
+    const out = [];
+    const add = (entry) => {
+      const normalized = normalizeRuntimeServerEntry(entry);
+      if (!normalized) return;
+      const key = normalized.name.toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push(normalized);
+    };
+    if (selected.size > 0) {
+      selected.forEach((id) => {
+        const entry = byId.get(id);
+        if (entry) add(entry);
+      });
+    }
+    (Array.isArray(extraServers) ? extraServers : []).forEach(add);
+    return out;
   };
 
   const resolveMcpConfigPath = () => {
@@ -725,6 +829,7 @@ export function createChatRunner({
   const ensureMcp = async ({
     timeoutMs = MCP_INIT_TIMEOUT_MS,
     workspaceRoot: desiredWorkspaceRoot,
+    servers,
     extraServers,
     skipServers,
     emitEvent,
@@ -732,11 +837,19 @@ export function createChatRunner({
     const notify = typeof emitEvent === 'function' ? emitEvent : sendEvent;
     const effectiveWorkspaceRoot =
       normalizeWorkspaceRoot(desiredWorkspaceRoot) || normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
-    const signature = computeMcpSignature(extraServers, skipServers);
-    const currentMtime = readMcpConfigMtimeMs();
+    const configPath = resolveMcpConfigPath() || defaultPaths.models;
+    const baseDir = configPath ? path.dirname(configPath) : process.cwd();
+    const useInlineServers = Array.isArray(servers);
+    const signature = computeMcpSignature({
+      servers: useInlineServers ? servers : extraServers,
+      skipServers,
+      baseDir,
+      mode: useInlineServers ? 'inline' : 'config',
+    });
+    const currentMtime = useInlineServers ? null : readMcpConfigMtimeMs();
     const workspaceMatches = normalizeWorkspaceRoot(mcpWorkspaceRoot) === effectiveWorkspaceRoot;
     const configMatches =
-      currentMtime === null || mcpConfigMtimeMs === null ? true : currentMtime === mcpConfigMtimeMs;
+      useInlineServers || currentMtime === null || mcpConfigMtimeMs === null ? true : currentMtime === mcpConfigMtimeMs;
     const signatureMatches = mcpSignature === signature;
     if (mcpRuntime && workspaceMatches && configMatches && signatureMatches) return mcpRuntime;
     if (
@@ -766,14 +879,15 @@ export function createChatRunner({
       mcpInitPromise = (async () => {
         try {
           const { initializeMcpRuntime } = await loadEngineDeps();
-          const configPath = resolveMcpConfigPath() || defaultPaths.models;
           mcpRuntime = await initializeMcpRuntime(configPath, sessionRoot, effectiveWorkspaceRoot, {
             caller: 'main',
+            servers: useInlineServers ? servers : undefined,
             extraServers,
             skipServers,
+            baseDir,
           });
           mcpWorkspaceRoot = effectiveWorkspaceRoot;
-          mcpConfigMtimeMs = readMcpConfigMtimeMs();
+          mcpConfigMtimeMs = useInlineServers ? null : readMcpConfigMtimeMs();
           mcpSignature = signature;
         } catch (err) {
           mcpRuntime = null;
@@ -1318,13 +1432,16 @@ export function createChatRunner({
     const subagentUserPrompt = '';
     const subagentMcpAllowPrefixes = null;
 
-    const shouldInitMcp =
-      (Array.isArray(effectiveAgent.mcpServerIds) && effectiveAgent.mcpServerIds.length > 0) ||
-      (Array.isArray(extraRuntimeServers) && extraRuntimeServers.length > 0);
+    const runtimeMcpServers = buildRuntimeMcpServers({
+      selectedIds: effectiveAgent.mcpServerIds,
+      servers: mergedMcpServers,
+      extraServers: extraRuntimeServers,
+    });
+    const shouldInitMcp = runtimeMcpServers.length > 0;
     if (shouldInitMcp) {
       await ensureMcp({
         workspaceRoot: effectiveWorkspaceRoot,
-        extraServers: extraRuntimeServers,
+        servers: runtimeMcpServers,
         emitEvent: scopedSendEvent,
       });
     }
