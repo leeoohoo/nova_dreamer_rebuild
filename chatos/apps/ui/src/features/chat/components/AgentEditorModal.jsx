@@ -10,6 +10,12 @@ function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizePromptLang(value, fallback = 'auto') {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (raw === 'zh' || raw === 'en' || raw === 'auto') return raw;
+  return fallback;
+}
+
 function normalizeMcpServerName(value) {
   return String(value || '')
     .trim()
@@ -40,9 +46,33 @@ function parseUiAppKey(key) {
   return { pluginId, appId };
 }
 
-export function AgentEditorModal({ open, initialValues, models, mcpServers, prompts, uiApps, onCancel, onSave }) {
+export function AgentEditorModal({
+  open,
+  initialValues,
+  models,
+  mcpServers,
+  prompts,
+  uiApps,
+  promptLanguage,
+  onCancel,
+  onSave,
+}) {
   const [form] = Form.useForm();
   const [mcpPromptLang, setMcpPromptLang] = useState('zh');
+  const normalizedGlobalPromptLang = normalizePromptLang(promptLanguage, 'auto');
+  const promptLangOptions = useMemo(() => {
+    const globalLabel =
+      normalizedGlobalPromptLang === 'en'
+        ? '跟随全局 (English)'
+        : normalizedGlobalPromptLang === 'zh'
+          ? '跟随全局 (中文)'
+          : '跟随全局';
+    return [
+      { value: 'auto', label: globalLabel },
+      { value: 'zh', label: '中文' },
+      { value: 'en', label: 'English' },
+    ];
+  }, [normalizedGlobalPromptLang]);
   const markdownEditorStyle = useMemo(
     () => ({
       fontFamily:
@@ -335,6 +365,8 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
     if (!hasMcp && !hasPrompt) return null;
     const mcpDefault = Boolean(meta?.hasOwnMcp);
     const promptDefault = Boolean(meta?.hasOwnPrompt);
+    const promptLang = normalizePromptLang(ref?.promptLang, 'auto');
+    const resolvedPromptLang = promptLang === 'auto' ? normalizedGlobalPromptLang : promptLang;
     const explicitMcpServerIds = uniqueIds(ref?.mcpServerIds);
     const explicitPromptIds = uniqueIds(ref?.promptIds);
     const derivedMcpServerIds = (() => {
@@ -345,8 +377,14 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
     const derivedPromptIds = (() => {
       if (!hasPrompt) return [];
       const names = meta?.promptNames && typeof meta.promptNames === 'object' ? meta.promptNames : null;
-      const candidates = [names?.zh, names?.en].map((n) => normalizeId(n)).filter(Boolean);
-      for (const name of candidates) {
+      const candidates =
+        resolvedPromptLang === 'en'
+          ? [names?.en, names?.zh]
+          : resolvedPromptLang === 'zh'
+            ? [names?.zh, names?.en]
+            : [names?.zh, names?.en];
+      const normalizedCandidates = candidates.map((n) => normalizeId(n)).filter(Boolean);
+      for (const name of normalizedCandidates) {
         const record = promptByName.get(String(name).toLowerCase()) || null;
         if (record?.id) return [record.id];
       }
@@ -359,6 +397,7 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
       appId,
       mcp: mcpEnabled,
       prompt: promptEnabled,
+      promptLang,
       mcpServerIds: hasMcp ? (explicitMcpServerIds.length > 0 ? explicitMcpServerIds : derivedMcpServerIds) : [],
       promptIds: hasPrompt ? (explicitPromptIds.length > 0 ? explicitPromptIds : derivedPromptIds) : [],
     };
@@ -752,6 +791,24 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
                       >
                         Prompt
                       </Checkbox>
+                    ) : null}
+                    {hasPrompt ? (
+                      <Select
+                        size="small"
+                        options={promptLangOptions}
+                        value={normalizePromptLang(ref.promptLang, 'auto')}
+                        onChange={(value) => {
+                          const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
+                          const next = list.map((item) => {
+                            const k = toUiAppKey(item?.pluginId, item?.appId);
+                            if (k !== key) return item;
+                            return { ...item, promptLang: normalizePromptLang(value, 'auto') };
+                          });
+                          form.setFieldsValue({ uiApps: next });
+                        }}
+                        disabled={!promptEnabled}
+                        style={{ minWidth: 120 }}
+                      />
                     ) : null}
                   </Space>
                 </div>

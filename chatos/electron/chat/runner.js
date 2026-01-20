@@ -1214,6 +1214,7 @@ export function createChatRunner({
       }
 
       if (wantsPrompt) {
+        const effectivePromptLang = normalizePromptLanguage(ref?.promptLang) || promptLanguage;
         const explicitPromptIds = Array.isArray(ref?.promptIds)
           ? ref.promptIds.map((id) => normalizeId(id)).filter(Boolean)
           : [];
@@ -1266,7 +1267,7 @@ export function createChatRunner({
           continue;
         }
 
-        const preferredName = getMcpPromptNameForServer(serverName, promptLanguage).toLowerCase();
+        const preferredName = getMcpPromptNameForServer(serverName, effectivePromptLang).toLowerCase();
         const fallbackName = getMcpPromptNameForServer(serverName).toLowerCase();
         if (registryAccess) {
           const allowedPrompt =
@@ -1319,7 +1320,7 @@ export function createChatRunner({
         const prompt = contribute?.mcpPrompt && typeof contribute.mcpPrompt === 'object' ? contribute.mcpPrompt : null;
         const zhText = typeof prompt?.zh === 'string' ? prompt.zh.trim() : '';
         const enText = typeof prompt?.en === 'string' ? prompt.en.trim() : '';
-        const lang = normalizePromptLanguage(promptLanguage) || 'zh';
+        const lang = normalizePromptLanguage(effectivePromptLang) || 'zh';
 
         let pickedName = '';
         let pickedText = '';

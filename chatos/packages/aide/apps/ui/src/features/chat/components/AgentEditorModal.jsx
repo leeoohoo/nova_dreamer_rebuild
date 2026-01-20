@@ -12,6 +12,12 @@ function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizePromptLang(value, fallback = 'auto') {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (raw === 'zh' || raw === 'en' || raw === 'auto') return raw;
+  return fallback;
+}
+
 function normalizeMcpServerName(value) {
   return String(value || '')
     .trim()
@@ -42,7 +48,19 @@ function parseUiAppKey(key) {
   return { pluginId, appId };
 }
 
-function UiAppCard({ label, metaText, hasMcp, hasPrompt, mcpEnabled, promptEnabled, onToggleMcp, onTogglePrompt }) {
+function UiAppCard({
+  label,
+  metaText,
+  hasMcp,
+  hasPrompt,
+  mcpEnabled,
+  promptEnabled,
+  promptLang,
+  promptLangOptions,
+  onToggleMcp,
+  onTogglePrompt,
+  onPromptLangChange,
+}) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -75,14 +93,48 @@ function UiAppCard({ label, metaText, hasMcp, hasPrompt, mcpEnabled, promptEnabl
         <Checkbox checked={promptEnabled} disabled={!hasPrompt} onChange={onTogglePrompt}>
           Prompt
         </Checkbox>
+        {hasPrompt ? (
+          <Select
+            size="small"
+            value={promptLang || 'auto'}
+            options={promptLangOptions}
+            onChange={(value) => onPromptLangChange?.(value)}
+            disabled={!promptEnabled}
+            style={{ minWidth: 120 }}
+          />
+        ) : null}
       </Space>
     </div>
   );
 }
 
-export function AgentEditorModal({ open, initialValues, models, mcpServers, prompts, uiApps, onCancel, onSave }) {
+export function AgentEditorModal({
+  open,
+  initialValues,
+  models,
+  mcpServers,
+  prompts,
+  uiApps,
+  promptLanguage,
+  onCancel,
+  onSave,
+}) {
   const [form] = Form.useForm();
   const [mcpPromptLang, setMcpPromptLang] = useState('zh');
+  const normalizedGlobalPromptLang = normalizePromptLang(promptLanguage, 'auto');
+  const promptLangOptions = useMemo(() => {
+    const globalLabel =
+      normalizedGlobalPromptLang === 'en'
+        ? '跟随全局 (English)'
+        : normalizedGlobalPromptLang === 'zh'
+          ? '跟随全局 (中文)'
+          : '跟随全局';
+    return [
+      { value: 'auto', label: globalLabel },
+      { value: 'zh', label: '中文' },
+      { value: 'en', label: 'English' },
+    ];
+  }, [normalizedGlobalPromptLang]);
   const markdownEditorStyle = useMemo(
     () => ({
       fontFamily:
@@ -227,11 +279,13 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
     const meta = uiAppMetaByKey.get(key) || null;
     const mcpDefault = meta ? Boolean(meta.hasMcp) : true;
     const promptDefault = meta ? Boolean(meta.hasPrompt) : true;
+    const promptLang = normalizePromptLang(ref?.promptLang, 'auto');
     return {
       pluginId,
       appId,
       mcp: typeof ref?.mcp === 'boolean' ? ref.mcp : mcpDefault,
       prompt: typeof ref?.prompt === 'boolean' ? ref.prompt : promptDefault,
+      promptLang,
     };
   };
 
@@ -486,6 +540,8 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
                     hasPrompt={hasPrompt}
                     mcpEnabled={ref.mcp !== false}
                     promptEnabled={ref.prompt !== false}
+                    promptLang={normalizePromptLang(ref.promptLang, 'auto')}
+                    promptLangOptions={promptLangOptions}
                     onToggleMcp={(e) => {
                       const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
                       const next = list.map((item) => {
@@ -501,6 +557,15 @@ export function AgentEditorModal({ open, initialValues, models, mcpServers, prom
                         const k = toUiAppKey(item?.pluginId, item?.appId);
                         if (k !== key) return item;
                         return { ...item, prompt: e.target.checked };
+                      });
+                      form.setFieldsValue({ uiApps: next });
+                    }}
+                    onPromptLangChange={(value) => {
+                      const list = Array.isArray(form.getFieldValue('uiApps')) ? form.getFieldValue('uiApps') : [];
+                      const next = list.map((item) => {
+                        const k = toUiAppKey(item?.pluginId, item?.appId);
+                        if (k !== key) return item;
+                        return { ...item, promptLang: normalizePromptLang(value, 'auto') };
                       });
                       form.setFieldsValue({ uiApps: next });
                     }}

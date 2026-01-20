@@ -12,6 +12,12 @@ function normalizeId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizePromptLanguage(value) {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (raw === 'zh' || raw === 'en') return raw;
+  return '';
+}
+
 function countList(value) {
   return Array.isArray(value) ? value.filter(Boolean).length : 0;
 }
@@ -20,6 +26,11 @@ export function ChatAgentsView({ admin }) {
   const models = useMemo(() => (Array.isArray(admin?.models) ? admin.models : []), [admin]);
   const mcpServers = useMemo(() => (Array.isArray(admin?.mcpServers) ? admin.mcpServers : []), [admin]);
   const prompts = useMemo(() => (Array.isArray(admin?.prompts) ? admin.prompts : []), [admin]);
+  const runtimeSettings = useMemo(
+    () => (Array.isArray(admin?.settings) ? admin.settings.find((item) => item?.id === 'runtime') : null),
+    [admin]
+  );
+  const promptLanguage = normalizePromptLanguage(runtimeSettings?.promptLanguage);
   const { data: uiAppsData, refresh: refreshUiApps } = useUiAppsRegistry();
   const uiApps = useMemo(() => (Array.isArray(uiAppsData?.apps) ? uiAppsData.apps : []), [uiAppsData]);
 
@@ -138,6 +149,7 @@ export function ChatAgentsView({ admin }) {
         mcpServers={mcpServers}
         prompts={prompts}
         uiApps={uiApps}
+        promptLanguage={promptLanguage}
         onCancel={closeAgentModal}
         onSave={async (values) => saveAgent(values)}
       />

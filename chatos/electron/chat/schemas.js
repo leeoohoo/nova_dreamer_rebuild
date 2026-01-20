@@ -41,6 +41,7 @@ export const chatAgentSchema = z.object({
         appId: z.string().trim().min(1, 'uiApps[].appId is required'),
         mcp: z.boolean().optional().default(true),
         prompt: z.boolean().optional().default(true),
+        promptLang: z.enum(['auto', 'zh', 'en']).optional().default('auto'),
         mcpServerIds: z.array(z.string().trim()).optional().default([]),
         promptIds: z.array(z.string().trim()).optional().default([]),
       })
