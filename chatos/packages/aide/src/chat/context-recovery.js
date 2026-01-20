@@ -19,6 +19,7 @@ async function chatWithContextRecovery({ client, model, session, options, summar
         throwIfAborted(signal);
         return await client.chat(model, session, options);
       }
+      console.log(colors.yellow('检测到 tool_calls 协议错误，但未能修复，继续抛出。'));
     }
     if (!isContextLengthError(err)) {
       throw err;
@@ -26,16 +27,28 @@ async function chatWithContextRecovery({ client, model, session, options, summar
     const signal = options?.signal;
     throwIfAborted(signal);
     const info = parseContextLengthError(err);
-    const detail = info?.maxTokens
-      ? `（max ${info.maxTokens}, requested ${info.requestedTokens ?? '?'})`
-      : '';
-    console.log(colors.yellow(`上下文过长，自动总结后重试 ${detail}`));
-    if (summaryManager?.forceSummarize) {
-      await summaryManager.forceSummarize(session, client, model, { signal });
-    } else {
-      await summarizeSession(session, client, model, { signal });
+    const detail = formatContextErrorDetail(info);
+    console.log(colors.yellow(`上下文过长，准备自动总结后重试${detail}`));
+    let summarized = false;
+    let summaryError = null;
+    try {
+      if (summaryManager?.forceSummarize) {
+        summarized = await summaryManager.forceSummarize(session, client, model, { signal });
+      } else {
+        summarized = await summarizeSession(session, client, model, { signal });
+      }
+    } catch (errSummary) {
+      summaryError = errSummary;
+      const summaryMessage = normalizeErrorText(errSummary?.message || errSummary);
+      console.log(colors.yellow(`自动总结失败${summaryMessage ? `：${summaryMessage}` : ''}`));
     }
     throwIfAborted(signal);
+    if (!summarized) {
+      const reason = summaryError ? '自动总结失败' : '自动总结未缩短上下文';
+      console.log(colors.yellow(`${reason}，将裁剪为最小上下文后重试。`));
+      hardTrimSession(session);
+      return await client.chat(model, session, options);
+    }
     try {
       return await client.chat(model, session, options);
     } catch (err2) {
@@ -43,7 +56,9 @@ async function chatWithContextRecovery({ client, model, session, options, summar
         throw err2;
       }
       throwIfAborted(signal);
-      console.log(colors.yellow('总结后仍超长，已强制裁剪为最小上下文后重试。'));
+      const nextInfo = parseContextLengthError(err2);
+      const nextDetail = formatContextErrorDetail(nextInfo);
+      console.log(colors.yellow(`总结后仍超长，已强制裁剪为最小上下文后重试${nextDetail}`));
       hardTrimSession(session);
       return await client.chat(model, session, options);
     }
@@ -51,8 +66,44 @@ async function chatWithContextRecovery({ client, model, session, options, summar
 }
 
 function isContextLengthError(err) {
-  const message = String(err?.message || '');
-  return /maximum context length/i.test(message) || /context length/i.test(message);
+  const info = extractErrorInfo(err);
+  const status = info.status;
+  const messageText = info.messages.join('\n').toLowerCase();
+  const codeText = [info.code, info.type].filter(Boolean).join(' ').toLowerCase();
+  const codePatterns = [
+    /context[_\s-]?length/,
+    /context_length_exceeded/,
+    /max[_\s-]?tokens?/,
+    /token[_\s-]?limit/,
+    /context_window/,
+    /length_exceeded/,
+  ];
+  const messagePatterns = [
+    /maximum context length/,
+    /context length/,
+    /context window/,
+    /token limit/,
+    /max(?:imum)?\s*tokens?/,
+    /too many tokens/,
+    /exceed(?:ed|s)?\s*(?:the )?(?:maximum )?(?:context|token)/,
+    /input.*too long/,
+    /prompt.*too long/,
+    /上下文.*(过长|超出|超长|超过|上限|限制)/,
+    /上下文长度/,
+    /(token|tokens).*(超|超过|上限|限制)/,
+    /最大.*(上下文|token)/,
+    /输入.*过长/,
+  ];
+  const hasCodeHint = matchesAnyPattern(codeText, codePatterns);
+  const hasMessageHint = matchesAnyPattern(messageText, messagePatterns);
+  if (hasCodeHint || hasMessageHint) {
+    return true;
+  }
+  if (status === 400) {
+    const statusHints = /(context|token|length|window|上下文|长度|token)/i;
+    return statusHints.test(messageText) || statusHints.test(codeText);
+  }
+  return false;
 }
 
 function isToolCallProtocolError(err) {
@@ -73,15 +124,252 @@ function isToolCallProtocolError(err) {
 }
 
 function parseContextLengthError(err) {
-  const message = String(err?.message || '');
-  if (!message) return null;
-  const maxMatch = message.match(/maximum context length is (\d+)\s*tokens/i);
-  if (!maxMatch) return null;
-  const requestedMatch = message.match(/requested (\d+)\s*tokens/i);
+  const info = extractErrorInfo(err);
+  const messages = info.messages;
+  const text = messages.join('\n');
+  const structured = extractStructuredTokenCounts(err);
+  const parsed = extractTokenCountsFromText(text);
+  const maxTokens = structured.maxTokens ?? parsed.maxTokens;
+  const requestedTokens = structured.requestedTokens ?? parsed.requestedTokens;
+  if (
+    !info.status &&
+    !info.message &&
+    !info.code &&
+    !info.type &&
+    !maxTokens &&
+    !requestedTokens
+  ) {
+    return null;
+  }
   return {
-    maxTokens: Number(maxMatch[1]),
-    requestedTokens: requestedMatch ? Number(requestedMatch[1]) : undefined,
+    status: info.status,
+    code: info.code || undefined,
+    type: info.type || undefined,
+    message: info.message || undefined,
+    rawMessages: messages,
+    maxTokens,
+    requestedTokens,
   };
+}
+
+function formatContextErrorDetail(info) {
+  if (!info) return '';
+  const parts = [];
+  if (Number.isFinite(info.status)) parts.push(`status ${info.status}`);
+  if (info.code) parts.push(`code ${info.code}`);
+  if (info.type) parts.push(`type ${info.type}`);
+  if (Number.isFinite(info.maxTokens)) parts.push(`max ${info.maxTokens}`);
+  if (Number.isFinite(info.requestedTokens)) parts.push(`requested ${info.requestedTokens}`);
+  if (info.message) parts.push(`message: ${truncateText(info.message, 140)}`);
+  return parts.length > 0 ? `（${parts.join(', ')}）` : '';
+}
+
+function extractErrorInfo(err) {
+  const status = getErrorStatus(err);
+  const messages = collectErrorMessages(err);
+  const codes = collectErrorCodes(err);
+  const types = collectErrorTypes(err);
+  return {
+    status,
+    messages,
+    message: messages[0] || '',
+    code: codes[0] || '',
+    type: types[0] || '',
+  };
+}
+
+function getErrorStatus(err) {
+  const candidates = [
+    err?.status,
+    err?.statusCode,
+    err?.response?.status,
+    err?.response?.statusCode,
+    err?.response?.data?.status,
+    err?.response?.data?.statusCode,
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  return null;
+}
+
+function collectErrorMessages(err) {
+  const messages = [];
+  const push = (value) => {
+    const text = normalizeErrorText(value);
+    if (text) messages.push(text);
+  };
+  push(err?.message);
+  push(err?.error?.message);
+  push(err?.error?.error?.message);
+  push(err?.response?.data?.error?.message);
+  push(err?.response?.data?.message);
+  push(err?.response?.data?.error_description);
+  push(err?.response?.data?.error?.detail);
+  push(err?.response?.data?.error?.details);
+  if (typeof err?.response?.data === 'string') push(err.response.data);
+  if (typeof err?.data === 'string') push(err.data);
+  if (typeof err?.error === 'string') push(err.error);
+  return Array.from(new Set(messages));
+}
+
+function collectErrorCodes(err) {
+  const codes = [];
+  const push = (value) => {
+    const text = normalizeErrorText(value);
+    if (text) codes.push(text);
+  };
+  push(err?.code);
+  push(err?.error?.code);
+  push(err?.error?.error?.code);
+  push(err?.response?.data?.error?.code);
+  push(err?.response?.data?.code);
+  return Array.from(new Set(codes));
+}
+
+function collectErrorTypes(err) {
+  const types = [];
+  const push = (value) => {
+    const text = normalizeErrorText(value);
+    if (text) types.push(text);
+  };
+  push(err?.type);
+  push(err?.error?.type);
+  push(err?.error?.error?.type);
+  push(err?.response?.data?.error?.type);
+  push(err?.response?.data?.type);
+  return Array.from(new Set(types));
+}
+
+function normalizeErrorText(value) {
+  if (typeof value === 'string') return value.trim();
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error && typeof value.message === 'string') {
+    return value.message.trim();
+  }
+  return '';
+}
+
+function matchesAnyPattern(text, patterns) {
+  if (!text) return false;
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function extractStructuredTokenCounts(err) {
+  const maxTokens = pickNumber(
+    err?.error?.max_tokens,
+    err?.error?.maxTokens,
+    err?.error?.context_length,
+    err?.error?.context_length_max,
+    err?.error?.context_window,
+    err?.error?.limit,
+    err?.response?.data?.error?.max_tokens,
+    err?.response?.data?.error?.maxTokens,
+    err?.response?.data?.error?.context_length,
+    err?.response?.data?.error?.context_length_max,
+    err?.response?.data?.error?.context_window,
+    err?.response?.data?.error?.limit,
+    err?.response?.data?.max_tokens,
+    err?.response?.data?.maxTokens,
+    err?.response?.data?.context_length,
+    err?.response?.data?.context_window,
+    err?.data?.error?.max_tokens,
+    err?.data?.max_tokens
+  );
+  const requestedTokens = pickNumber(
+    err?.error?.requested_tokens,
+    err?.error?.requestedTokens,
+    err?.error?.total_tokens,
+    err?.error?.prompt_tokens,
+    err?.response?.data?.error?.requested_tokens,
+    err?.response?.data?.error?.requestedTokens,
+    err?.response?.data?.error?.total_tokens,
+    err?.response?.data?.error?.prompt_tokens,
+    err?.response?.data?.requested_tokens,
+    err?.response?.data?.total_tokens,
+    err?.data?.error?.requested_tokens,
+    err?.data?.requested_tokens
+  );
+  return { maxTokens, requestedTokens };
+}
+
+function extractTokenCountsFromText(text) {
+  const source = typeof text === 'string' ? text : '';
+  if (!source.trim()) return {};
+  const comparePatterns = [
+    /(\d+)\s*tokens?\s*(?:>|>=|exceeds|over|greater than)\s*(\d+)\s*tokens?/i,
+    /(\d+)\s*token(?:s)?\s*(?:超过|大于|超出|高于)\s*(\d+)\s*token(?:s)?/i,
+  ];
+  for (const pattern of comparePatterns) {
+    const match = source.match(pattern);
+    if (match) {
+      const requestedTokens = toNumber(match[1]);
+      const maxTokens = toNumber(match[2]);
+      return { maxTokens, requestedTokens };
+    }
+  }
+  const maxPatterns = [
+    /maximum context length is (\d+)\s*tokens?/i,
+    /maximum context length.*?(\d+)\s*tokens?/i,
+    /context(?:\s*length)?(?:\s*limit| window)?\s*(?:is|:)?\s*(\d+)\s*tokens?/i,
+    /max(?:imum)?\s*(?:is|:)?\s*(\d+)\s*tokens?/i,
+    /max(?:imum)?\s*tokens?\s*(?:is|:)?\s*(\d+)/i,
+    /token(?:s)?\s*limit(?:\s*is|:)?\s*(\d+)/i,
+    /(?:up to|at most)\s*(\d+)\s*tokens?/i,
+    /最大[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+    /上限[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+    /最多[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+    /上下文[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+  ];
+  let maxTokens;
+  for (const pattern of maxPatterns) {
+    const match = source.match(pattern);
+    if (match) {
+      maxTokens = toNumber(match[1]);
+      if (Number.isFinite(maxTokens)) break;
+    }
+  }
+  const requestedPatterns = [
+    /requested\s*(\d+)\s*tokens?/i,
+    /you requested\s*(\d+)\s*tokens?/i,
+    /request(?:ed)?\s*token(?:s)?\s*(\d+)/i,
+    /input.*?(\d+)\s*tokens?/i,
+    /prompt.*?(\d+)\s*tokens?/i,
+    /请求[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+    /输入[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+    /已用[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+    /使用[^0-9]{0,6}(\d+)\s*(?:token|tokens)?/i,
+  ];
+  let requestedTokens;
+  for (const pattern of requestedPatterns) {
+    const match = source.match(pattern);
+    if (match) {
+      requestedTokens = toNumber(match[1]);
+      if (Number.isFinite(requestedTokens)) break;
+    }
+  }
+  return { maxTokens, requestedTokens };
+}
+
+function toNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : undefined;
+}
+
+function pickNumber(...values) {
+  for (const value of values) {
+    const num = Number(value);
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  return undefined;
+}
+
+function truncateText(text, maxLength = 160) {
+  const value = typeof text === 'string' ? text.trim() : String(text ?? '');
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
 }
 
 function hardTrimSession(session) {
