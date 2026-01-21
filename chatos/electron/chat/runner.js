@@ -595,7 +595,7 @@ export function createChatRunner({
     return '';
   };
   const handleMcpNotification = (notification) => {
-    if (!eventLogPath || !notification) return;
+    if (!notification) return;
     const params = notification?.params && typeof notification.params === 'object' ? notification.params : null;
     const runId = typeof params?.runId === 'string' ? params.runId : '';
     const payload = {
@@ -604,7 +604,9 @@ export function createChatRunner({
       params,
     };
     const type = notification.method === 'notifications/message' ? 'mcp_log' : 'mcp_stream';
-    appendEventLog(eventLogPath, type, payload, runId);
+    if (eventLogPath) {
+      appendEventLog(eventLogPath, type, payload, runId);
+    }
     if (type === 'mcp_stream') {
       const sessionId = resolveMcpSessionId(params);
       if (sessionId) {
@@ -616,6 +618,24 @@ export function createChatRunner({
             receivedAt: new Date().toISOString(),
           },
         });
+      } else {
+        const debug = {
+          server: payload.server,
+          method: payload.method,
+          runId,
+          rpcId: params?.rpcId,
+          windowId: params?.windowId,
+          requestId: params?.requestId,
+          status: params?.status,
+        };
+        if (eventLogPath) {
+          appendEventLog(eventLogPath, 'mcp_stream_unrouted', debug, runId);
+        }
+        try {
+          console.warn('[mcp] stream notification missing sessionId', debug);
+        } catch {
+          // ignore
+        }
       }
     }
   };
@@ -1061,8 +1081,7 @@ export function createChatRunner({
 
     const runtimeConfig = adminServices.settings?.getRuntimeConfig ? adminServices.settings.getRuntimeConfig() : null;
     const promptLanguage = runtimeConfig?.promptLanguage || null;
-    const runtimeWorkdir = normalizeWorkspaceRoot(runtimeConfig?.uiPromptWorkdir);
-    const effectiveToolWorkdir = runtimeWorkdir || effectiveWorkspaceRoot;
+    const effectiveToolWorkdir = effectiveWorkspaceRoot;
     const summaryConfigPath = typeof defaultPaths?.models === 'string' ? defaultPaths.models : null;
     const summaryManager = createSummaryManager({
       summaryThreshold: runtimeConfig?.summaryTokenThreshold,

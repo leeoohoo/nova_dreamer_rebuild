@@ -48,6 +48,10 @@ function resolveBoolEnv(value, fallback = false) {
   return fallback;
 }
 
+function normalizeSessionId(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 const MCP_STREAM_NOTIFICATION_METHODS = [
   'codex_app.window_run.stream',
   'codex_app.window_run.done',
@@ -112,6 +116,19 @@ const createMcpStreamTracker = () => {
     entry.resolve(typeof text === 'string' ? text : '');
   };
 
+  const attachSessionId = (notification) => {
+    if (!notification || typeof notification !== 'object') return;
+    const params = notification?.params && typeof notification.params === 'object' ? notification.params : null;
+    if (!params) return;
+    if (normalizeSessionId(params?.sessionId)) return;
+    const rpcId = params?.rpcId;
+    if (!Number.isFinite(rpcId)) return;
+    const entry = pending.get(rpcId);
+    const sessionId = normalizeSessionId(entry?.sessionId);
+    if (!sessionId) return;
+    notification.params = { ...params, sessionId };
+  };
+
   const handleNotification = (notification) => {
     const params = notification && typeof notification === 'object' ? notification.params : null;
     const rpcId = params?.rpcId;
@@ -153,7 +170,7 @@ const createMcpStreamTracker = () => {
     }
   };
 
-  const waitForFinalText = ({ rpcId, timeoutMs, signal } = {}) =>
+  const waitForFinalText = ({ rpcId, timeoutMs, signal, sessionId } = {}) =>
     new Promise((resolve) => {
       if (!Number.isFinite(rpcId)) {
         resolve('');
@@ -171,6 +188,7 @@ const createMcpStreamTracker = () => {
         timer: null,
         signal: signal || null,
         abortHandler: null,
+        sessionId: normalizeSessionId(sessionId),
       };
       pending.set(rpcId, entry);
 
@@ -187,12 +205,13 @@ const createMcpStreamTracker = () => {
       }
     });
 
-  return { handleNotification, waitForFinalText };
+  return { attachSessionId, handleNotification, waitForFinalText };
 };
 
 function registerMcpNotificationHandlers(client, { serverName, onNotification, eventLogger, streamTracker } = {}) {
   if (!client || typeof client.setNotificationHandler !== 'function') return;
   const emit = (notification) => {
+    streamTracker?.attachSessionId?.(notification);
     const payload = { server: serverName, method: notification.method, params: notification.params };
     if (notification.method === 'notifications/message') {
       eventLogger?.log?.('mcp_log', payload);
@@ -978,6 +997,7 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
           rpcId,
           timeoutMs: resolveMcpStreamTimeoutMs(optionsWithSignal),
           signal: toolContext?.signal,
+          sessionId: toolContext?.session?.sessionId,
         });
       }
       try {
@@ -1110,7 +1130,7 @@ function applyUiAppWorkdirOverride(meta, workdir) {
       ...meta.chatos,
       uiApp: {
         ...uiApp,
-        projectRoot: '',
+        projectRoot: workdir,
         sessionRoot: '',
       },
     },

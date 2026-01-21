@@ -506,6 +506,9 @@ export function useChatSessions() {
             streamBuffersRef.current = next;
             return next;
           });
+          if (normalizeId(selectedSessionIdRef.current) === sid) {
+            void refreshMessages(sid).catch(() => {});
+          }
         }
         if (type === 'assistant_error') {
           const errorMessage = extractErrorMessage(payload);
