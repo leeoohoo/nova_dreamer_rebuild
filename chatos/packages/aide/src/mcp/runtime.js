@@ -1150,9 +1150,20 @@ function buildCallMeta(serverEntry, runtimeMeta, toolContext) {
     merged = { ...override };
   }
   const contextWorkdir = normalizeWorkdir(toolContext?.workdir);
-  if (!contextWorkdir) return merged;
-  const withWorkdir = merged ? { ...merged, workdir: contextWorkdir } : { workdir: contextWorkdir };
-  return applyUiAppWorkdirOverride(withWorkdir, contextWorkdir);
+  const contextSessionId = normalizeSessionId(toolContext?.session?.sessionId);
+  let next = merged;
+  if (contextWorkdir) {
+    const withWorkdir = next ? { ...next, workdir: contextWorkdir } : { workdir: contextWorkdir };
+    next = applyUiAppWorkdirOverride(withWorkdir, contextWorkdir);
+  }
+  if (contextSessionId) {
+    if (!next) {
+      next = { sessionId: contextSessionId };
+    } else if (!Object.prototype.hasOwnProperty.call(next, 'sessionId')) {
+      next = { ...next, sessionId: contextSessionId };
+    }
+  }
+  return next;
 }
 
 function buildRuntimeCallMeta({ workspaceRoot } = {}) {
