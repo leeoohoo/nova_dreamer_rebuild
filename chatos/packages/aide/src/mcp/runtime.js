@@ -31,6 +31,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
+import { LoggingMessageNotificationSchema, NotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
 const log = createLogger('MCP');
 const require = createRequire(import.meta.url);
@@ -44,6 +46,172 @@ function resolveBoolEnv(value, fallback = false) {
   if (['1', 'true', 'yes', 'y', 'on'].includes(raw)) return true;
   if (['0', 'false', 'no', 'n', 'off'].includes(raw)) return false;
   return fallback;
+}
+
+const MCP_STREAM_NOTIFICATION_METHODS = [
+  'codex_app.window_run.stream',
+  'codex_app.window_run.done',
+  'codex_app.window_run.completed',
+];
+
+const buildLooseNotificationSchema = (method) =>
+  NotificationSchema.extend({
+    method: z.literal(method),
+    params: z.unknown().optional(),
+  });
+
+const resolveMcpStreamTimeoutMs = (options) => {
+  const fromOptions = Number(options?.maxTotalTimeout || options?.timeout || 0);
+  if (Number.isFinite(fromOptions) && fromOptions > 0) return fromOptions;
+  return getDefaultToolMaxTimeoutMs();
+};
+
+const buildFinalTextFromChunks = (chunks) => {
+  if (!chunks || chunks.size === 0) return '';
+  const ordered = Array.from(chunks.keys())
+    .filter((key) => Number.isFinite(key))
+    .sort((a, b) => a - b);
+  return ordered.map((idx) => chunks.get(idx) || '').join('');
+};
+
+const shouldUseFinalStreamResult = (serverName, toolName) => {
+  const srv = String(serverName || '').trim().toLowerCase();
+  const tool = String(toolName || '').trim().toLowerCase();
+  if (tool === 'codex_app_window_run') return true;
+  if (srv.includes('codex_app') && tool.includes('window_run')) return true;
+  return false;
+};
+
+const createMcpStreamTracker = () => {
+  const pending = new Map();
+
+  const cleanup = (rpcId) => {
+    const entry = pending.get(rpcId);
+    if (!entry) return;
+    if (entry.timer) {
+      try {
+        clearTimeout(entry.timer);
+      } catch {
+        // ignore
+      }
+    }
+    if (entry.abortHandler && entry.signal) {
+      try {
+        entry.signal.removeEventListener('abort', entry.abortHandler);
+      } catch {
+        // ignore
+      }
+    }
+    pending.delete(rpcId);
+  };
+
+  const finalize = (rpcId, text) => {
+    const entry = pending.get(rpcId);
+    if (!entry) return;
+    cleanup(rpcId);
+    entry.resolve(typeof text === 'string' ? text : '');
+  };
+
+  const handleNotification = (notification) => {
+    const params = notification && typeof notification === 'object' ? notification.params : null;
+    const rpcId = params?.rpcId;
+    if (!Number.isFinite(rpcId)) return;
+    const entry = pending.get(rpcId);
+    if (!entry) return;
+    const finalText =
+      typeof params?.finalText === 'string'
+        ? params.finalText
+        : params?.final === true && typeof params?.text === 'string'
+          ? params.text
+          : '';
+    if (finalText) {
+      if (params?.finalTextChunk === true) {
+        const idx = Number.isFinite(params?.chunkIndex) ? params.chunkIndex : entry.chunks.size;
+        entry.chunks.set(idx, finalText);
+        if (Number.isFinite(params?.chunkCount)) {
+          entry.chunkCount = params.chunkCount;
+        }
+      } else {
+        entry.finalWhole = finalText;
+      }
+    }
+
+    const status = typeof params?.status === 'string' ? params.status.toLowerCase() : '';
+    const done =
+      params?.done === true ||
+      notification?.method === 'codex_app.window_run.done' ||
+      notification?.method === 'codex_app.window_run.completed' ||
+      ['completed', 'failed', 'aborted', 'cancelled'].includes(status);
+    if (done) entry.done = true;
+
+    const chunksReady = entry.chunks.size > 0 && (Number.isFinite(entry.chunkCount) ? entry.chunks.size >= entry.chunkCount : entry.done);
+    const ready = Boolean(entry.finalWhole) || chunksReady;
+
+    if (entry.done && ready) {
+      const text = entry.finalWhole || buildFinalTextFromChunks(entry.chunks);
+      finalize(rpcId, text);
+    }
+  };
+
+  const waitForFinalText = ({ rpcId, timeoutMs, signal } = {}) =>
+    new Promise((resolve) => {
+      if (!Number.isFinite(rpcId)) {
+        resolve('');
+        return;
+      }
+      if (pending.has(rpcId)) {
+        pending.delete(rpcId);
+      }
+      const entry = {
+        resolve,
+        done: false,
+        chunks: new Map(),
+        chunkCount: null,
+        finalWhole: '',
+        timer: null,
+        signal: signal || null,
+        abortHandler: null,
+      };
+      pending.set(rpcId, entry);
+
+      const effectiveTimeout = resolveMcpStreamTimeoutMs({ maxTotalTimeout: timeoutMs });
+      if (effectiveTimeout && effectiveTimeout > 0) {
+        entry.timer = setTimeout(() => {
+          const text = entry.finalWhole || buildFinalTextFromChunks(entry.chunks);
+          finalize(rpcId, text);
+        }, effectiveTimeout);
+      }
+      if (signal && typeof signal.addEventListener === 'function') {
+        entry.abortHandler = () => finalize(rpcId, '');
+        signal.addEventListener('abort', entry.abortHandler, { once: true });
+      }
+    });
+
+  return { handleNotification, waitForFinalText };
+};
+
+function registerMcpNotificationHandlers(client, { serverName, onNotification, eventLogger, streamTracker } = {}) {
+  if (!client || typeof client.setNotificationHandler !== 'function') return;
+  const emit = (notification) => {
+    const payload = { server: serverName, method: notification.method, params: notification.params };
+    if (notification.method === 'notifications/message') {
+      eventLogger?.log?.('mcp_log', payload);
+    } else {
+      eventLogger?.log?.('mcp_stream', payload);
+    }
+    if (typeof onNotification === 'function') {
+      try {
+        onNotification({ serverName, ...notification });
+      } catch {
+        // ignore notification relay errors
+      }
+    }
+    streamTracker?.handleNotification?.(notification);
+  };
+  client.setNotificationHandler(LoggingMessageNotificationSchema, (notification) => emit(notification));
+  MCP_STREAM_NOTIFICATION_METHODS.forEach((method) => {
+    client.setNotificationHandler(buildLooseNotificationSchema(method), (notification) => emit(notification));
+  });
 }
 
 function resolveHostNodeModulesDir() {
@@ -285,6 +453,8 @@ async function initializeMcpRuntime(
 async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions = {}) {
   const runtimeLogger = runtimeOptions?.runtimeLogger;
   const eventLogger = runtimeOptions?.eventLogger || null;
+  const onNotification = typeof runtimeOptions?.onNotification === 'function' ? runtimeOptions.onNotification : null;
+  const streamTracker = createMcpStreamTracker();
   const endpoint = parseMcpEndpoint(entry.url);
   if (!endpoint) {
     throw new Error('MCP 端点为空或无法解析。');
@@ -297,6 +467,12 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
     const client = new Client({
       name: 'model-cli',
       version: '0.1.0',
+    });
+    registerMcpNotificationHandlers(client, {
+      serverName: entry?.name || '<unnamed>',
+      onNotification,
+      eventLogger,
+      streamTracker,
     });
     // Inherit parent env so API keys are available to MCP servers (e.g., subagent_router using ModelClient)
     const env = { ...process.env };
@@ -375,6 +551,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         workspaceRoot,
         runtimeLogger,
         eventLogger,
+        streamTracker,
       });
     } catch (err) {
       const normalizedCommand = String(resolved.command || endpoint.command || '')
@@ -416,6 +593,12 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new StreamableHTTPClientTransport(endpoint.url);
+      registerMcpNotificationHandlers(client, {
+        serverName: entry?.name || '<unnamed>',
+        onNotification,
+        eventLogger,
+        streamTracker,
+      });
       return await connectAndRegisterTools({
         entry,
         client,
@@ -424,6 +607,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         workspaceRoot,
         runtimeLogger,
         eventLogger,
+        streamTracker,
       });
     } catch (err) {
       errors.push(`streamable_http: ${err?.message || err}`);
@@ -431,6 +615,12 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
     try {
       const client = new Client({ name: 'model-cli', version: '0.1.0' });
       const transport = new SSEClientTransport(endpoint.url);
+      registerMcpNotificationHandlers(client, {
+        serverName: entry?.name || '<unnamed>',
+        onNotification,
+        eventLogger,
+        streamTracker,
+      });
       return await connectAndRegisterTools({
         entry,
         client,
@@ -439,6 +629,7 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         workspaceRoot,
         runtimeLogger,
         eventLogger,
+        streamTracker,
       });
     } catch (err) {
       errors.push(`sse: ${err?.message || err}`);
@@ -449,7 +640,22 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
   if (endpoint.type === 'ws') {
     const client = new Client({ name: 'model-cli', version: '0.1.0' });
     const transport = new WebSocketClientTransport(endpoint.url);
-    return connectAndRegisterTools({ entry, client, transport, sessionRoot, workspaceRoot, runtimeLogger, eventLogger });
+    registerMcpNotificationHandlers(client, {
+      serverName: entry?.name || '<unnamed>',
+      onNotification,
+      eventLogger,
+      streamTracker,
+    });
+    return connectAndRegisterTools({
+      entry,
+      client,
+      transport,
+      sessionRoot,
+      workspaceRoot,
+      runtimeLogger,
+      eventLogger,
+      streamTracker,
+    });
   }
 
   throw new Error(
@@ -466,6 +672,7 @@ async function connectAndRegisterTools({
   workspaceRoot,
   runtimeLogger,
   eventLogger,
+  streamTracker,
 } = {}) {
   if (!client || !transport) {
     throw new Error('Missing MCP client or transport');
@@ -497,9 +704,11 @@ async function connectAndRegisterTools({
   }
   const runtimeMeta = buildRuntimeCallMeta({ workspaceRoot });
   const registeredTools = toolsFromServer
-    .map((tool) => registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger, eventLogger))
+    .map((tool) =>
+      registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker)
+    )
     .filter(Boolean);
-  return { entry, client, transport, registeredTools };
+  return { entry, client, transport, registeredTools, streamTracker };
 }
 
 function resolveMcpCommandLine(command, args, env) {
@@ -601,7 +810,7 @@ function summarizeArgs(value) {
   };
 }
 
-function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger, eventLogger) {
+function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker) {
   const serverName = serverEntry?.name || 'server';
   const normalizedServer = String(serverName || '').toLowerCase();
   if (
@@ -751,7 +960,26 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
         args: injectedArgs,
       });
       let response;
-      const callMeta = buildCallMeta(serverEntry, runtimeMeta, toolContext);
+      let streamResultPromise = null;
+      const useFinalStream = streamTracker && shouldUseFinalStreamResult(serverName, tool.name);
+      const baseCallMeta = buildCallMeta(serverEntry, runtimeMeta, toolContext);
+      const callMeta = useFinalStream
+        ? (() => {
+            if (baseCallMeta && Object.prototype.hasOwnProperty.call(baseCallMeta, 'stream')) {
+              return baseCallMeta;
+            }
+            return { ...(baseCallMeta || {}), stream: true };
+          })()
+        : baseCallMeta;
+      const streamEnabled = useFinalStream && callMeta?.stream !== false;
+      if (streamEnabled && typeof client?._requestMessageId === 'number') {
+        const rpcId = client._requestMessageId;
+        streamResultPromise = streamTracker.waitForFinalText({
+          rpcId,
+          timeoutMs: resolveMcpStreamTimeoutMs(optionsWithSignal),
+          signal: toolContext?.signal,
+        });
+      }
       try {
         response = await client.callTool(
           {
@@ -782,6 +1010,16 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
           message: err?.message || String(err),
         });
         throw err;
+      }
+      if (streamResultPromise) {
+        try {
+          const finalText = await streamResultPromise;
+          if (typeof finalText === 'string' && finalText.trim()) {
+            return finalText;
+          }
+        } catch {
+          // ignore stream wait errors, fall back to call result
+        }
       }
       return formatCallResult(serverName, tool.name, response);
     },

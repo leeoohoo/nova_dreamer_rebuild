@@ -82,6 +82,25 @@ function normalizePromptLanguage(value) {
   return '';
 }
 
+function appendEventLog(eventPath, type, payload, runId) {
+  if (!eventPath) return;
+  try {
+    fs.mkdirSync(path.dirname(eventPath), { recursive: true });
+    fs.appendFileSync(
+      eventPath,
+      `${JSON.stringify({
+        ts: new Date().toISOString(),
+        type: String(type || ''),
+        payload: payload && typeof payload === 'object' ? payload : payload === undefined ? undefined : { value: payload },
+        runId: typeof runId === 'string' && runId.trim() ? runId.trim() : undefined,
+      })}\n`,
+      'utf8'
+    );
+  } catch {
+    // ignore
+  }
+}
+
 function normalizeMcpServerName(value) {
   return String(value || '')
     .trim()
@@ -564,6 +583,20 @@ export function createChatRunner({
   let mcpInitSignature = '';
   const MCP_INIT_TIMEOUT_MS = 4_000;
   const MCP_INIT_TIMEOUT = Symbol('mcp_init_timeout');
+  const eventLogPath =
+    typeof defaultPaths?.events === 'string' && defaultPaths.events.trim() ? defaultPaths.events.trim() : '';
+  const handleMcpNotification = (notification) => {
+    if (!eventLogPath || !notification) return;
+    const params = notification?.params && typeof notification.params === 'object' ? notification.params : null;
+    const runId = typeof params?.runId === 'string' ? params.runId : '';
+    const payload = {
+      server: notification.serverName || '',
+      method: notification.method || '',
+      params,
+    };
+    const type = notification.method === 'notifications/message' ? 'mcp_log' : 'mcp_stream';
+    appendEventLog(eventLogPath, type, payload, runId);
+  };
 
   const resolveUiAppAi = uiApps && typeof uiApps.getAiContribution === 'function' ? uiApps.getAiContribution.bind(uiApps) : null;
   let registry = null;
@@ -885,6 +918,7 @@ export function createChatRunner({
             extraServers,
             skipServers,
             baseDir,
+            onNotification: handleMcpNotification,
           });
           mcpWorkspaceRoot = effectiveWorkspaceRoot;
           mcpConfigMtimeMs = useInlineServers ? null : readMcpConfigMtimeMs();

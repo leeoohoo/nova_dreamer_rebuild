@@ -256,6 +256,41 @@ export function buildEventMarkdown(event) {
     return normalizeEventText(payload);
   }
 
+  if (type === 'mcp_stream' || type === 'mcp_log') {
+    const server = payload?.server ? String(payload.server) : '';
+    const method = payload?.method ? String(payload.method) : '';
+    const params = payload?.params && typeof payload.params === 'object' ? payload.params : null;
+    const metaLines = [];
+    if (server) metaLines.push(`- server: ${safeInlineCode(server)}`);
+    if (method) metaLines.push(`- method: ${safeInlineCode(method)}`);
+    if (params?.runId) metaLines.push(`- runId: ${safeInlineCode(params.runId)}`);
+    if (params?.status) metaLines.push(`- status: ${safeInlineCode(params.status)}`);
+    if (params?.finalTextChunk === true) {
+      const idx = Number.isFinite(params?.chunkIndex) ? params.chunkIndex + 1 : '';
+      const total = Number.isFinite(params?.chunkCount) ? params.chunkCount : '';
+      if (idx || total) metaLines.push(`- chunk: ${safeInlineCode(`${idx || '?'} / ${total || '?'}`)}`);
+    }
+    const header = metaLines.length > 0 ? `**MCP**\n${metaLines.join('\n')}` : '';
+    const text =
+      typeof params?.finalText === 'string' && params.finalText.trim()
+        ? params.finalText
+        : typeof params?.text === 'string' && params.text.trim()
+          ? params.text
+          : '';
+    const eventSummary =
+      params?.event?.event?.type || params?.event?.event?.item?.status
+        ? `event: ${params?.event?.event?.type || ''} ${params?.event?.event?.item?.status || ''}`.trim()
+        : '';
+    const dataFallback =
+      params?.data !== undefined ? truncateText(formatJson(params.data), 4000) : params?.event ? truncateText(formatJson(params.event), 4000) : '';
+    const detail = text || eventSummary || dataFallback;
+    if (!detail) return header || '';
+    if (text) {
+      return [header, text].filter(Boolean).join('\n\n');
+    }
+    return [header, `\n\`\`\`json\n${detail}\n\`\`\``].filter(Boolean).join('\n\n');
+  }
+
   if (type === 'subagent_start') {
     const agent = payload?.agent ? String(payload.agent) : '';
     const task = payload?.task ? String(payload.task) : '';

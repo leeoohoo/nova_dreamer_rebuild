@@ -8,6 +8,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { WebSocketClientTransport } from '@modelcontextprotocol/sdk/client/websocket.js';
+import { LoggingMessageNotificationSchema, NotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import * as z from 'zod/v4';
 
 import { copyDir, ensureDir, isDirectory, isFile } from '../lib/fs.js';
 import { loadPluginManifest, pickAppFromManifest } from '../lib/plugin.js';
@@ -273,6 +275,34 @@ function formatMcpToolResult(serverName, toolName, result) {
   return `${header}\n${segments.join('\n\n')}`;
 }
 
+const MCP_STREAM_NOTIFICATION_METHODS = [
+  'codex_app.window_run.stream',
+  'codex_app.window_run.done',
+  'codex_app.window_run.completed',
+];
+
+const buildLooseNotificationSchema = (method) =>
+  NotificationSchema.extend({
+    method: z.literal(method),
+    params: z.unknown().optional(),
+  });
+
+function registerMcpNotificationHandlers(client, { serverName, onNotification } = {}) {
+  if (!client || typeof client.setNotificationHandler !== 'function') return;
+  if (typeof onNotification !== 'function') return;
+  const emit = (notification) => {
+    try {
+      onNotification({ serverName, ...notification });
+    } catch {
+      // ignore notification relay errors
+    }
+  };
+  client.setNotificationHandler(LoggingMessageNotificationSchema, (notification) => emit(notification));
+  MCP_STREAM_NOTIFICATION_METHODS.forEach((method) => {
+    client.setNotificationHandler(buildLooseNotificationSchema(method), (notification) => emit(notification));
+  });
+}
+
 async function listAllMcpTools(client) {
   const collected = [];
   let cursor = null;
@@ -290,15 +320,17 @@ async function listAllMcpTools(client) {
   return collected;
 }
 
-async function connectMcpServer(entry) {
+async function connectMcpServer(entry, options = {}) {
   if (!entry || typeof entry !== 'object') return null;
   const serverName = normalizeText(entry.name) || 'mcp_server';
+  const onNotification = typeof options?.onNotification === 'function' ? options.onNotification : null;
   const env = { ...process.env };
   if (!env.MODEL_CLI_SESSION_ROOT) env.MODEL_CLI_SESSION_ROOT = process.cwd();
   if (!env.MODEL_CLI_WORKSPACE_ROOT) env.MODEL_CLI_WORKSPACE_ROOT = process.cwd();
 
   if (entry.command) {
     const client = new Client({ name: 'sandbox', version: '0.1.0' });
+    registerMcpNotificationHandlers(client, { serverName, onNotification });
     const transport = new StdioClientTransport({
       command: entry.command,
       args: Array.isArray(entry.args) ? entry.args : [],
@@ -318,6 +350,7 @@ async function connectMcpServer(entry) {
     if (parsed.protocol === 'ws:' || parsed.protocol === 'wss:') {
       const client = new Client({ name: 'sandbox', version: '0.1.0' });
       const transport = new WebSocketClientTransport(parsed);
+      registerMcpNotificationHandlers(client, { serverName, onNotification });
       await client.connect(transport);
       const tools = await listAllMcpTools(client);
       return { serverName, client, transport, tools };
@@ -327,6 +360,7 @@ async function connectMcpServer(entry) {
     try {
       const client = new Client({ name: 'sandbox', version: '0.1.0' });
       const transport = new StreamableHTTPClientTransport(parsed);
+      registerMcpNotificationHandlers(client, { serverName, onNotification });
       await client.connect(transport);
       const tools = await listAllMcpTools(client);
       return { serverName, client, transport, tools };
@@ -336,6 +370,7 @@ async function connectMcpServer(entry) {
     try {
       const client = new Client({ name: 'sandbox', version: '0.1.0' });
       const transport = new SSEClientTransport(parsed);
+      registerMcpNotificationHandlers(client, { serverName, onNotification });
       await client.connect(transport);
       const tools = await listAllMcpTools(client);
       return { serverName, client, transport, tools };
@@ -978,6 +1013,42 @@ const mcpStatus = $('#mcpStatus');
 const mcpOutput = $('#mcpOutput');
 const mcpConfigHint = $('#mcpConfigHint');
 
+const mcpStreamState = {
+  active: false,
+  seen: false,
+  runId: '',
+};
+
+const resetMcpStreamState = () => {
+  mcpStreamState.active = false;
+  mcpStreamState.seen = false;
+  mcpStreamState.runId = '';
+};
+
+const markMcpStreamStatus = (payload) => {
+  const method = payload && typeof payload.method === 'string' ? payload.method : '';
+  if (!method.startsWith('codex_app.window_run.')) return;
+  const params = payload && typeof payload.params === 'object' ? payload.params : null;
+  const runId = params && typeof params.runId === 'string' ? params.runId : '';
+  if (runId && (!mcpStreamState.runId || mcpStreamState.runId === runId)) {
+    mcpStreamState.runId = runId;
+  }
+  mcpStreamState.seen = true;
+  const status = params && typeof params.status === 'string' ? params.status.toLowerCase() : '';
+  const done =
+    method === 'codex_app.window_run.done' ||
+    method === 'codex_app.window_run.completed' ||
+    params?.done === true ||
+    ['completed', 'failed', 'aborted', 'cancelled'].includes(status);
+  if (done) {
+    mcpStreamState.active = false;
+    setMcpStatus('Done');
+  } else {
+    mcpStreamState.active = true;
+    setMcpStatus('Streaming...');
+  }
+};
+
 const setPanelOpen = (open) => { panel.style.display = open ? 'flex' : 'none'; };
 fab.addEventListener('click', () => setPanelOpen(panel.style.display !== 'flex'));
 panelClose.addEventListener('click', () => setPanelOpen(false));
@@ -1194,6 +1265,7 @@ const runMcpTest = async () => {
       setMcpStatus('Message is required.', true);
       return;
     }
+    resetMcpStreamState();
     if (sendBtn) sendBtn.disabled = true;
     const payload = {
       messages: [{ role: 'user', text: message }],
@@ -1220,7 +1292,11 @@ const runMcpTest = async () => {
     if (Array.isArray(j?.toolTrace) && j.toolTrace.length > 0) {
       appendMcpOutput('toolTrace', j.toolTrace);
     }
-    setMcpStatus('Done');
+    if (mcpStreamState.seen || mcpStreamState.active) {
+      setMcpStatus('Waiting for MCP stream...');
+    } else {
+      setMcpStatus('Done');
+    }
   } catch (err) {
     setMcpStatus(err?.message || String(err), true);
   } finally {
@@ -1918,6 +1994,20 @@ const scheduleReload = (() => {
 try {
   const es = new EventSource('/events');
   es.addEventListener('reload', () => scheduleReload());
+  es.addEventListener('mcp-notification', (event) => {
+    if (!event?.data) return;
+    let payload = null;
+    try {
+      payload = JSON.parse(event.data);
+    } catch {
+      payload = { raw: event.data };
+    }
+    if (!payload) return;
+    const server = payload?.serverName ? String(payload.serverName) : 'mcp';
+    const method = payload?.method ? String(payload.method) : 'notification';
+    markMcpStreamStatus(payload);
+    appendMcpOutput(server + ' ' + method, payload?.params?.text || payload);
+  });
 } catch {
   // ignore
 }
@@ -1970,6 +2060,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   let mcpRuntime = null;
   let mcpRuntimePromise = null;
   let sandboxCallMeta = null;
+  let relayMcpNotification = null;
 
   const resetMcpRuntime = async () => {
     const runtime = mcpRuntime;
@@ -1996,7 +2087,9 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
     if (mcpRuntime) return mcpRuntime;
     if (!mcpRuntimePromise) {
       mcpRuntimePromise = (async () => {
-        const handle = await connectMcpServer(appMcpEntry);
+        const handle = await connectMcpServer(appMcpEntry, {
+          onNotification: relayMcpNotification,
+        });
         if (!handle) return null;
         const toolEntries = Array.isArray(handle.tools)
           ? handle.tools.map((tool) => {
@@ -2202,6 +2295,13 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
     for (const res of sseClients) {
       sseWrite(res, event, data);
     }
+  };
+  relayMcpNotification = (notification) => {
+    if (!notification) return;
+    sseBroadcast('mcp-notification', {
+      ...notification,
+      receivedAt: new Date().toISOString(),
+    });
   };
 
   let changeSeq = 0;

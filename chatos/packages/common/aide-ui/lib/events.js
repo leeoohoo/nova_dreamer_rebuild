@@ -17,6 +17,8 @@ const EVENT_META = {
   subagent_tool_call: { label: '子代理工具', color: 'volcano' },
   subagent_tool_result: { label: '子代理结果', color: 'geekblue' },
   subagent_tool: { label: '子代理工具', color: 'volcano' },
+  mcp_stream: { label: 'MCP Stream', color: 'cyan' },
+  mcp_log: { label: 'MCP 日志', color: 'blue' },
   mcp_error: { label: 'MCP 错误', color: 'red' },
   mcp_warning: { label: 'MCP 警告', color: 'orange' },
   mcp_disconnect: { label: 'MCP 断开', color: 'orange' },
@@ -37,6 +39,16 @@ function buildEventPreview(payload, type) {
   if (typeof payload.content === 'string') return payload.content;
   if (typeof payload.responsePreview === 'string') return payload.responsePreview;
   if (typeof payload.task === 'string') return payload.task;
+  if (payload?.params) {
+    const params = payload.params;
+    if (typeof params?.finalText === 'string' && params.finalText.trim()) return params.finalText;
+    if (typeof params?.text === 'string' && params.text.trim()) return params.text;
+    if (params?.event?.event?.type) {
+      const status = params?.event?.event?.item?.status || params?.event?.event?.status || '';
+      const suffix = status ? ` (${status})` : '';
+      return `${params.event.event.type}${suffix}`;
+    }
+  }
   if (typeof payload.tool === 'string' || typeof payload.agent === 'string') {
     const toPreviewText = (value) => {
       if (value === undefined || value === null) return '';
@@ -227,4 +239,3 @@ export function pickRecentConversation(eventList = [], limit = 4) {
   if (!Number.isFinite(size) || size <= 0) return reversed;
   return reversed.slice(0, size);
 }
-
