@@ -175,7 +175,12 @@ export function registerChatApi(ipcMain, options = {}) {
   });
 
   ipcMain.handle('chat:sessions:list', async (_event, payload = {}) => {
-    const sessions = store.sessions.list();
+    const activeIds = typeof runner.listActiveSessionIds === 'function' ? runner.listActiveSessionIds() : [];
+    const activeSet = new Set(activeIds.map((id) => normalizeId(id)).filter(Boolean));
+    const sessions = store.sessions.list().map((session) => ({
+      ...session,
+      running: activeSet.has(normalizeId(session?.id)),
+    }));
     return { ok: true, sessions };
   });
   ipcMain.handle('chat:sessions:create', async (_event, payload = {}) => {

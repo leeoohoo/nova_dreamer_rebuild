@@ -107,6 +107,8 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
   const effectiveWorkspaceRoot = agentWorkspaceRoot || sessionWorkspaceRoot;
   const workspaceRootLabel = effectiveWorkspaceRoot || '默认（App 启动目录）';
   const workspaceLockedByAgent = Boolean(agentWorkspaceRoot);
+  const sessionRunning = Boolean(currentSession?.running);
+  const isSessionBusy = Boolean(streamState) || sessionRunning;
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [workspaceDraft, setWorkspaceDraft] = useState('');
 
@@ -272,7 +274,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
               }}
             >
               <div style={{ padding: 12, borderBottom: '1px solid var(--ds-panel-border)', background: 'var(--ds-subtle-bg)' }}>
-                <ChatSessionHeader session={currentSession} streaming={Boolean(streamState)} />
+                <ChatSessionHeader session={currentSession} streaming={isSessionBusy} />
               </div>
 
               {mcpStreamState ? (
@@ -311,7 +313,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                           }
                         })();
                       }}
-                      disabled={Boolean(streamState)}
+                      disabled={isSessionBusy}
                       style={{ minWidth: 220 }}
                     />
                   </Space>
@@ -329,7 +331,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                       size="small"
                       icon={<FolderOpenOutlined />}
                       onClick={() => setWorkspaceModalOpen(true)}
-                      disabled={Boolean(streamState) || workspaceLockedByAgent}
+                      disabled={isSessionBusy || workspaceLockedByAgent}
                     >
                       设置目录
                     </Button>
@@ -337,7 +339,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                       size="small"
                       icon={<CloseCircleOutlined />}
                       onClick={() => clearWorkspaceRoot?.()}
-                      disabled={Boolean(streamState) || !sessionWorkspaceRoot || workspaceLockedByAgent}
+                      disabled={isSessionBusy || !sessionWorkspaceRoot || workspaceLockedByAgent}
                     >
                       清除
                     </Button>
@@ -361,7 +363,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                     }
                   }}
                   onStop={stopStreaming}
-                  sending={Boolean(streamState)}
+                  sending={isSessionBusy}
                 />
               </div>
             </div>
@@ -387,7 +389,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
             placeholder="输入工作目录路径（绝对路径）"
             allowClear
             style={{ flex: 1, minWidth: 0 }}
-            disabled={Boolean(streamState)}
+            disabled={isSessionBusy}
           />
           {pickWorkspaceRoot ? (
             <Button
@@ -398,7 +400,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                   if (picked) setWorkspaceModalOpen(false);
                 })();
               }}
-              disabled={Boolean(streamState)}
+              disabled={isSessionBusy}
             >
               选择目录
             </Button>
