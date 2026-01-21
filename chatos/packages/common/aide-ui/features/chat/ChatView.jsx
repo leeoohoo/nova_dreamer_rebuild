@@ -9,6 +9,7 @@ import { ChatSessionHeader } from './components/ChatSessionHeader.jsx';
 import { ChatMessages } from './components/ChatMessages.jsx';
 import { ChatComposer } from './components/ChatComposer.jsx';
 import { TasksWorkbenchDrawer } from './components/TasksWorkbenchDrawer.jsx';
+import { McpStreamPanel } from './components/McpStreamPanel.jsx';
 import { useChatController } from './hooks/useChatController.js';
 
 const { Sider, Content } = Layout;
@@ -32,6 +33,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
     composerText,
     composerAttachments,
     streamState,
+    mcpStreamState,
     currentSession,
     setComposerText,
     setComposerAttachments,
@@ -47,6 +49,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
     clearWorkspaceRoot,
     sendMessage,
     stopStreaming,
+    clearMcpStream,
   } = controller;
 
   const [tasks, setTasks] = useState([]);
@@ -271,6 +274,15 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
               <div style={{ padding: 12, borderBottom: '1px solid var(--ds-panel-border)', background: 'var(--ds-subtle-bg)' }}>
                 <ChatSessionHeader session={currentSession} streaming={Boolean(streamState)} />
               </div>
+
+              {mcpStreamState ? (
+                <div style={{ padding: 12, borderBottom: '1px solid var(--ds-panel-border)', background: 'var(--ds-subtle-bg)' }}>
+                  <McpStreamPanel
+                    stream={mcpStreamState}
+                    onClear={() => clearMcpStream?.(currentSession?.id)}
+                  />
+                </div>
+              ) : null}
 
               <div style={{ flex: 1, minHeight: 0, padding: 12 }}>
                 <ChatMessages

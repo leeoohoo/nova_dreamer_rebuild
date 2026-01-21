@@ -585,6 +585,15 @@ export function createChatRunner({
   const MCP_INIT_TIMEOUT = Symbol('mcp_init_timeout');
   const eventLogPath =
     typeof defaultPaths?.events === 'string' && defaultPaths.events.trim() ? defaultPaths.events.trim() : '';
+  const resolveMcpSessionId = (params) => {
+    const explicit = normalizeId(params?.sessionId);
+    if (explicit) return explicit;
+    if (activeRuns.size === 1) {
+      const [sid] = activeRuns.keys();
+      return normalizeId(sid);
+    }
+    return '';
+  };
   const handleMcpNotification = (notification) => {
     if (!eventLogPath || !notification) return;
     const params = notification?.params && typeof notification.params === 'object' ? notification.params : null;
@@ -596,6 +605,19 @@ export function createChatRunner({
     };
     const type = notification.method === 'notifications/message' ? 'mcp_log' : 'mcp_stream';
     appendEventLog(eventLogPath, type, payload, runId);
+    if (type === 'mcp_stream') {
+      const sessionId = resolveMcpSessionId(params);
+      if (sessionId) {
+        sendEvent({
+          type: 'mcp_stream',
+          sessionId,
+          payload: {
+            ...payload,
+            receivedAt: new Date().toISOString(),
+          },
+        });
+      }
+    }
   };
 
   const resolveUiAppAi = uiApps && typeof uiApps.getAiContribution === 'function' ? uiApps.getAiContribution.bind(uiApps) : null;

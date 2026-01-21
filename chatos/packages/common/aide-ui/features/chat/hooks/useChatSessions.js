@@ -83,6 +83,38 @@ function extractErrorMessage(payload) {
   return '';
 }
 
+const MAX_MCP_STREAM_ITEMS = 200;
+
+function buildFinalTextFromChunks(chunks) {
+  if (!chunks || typeof chunks !== 'object') return '';
+  const ordered = Object.entries(chunks)
+    .map(([key, value]) => [Number(key), value])
+    .filter(([idx]) => Number.isFinite(idx))
+    .sort((a, b) => a[0] - b[0]);
+  return ordered.map(([, value]) => (typeof value === 'string' ? value : String(value || ''))).join('');
+}
+
+function isMcpStreamDone(method, params) {
+  const status = typeof params?.status === 'string' ? params.status.toLowerCase() : '';
+  const normalizedMethod = typeof method === 'string' ? method : '';
+  if (params?.done === true) return true;
+  if (normalizedMethod.endsWith('.done') || normalizedMethod.endsWith('.completed')) return true;
+  return ['completed', 'failed', 'aborted', 'cancelled'].includes(status);
+}
+
+function buildMcpStreamText(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const params = payload?.params && typeof payload.params === 'object' ? payload.params : null;
+  if (typeof params?.text === 'string' && params.text.trim()) return params.text;
+  if (typeof params?.finalText === 'string' && params.finalText.trim()) return params.finalText;
+  if (params?.event?.event?.type) {
+    const status = params?.event?.event?.item?.status || params?.event?.event?.status || '';
+    return status ? `${params.event.event.type} (${status})` : params.event.event.type;
+  }
+  if (typeof params?.status === 'string' && params.status.trim()) return `status ${params.status}`;
+  return '';
+}
+
 export function useChatSessions() {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
@@ -95,10 +127,12 @@ export function useChatSessions() {
   const [composerAttachments, setComposerAttachments] = useState([]);
   const [streamStates, setStreamStates] = useState({});
   const [streamBuffers, setStreamBuffers] = useState({});
+  const [mcpStreams, setMcpStreams] = useState({});
 
   const selectedSessionIdRef = useRef('');
   const streamStatesRef = useRef({});
   const streamBuffersRef = useRef({});
+  const mcpStreamsRef = useRef({});
 
   const currentSession = useMemo(
     () => sessions.find((s) => normalizeId(s?.id) === normalizeId(selectedSessionId)) || null,
@@ -117,11 +151,21 @@ export function useChatSessions() {
     streamBuffersRef.current = streamBuffers;
   }, [streamBuffers]);
 
+  useEffect(() => {
+    mcpStreamsRef.current = mcpStreams;
+  }, [mcpStreams]);
+
   const currentStreamState = useMemo(() => {
     const sid = normalizeId(selectedSessionId);
     if (!sid) return null;
     return streamStates[sid] || null;
   }, [selectedSessionId, streamStates]);
+
+  const currentMcpStream = useMemo(() => {
+    const sid = normalizeId(selectedSessionId);
+    if (!sid) return null;
+    return mcpStreams[sid] || null;
+  }, [selectedSessionId, mcpStreams]);
 
   const mergeStreamBuffer = (sessionId, list) => {
     const sid = normalizeId(sessionId);
@@ -173,6 +217,99 @@ export function useChatSessions() {
       const updated = typeof updater === 'function' ? updater(base) : base;
       next[sid] = updated;
       streamBuffersRef.current = next;
+      return next;
+    });
+  };
+
+  const updateMcpStream = (sessionId, payload) => {
+    const sid = normalizeId(sessionId);
+    if (!sid) return;
+    const incoming = payload && typeof payload === 'object' ? payload : null;
+    const params = incoming?.params && typeof incoming.params === 'object' ? incoming.params : null;
+    const runId = normalizeId(params?.runId);
+    const method = typeof incoming?.method === 'string' ? incoming.method : '';
+    const receivedAt = typeof incoming?.receivedAt === 'string' ? incoming.receivedAt : new Date().toISOString();
+    const textRaw = buildMcpStreamText(incoming);
+    const done = isMcpStreamDone(method, params);
+
+    setMcpStreams((prev) => {
+      const next = { ...(prev || {}) };
+      const current = next[sid] && typeof next[sid] === 'object'
+        ? next[sid]
+        : { sessionId: sid, runId: '', items: [], chunks: {}, finalText: '', done: false };
+      let items = Array.isArray(current.items) ? current.items.slice() : [];
+      let chunks = current.chunks && typeof current.chunks === 'object' ? { ...current.chunks } : {};
+      let finalText = typeof current.finalText === 'string' ? current.finalText : '';
+      let activeRunId = typeof current.runId === 'string' ? current.runId : '';
+      let doneFlag = current.done === true;
+
+      if (runId && activeRunId && runId !== activeRunId) {
+        items = [];
+        chunks = {};
+        finalText = '';
+        doneFlag = false;
+      }
+      if (runId && !activeRunId) {
+        activeRunId = runId;
+      }
+
+      const chunkText =
+        typeof params?.finalText === 'string' && params.finalText.trim()
+          ? params.finalText
+          : params?.final === true && typeof params?.text === 'string'
+            ? params.text
+            : '';
+      if (chunkText) {
+        if (params?.finalTextChunk === true) {
+          const idx = Number.isFinite(params?.chunkIndex) ? params.chunkIndex : Object.keys(chunks).length;
+          chunks[idx] = chunkText;
+          finalText = buildFinalTextFromChunks(chunks);
+        } else {
+          finalText = chunkText;
+        }
+      }
+
+      const displayText = textRaw || (done ? (params?.status ? `done (${params.status})` : 'done') : '');
+      if (displayText) {
+        items.push({
+          id: `${receivedAt}-${items.length}`,
+          ts: receivedAt,
+          text: displayText,
+          status: typeof params?.status === 'string' ? params.status : '',
+        });
+        if (items.length > MAX_MCP_STREAM_ITEMS) {
+          items = items.slice(-MAX_MCP_STREAM_ITEMS);
+        }
+      }
+
+      if (done) {
+        doneFlag = true;
+      }
+
+      next[sid] = {
+        sessionId: sid,
+        runId: activeRunId,
+        items,
+        chunks,
+        finalText,
+        done: doneFlag,
+        status: typeof params?.status === 'string' ? params.status : '',
+        server: typeof incoming?.server === 'string' ? incoming.server : '',
+        method,
+      };
+      mcpStreamsRef.current = next;
+      return next;
+    });
+  };
+
+  const clearMcpStream = (sessionId) => {
+    const sid = normalizeId(sessionId);
+    if (!sid) return;
+    setMcpStreams((prev) => {
+      if (!prev || !prev[sid]) return prev;
+      const next = { ...prev };
+      delete next[sid];
+      mcpStreamsRef.current = next;
       return next;
     });
   };
@@ -334,6 +471,14 @@ export function useChatSessions() {
           if (rid && list.some((m) => normalizeId(m?.id) === rid)) return list;
           return [...list, record];
         });
+        return;
+      }
+      if (type === 'mcp_stream') {
+        const sid = normalizeId(payload.sessionId);
+        if (!sid) return;
+        const streamPayload = payload.payload && typeof payload.payload === 'object' ? payload.payload : null;
+        if (!streamPayload) return;
+        updateMcpStream(sid, streamPayload);
         return;
       }
       if (type === 'messages_refresh') {
@@ -613,6 +758,7 @@ export function useChatSessions() {
     composerText,
     composerAttachments,
     streamState: currentStreamState,
+    mcpStreamState: currentMcpStream,
     currentSession,
     setComposerText,
     setComposerAttachments,
@@ -630,5 +776,6 @@ export function useChatSessions() {
     clearWorkspaceRoot,
     sendMessage,
     stopStreaming,
+    clearMcpStream,
   };
 }
