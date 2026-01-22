@@ -65,9 +65,56 @@ function resolveSandboxConfigPath({ primaryRoot, legacyRoot }) {
 }
 
 const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
+const UI_PROMPTS_FILENAME = 'ui-prompts.jsonl';
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function ensureUiPromptsFile(filePath) {
+  const normalized = typeof filePath === 'string' ? filePath.trim() : '';
+  if (!normalized) return '';
+  try {
+    ensureDir(path.dirname(normalized));
+    if (!fs.existsSync(normalized)) {
+      fs.writeFileSync(normalized, '', 'utf8');
+    }
+  } catch {
+    // ignore
+  }
+  return normalized;
+}
+
+function appendUiPromptsEntry(filePath, entry) {
+  const target = ensureUiPromptsFile(filePath);
+  if (!target) return;
+  try {
+    const payload = entry && typeof entry === 'object' ? entry : { value: entry };
+    fs.appendFileSync(target, `${JSON.stringify(payload)}\n`, 'utf8');
+  } catch {
+    // ignore
+  }
+}
+
+function readUiPromptsEntries(filePath) {
+  const target = ensureUiPromptsFile(filePath);
+  if (!target) return [];
+  try {
+    const raw = fs.readFileSync(target, 'utf8');
+    if (!raw) return [];
+    const lines = raw.split(/\r?\n/).filter((line) => line.trim());
+    const entries = [];
+    for (const line of lines) {
+      try {
+        entries.push(JSON.parse(line));
+      } catch {
+        // ignore parse errors
+      }
+    }
+    return entries;
+  } catch {
+    return [];
+  }
 }
 
 function isPlainObject(value) {
@@ -1296,7 +1343,9 @@ const pollAsyncResult = async ({ taskId, timeoutMs = 6000, intervalMs = 500 } = 
   const requestIds = buildAsyncRequestIds(taskId);
   const deadline = Date.now() + Math.max(500, timeoutMs);
   while (Date.now() < deadline) {
-    const text = extractAsyncResult(entries, requestIds);
+    const fileEntries = await readUiPromptsFromFile();
+    const sourceEntries = fileEntries.length > 0 ? fileEntries : entries;
+    const text = extractAsyncResult(sourceEntries, requestIds);
     if (text !== null) return { found: true, text };
     await sleep(Math.max(200, intervalMs));
   }
@@ -1752,6 +1801,29 @@ const callSandboxChat = async (payload, signal) => {
   return j;
 };
 
+const appendUiPromptsToFile = async (entry) => {
+  try {
+    await fetch('/api/ui-prompts/append', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ entry }),
+    });
+  } catch {
+    // ignore
+  }
+};
+
+const readUiPromptsFromFile = async () => {
+  try {
+    const r = await fetch('/api/ui-prompts/read');
+    const j = await r.json();
+    if (j?.ok && Array.isArray(j.entries)) return j.entries;
+  } catch {
+    // ignore
+  }
+  return [];
+};
+
 const getTheme = () => currentTheme || resolveTheme();
 
 const host = {
@@ -1801,7 +1873,16 @@ const host = {
       const requestId = payload?.requestId ? String(payload.requestId) : uuid();
       const prompt = payload?.prompt && typeof payload.prompt === 'object' ? { ...payload.prompt } : null;
       if (prompt && !prompt.source) prompt.source = __SANDBOX__.pluginId + ':' + __SANDBOX__.appId;
-      entries.push({ ts: new Date().toISOString(), type: 'ui_prompt', action: 'request', requestId, runId: payload?.runId, prompt });
+      const entry = {
+        ts: new Date().toISOString(),
+        type: 'ui_prompt',
+        action: 'request',
+        requestId,
+        runId: payload?.runId,
+        prompt,
+      };
+      entries.push(entry);
+      appendUiPromptsToFile(entry);
       emitUpdate();
       return { ok: true, requestId };
     },
@@ -1809,7 +1890,16 @@ const host = {
       const requestId = String(payload?.requestId || '');
       if (!requestId) throw new Error('requestId is required');
       const response = payload?.response && typeof payload.response === 'object' ? payload.response : null;
-      entries.push({ ts: new Date().toISOString(), type: 'ui_prompt', action: 'response', requestId, runId: payload?.runId, response });
+      const entry = {
+        ts: new Date().toISOString(),
+        type: 'ui_prompt',
+        action: 'response',
+        requestId,
+        runId: payload?.runId,
+        response,
+      };
+      entries.push(entry);
+      appendUiPromptsToFile(entry);
       emitUpdate();
       return { ok: true };
     },
@@ -2389,6 +2479,8 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
   ctxBase.dataDir = path.join(sandboxRoot, 'data', ctxBase.pluginId);
   ensureDir(ctxBase.stateDir);
   ensureDir(ctxBase.dataDir);
+  const uiPromptsPath = path.join(ctxBase.stateDir, UI_PROMPTS_FILENAME);
+  ensureUiPromptsFile(uiPromptsPath);
   sandboxCallMeta = buildSandboxCallMeta({
     rawCallMeta: app?.ai?.mcp?.callMeta,
     context: {
@@ -2483,6 +2575,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
           dataDir: ctxBase.dataDir || '',
           pluginDir: ctxBase.pluginDir || '',
           stateDir: ctxBase.stateDir || '',
+          uiPromptsFile: uiPromptsPath || '',
           sessionRoot: ctxBase.sessionRoot || '',
           projectRoot: ctxBase.projectRoot || '',
         };
@@ -2506,6 +2599,24 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
 
       if (req.method === 'GET' && pathname === '/api/manifest') {
         return sendJson(res, 200, { ok: true, manifest });
+      }
+
+      if (pathname === '/api/ui-prompts/read') {
+        if (req.method !== 'GET') return sendJson(res, 405, { ok: false, message: 'Method not allowed' });
+        const entries = readUiPromptsEntries(uiPromptsPath);
+        return sendJson(res, 200, { ok: true, path: uiPromptsPath || '', entries });
+      }
+
+      if (pathname === '/api/ui-prompts/append') {
+        if (req.method !== 'POST') return sendJson(res, 405, { ok: false, message: 'Method not allowed' });
+        try {
+          const payload = await readJsonBody(req);
+          const entry = payload?.entry && typeof payload.entry === 'object' ? payload.entry : payload;
+          appendUiPromptsEntry(uiPromptsPath, entry);
+          return sendJson(res, 200, { ok: true });
+        } catch (err) {
+          return sendJson(res, 200, { ok: false, message: err?.message || String(err) });
+        }
       }
 
       if (pathname === '/api/sandbox/llm-config') {

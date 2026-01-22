@@ -91,6 +91,7 @@ Devkit 沙箱已提供 `uiPrompts` 内存存储与 UI 面板，可用于调试�
 
 - 通过 **MCP Test 面板的 AsyncTask Test** 按钮生成 taskId + 写入结果，并执行轮询匹配
 - 在 MCP Output 中可看到轮询命中结果，UI Prompts 面板可看到 result 类型条目
+- 沙箱会同时写入 `stateDir/ui-prompts.jsonl`（可在 MCP Test 的 Paths 中查看路径）
 
 ## 6) 常见问题
 
