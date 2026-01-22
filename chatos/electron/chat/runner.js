@@ -315,7 +315,12 @@ function buildChatSessionFromMessages({
     if (role === 'assistant') {
       const toolCalls = Array.isArray(msg?.toolCalls) ? msg.toolCalls.filter(Boolean) : null;
       const usableToolCalls = toolCalls && toolCalls.length > 0 ? toolCalls : null;
-      chatSession.addAssistant(msg?.content || '', usableToolCalls);
+      const rawContent = msg?.content;
+      const normalizedContent =
+        usableToolCalls && (!rawContent || (typeof rawContent === 'string' && !rawContent.trim()))
+          ? null
+          : rawContent || '';
+      chatSession.addAssistant(normalizedContent, usableToolCalls);
       if (usableToolCalls) {
         pendingToolCallIds = new Set(usableToolCalls.map((call) => normalizeId(call?.id)).filter(Boolean));
       } else {

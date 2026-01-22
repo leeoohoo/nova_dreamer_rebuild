@@ -46,7 +46,9 @@ export class ModelProvider {
       }
       const normalizedEntry = { role };
       if (message.content !== undefined) {
-        if (Array.isArray(message.content)) {
+        if (message.content === null) {
+          normalizedEntry.content = null;
+        } else if (Array.isArray(message.content)) {
           normalizedEntry.content = message.content.map((part) =>
             part && typeof part === 'object' ? { ...part } : part
           );

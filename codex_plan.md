@@ -1,15 +1,11 @@
 # Analysis (pre-task)
-Goal: add developer-facing protocol documentation for asyncTask-based polling, and extend the devkit sandbox MCP Test UI with a dedicated async-task test button that simulates ACK + uiPrompts result placement.
+Goal: extend the devkit sandbox AsyncTask test so it simulates ChatOS polling and returns the uiPrompts result in the MCP Test output. The current AsyncTask Test only writes a result entry; we need a polling loop that matches the same rules as ChatOS (type=ui_prompt, action=request, prompt.kind=result, requestId in [taskId, mcp-task:taskId]) and then displays the final text.
 
-Key anchors in code:
-- Sandbox uiPrompts store and host API in chatos-uiapps-devkit/src/sandbox/server.js (entries array + uiPrompts.request).
-- ChatOS asyncTask + polling rules in chatos/packages/aide/src/mcp/runtime.js (taskId injection + prompt.kind=result matching).
-- Template docs live in templates/*/docs; overview docs list should include the new protocol doc.
+Key anchors:
+- Sandbox uiPrompts storage in chatos-uiapps-devkit/src/sandbox/server.js (entries array).
+- ChatOS polling rules in chatos/packages/aide/src/mcp/runtime.js (extractUiPromptResult / waitForUiPromptResult).
 
 # Tasks
-1) Add an asyncTask polling protocol doc to template docs (basic + notepad) and link it from the overview.
-2) Extend sandbox MCP Test panel with an asyncTask test action that:
-   - Generates taskId and ACK payload
-   - Writes a ui_prompt request with prompt.kind=result
-   - Surfaces status/output in MCP panel
+1) Add a polling helper in sandbox client code to mirror ChatOS matching rules.
+2) Update AsyncTask Test to start polling after ACK and print the matched result.
 3) Keep codex_plan.md in repo root.

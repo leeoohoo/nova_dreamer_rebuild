@@ -1261,6 +1261,48 @@ const setMcpPanelOpen = (open) => {
   }
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const normalizeRequestId = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const buildAsyncRequestIds = (taskId) => {
+  const id = normalizeRequestId(taskId);
+  if (!id) return [];
+  return [id, `mcp-task:${id}`];
+};
+
+const extractAsyncResult = (list, requestIds) => {
+  const ids = new Set((Array.isArray(requestIds) ? requestIds : []).filter(Boolean));
+  if (ids.size === 0) return null;
+  const entriesList = Array.isArray(list) ? list : [];
+  for (let i = entriesList.length - 1; i >= 0; i -= 1) {
+    const entry = entriesList[i];
+    if (!entry || typeof entry !== 'object') continue;
+    if (entry.type !== 'ui_prompt') continue;
+    if (entry.action !== 'request') continue;
+    const requestId = normalizeRequestId(entry.requestId);
+    if (!requestId || !ids.has(requestId)) continue;
+    const prompt = entry.prompt && typeof entry.prompt === 'object' ? entry.prompt : null;
+    if (!prompt || typeof prompt.kind !== 'string' || prompt.kind.trim() !== 'result') continue;
+    if (typeof prompt.markdown === 'string') return prompt.markdown;
+    if (typeof prompt.result === 'string') return prompt.result;
+    if (typeof prompt.content === 'string') return prompt.content;
+    return '';
+  }
+  return null;
+};
+
+const pollAsyncResult = async ({ taskId, timeoutMs = 6000, intervalMs = 500 } = {}) => {
+  const requestIds = buildAsyncRequestIds(taskId);
+  const deadline = Date.now() + Math.max(500, timeoutMs);
+  while (Date.now() < deadline) {
+    const text = extractAsyncResult(entries, requestIds);
+    if (text !== null) return { found: true, text };
+    await sleep(Math.max(200, intervalMs));
+  }
+  return { found: false, text: '' };
+};
+
 const buildAsyncTaskCallMeta = (taskId) => ({
   asyncTask: {
     tools: ['codex_app_window_run'],
@@ -1291,6 +1333,8 @@ const runMcpAsyncTest = async () => {
     appendMcpOutput('asyncTask.ack', ack);
     setMcpStatus(`ACK: ${taskId} (waiting for uiPrompts result)...`);
 
+    const pollPromise = pollAsyncResult({ taskId, timeoutMs: 8000, intervalMs: 400 });
+
     setTimeout(async () => {
       const prompt = { kind: 'result', markdown: resultText, source: 'sandbox-async-test' };
       try {
@@ -1313,6 +1357,15 @@ const runMcpAsyncTest = async () => {
         setMcpStatus(err?.message || String(err), true);
       }
     }, 800);
+
+    const pollResult = await pollPromise;
+    if (pollResult.found) {
+      appendMcpOutput('asyncTask.polled', pollResult.text);
+      setMcpStatus(`Polled result (taskId=${taskId})`);
+    } else {
+      appendMcpOutput('asyncTask.timeout', { taskId });
+      setMcpStatus(`Polling timeout (taskId=${taskId})`, true);
+    }
   } catch (err) {
     setMcpStatus(err?.message || String(err), true);
   } finally {

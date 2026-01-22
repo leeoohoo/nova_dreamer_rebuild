@@ -89,8 +89,8 @@ ChatOS 会在 `ui-prompts.jsonl` 中按以下规则匹配结果：
 
 Devkit 沙箱已提供 `uiPrompts` 内存存储与 UI 面板，可用于调试本协议：
 
-- 通过 **MCP Test 面板的 AsyncTask Test** 按钮生成 taskId + 写入结果
-- 在 UI Prompts 面板可看到 result 类型条目
+- 通过 **MCP Test 面板的 AsyncTask Test** 按钮生成 taskId + 写入结果，并执行轮询匹配
+- 在 MCP Output 中可看到轮询命中结果，UI Prompts 面板可看到 result 类型条目
 
 ## 6) 常见问题
 

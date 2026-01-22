@@ -95,7 +95,8 @@ export class ModelClient {
       }
       const result = await raceWithAbort(provider.complete(messages, providerOptions), options.signal);
       throwIfAborted(options.signal);
-      const finalText = (result.content ?? '').trim();
+      const rawContent = result.content ?? '';
+      const finalText = (typeof rawContent === 'string' ? rawContent : String(rawContent)).trim();
       const toolCalls = normalizeToolCalls(result.toolCalls);
       const supportsReasoning =
         typeof provider.supportsReasoningContent === 'function' ? provider.supportsReasoningContent() : false;
@@ -127,7 +128,8 @@ export class ModelClient {
           }
         }
         const checkpoint = session.checkpoint();
-        session.addAssistant(finalText, toolCalls, assistantMeta);
+        const assistantContent = toolCalls.length > 0 && !finalText ? null : finalText;
+        session.addAssistant(assistantContent, toolCalls, assistantMeta);
         try {
           for (const call of toolCalls) {
             throwIfAborted(options.signal);

@@ -39,7 +39,10 @@ class ChatSession {
   }
 
   addAssistant(content, toolCalls = null, metadata = null) {
-    const payload = { role: 'assistant', content: String(content ?? '') };
+    const payload = {
+      role: 'assistant',
+      content: content === null ? null : String(content ?? ''),
+    };
     if (Array.isArray(toolCalls) && toolCalls.length > 0) {
       payload.tool_calls = toolCalls;
     }
