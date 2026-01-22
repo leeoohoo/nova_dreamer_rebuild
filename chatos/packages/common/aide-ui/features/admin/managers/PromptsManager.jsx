@@ -17,7 +17,8 @@ function PromptsManager({ data, onCreate, onUpdate, onDelete, loading, developer
     [normalizePromptName]
   );
   const reservedPromptNames = useMemo(
-    () => new Set(['internal', 'internal_main', 'default', 'user_prompt']),
+    () =>
+      new Set(['internal', 'internal_main', 'internal_subagent', 'default', 'user_prompt', 'subagent_user_prompt']),
     []
   );
   const isReservedPromptName = useCallback(

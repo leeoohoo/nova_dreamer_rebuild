@@ -229,6 +229,22 @@ function getDefaultServers(baseDir) {
       allowSub: true,
     },
     {
+      name: 'subagent_router',
+      script: path.join(CLI_ROOT, 'mcp_servers', 'subagent-server.js'),
+      args: '--name subagent_router',
+      description: '子代理目录/路由/执行：列出、查看详情并直接运行子代理任务。',
+      allowMain: true,
+      allowSub: false,
+    },
+    {
+      name: 'ui_prompter',
+      script: path.join(CLI_ROOT, 'mcp_servers', 'ui-prompt-server.js'),
+      args: '--name ui_prompter',
+      description: '在 Electron UI 的浮动岛上弹出表单/选择项，让用户补充信息或做出决策，并把结果返回给 AI。',
+      allowMain: false,
+      allowSub: true,
+    },
+    {
       name: 'chrome_devtools',
       script: path.join(CLI_ROOT, 'mcp_servers', 'chrome-devtools-mcp-server.js'),
       description:

@@ -124,6 +124,8 @@ function McpServersManager({
         'code_writer',
         'shell_tasks',
         'task_manager',
+        'subagent_router',
+        'ui_prompter',
         'chrome_devtools',
       ]),
     []
