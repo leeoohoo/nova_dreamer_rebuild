@@ -134,7 +134,7 @@ export class ModelClient {
             const target = toolset.find((tool) => tool.name === call.function?.name);
             if (!target) {
               const errMsg = `Tool "${call.function?.name}" is not registered but was requested by the model`;
-              session.addToolResult(call.id, `[error] ${errMsg}`);
+              session.addToolResult(call.id, `[error] ${errMsg}`, call.function?.name || '');
               options.onToolResult?.({
                 tool: call.function?.name || 'unknown',
                 callId: call.id,
@@ -148,7 +148,7 @@ export class ModelClient {
               parsedArgs = parseToolArguments(target.name, argsRaw, target.definition?.function?.parameters);
             } catch (err) {
               const errText = `[error] Failed to parse tool arguments: ${err.message}`;
-              session.addToolResult(call.id, errText);
+              session.addToolResult(call.id, errText, target.name);
               options.onToolResult?.({
                 tool: target.name,
                 callId: call.id,
@@ -182,7 +182,7 @@ export class ModelClient {
               const toolResultForSession = sanitizeToolResultForSession(toolResultText, {
                 tool: target.name,
               });
-              session.addToolResult(call.id, toolResultForSession);
+              session.addToolResult(call.id, toolResultForSession, target.name);
               options.onToolResult?.({
                 tool: target.name,
                 callId: call.id,
@@ -193,7 +193,7 @@ export class ModelClient {
                 throw err?.name === 'AbortError' ? err : createAbortError();
               }
               const errText = `[error] Tool "${target.name}" failed: ${err.message || err}`;
-              session.addToolResult(call.id, errText);
+              session.addToolResult(call.id, errText, target.name);
               options.onToolResult?.({
                 tool: target.name,
                 callId: call.id,

@@ -31,6 +31,16 @@ class AppConfig {
   }
 }
 
+function normalizeReasoningEffort(value) {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!raw || raw === 'default' || raw === 'none' || raw === 'off') {
+    return '';
+  }
+  if (raw === 'hight') return 'high';
+  if (raw === 'xhight' || raw === 'xhigh') return 'high';
+  return raw;
+}
+
 function loadConfig(configPath) {
   const resolved = typeof configPath === 'string' ? configPath : String(configPath || '');
   if (!resolved) {
@@ -87,12 +97,13 @@ function createAppConfigFromModels(modelsList = [], secretsList = []) {
     if (!m.name || !m.provider || !m.model) {
       return;
     }
-    const reasoningEffort =
+    const reasoningEffort = normalizeReasoningEffort(
       typeof m.reasoningEffort === 'string'
-        ? m.reasoningEffort.trim()
+        ? m.reasoningEffort
         : typeof m.reasoning_effort === 'string'
-          ? m.reasoning_effort.trim()
-          : '';
+          ? m.reasoning_effort
+          : ''
+    );
     const apiKeyEnv = m.apiKeyEnv || m.api_key_env || null;
     const resolvedKey = apiKeyEnv
       ? secretValueByName.get(normalizeSecretName(apiKeyEnv)) || null
@@ -138,7 +149,7 @@ function createModelSettings(name, raw) {
     provider: String(raw.provider),
     model: String(raw.model),
     supports_vision: Boolean(raw.supports_vision ?? raw.supportsVision),
-    reasoning_effort: raw.reasoning_effort || raw.reasoningEffort || null,
+    reasoning_effort: normalizeReasoningEffort(raw.reasoning_effort || raw.reasoningEffort || null) || null,
     api_key_env: raw.api_key_env || raw.apiKeyEnv || null,
     api_key: raw.api_key || raw.apiKey || null,
     base_url: raw.base_url || raw.baseUrl || null,

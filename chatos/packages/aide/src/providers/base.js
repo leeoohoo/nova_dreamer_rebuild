@@ -54,6 +54,9 @@ export class ModelProvider {
           normalizedEntry.content = String(message.content ?? '');
         }
       }
+      if ((role === 'tool' || role === 'function') && message.name !== undefined && message.name !== null) {
+        normalizedEntry.name = String(message.name);
+      }
       if (message.tool_call_id !== undefined && message.tool_call_id !== null) {
         normalizedEntry.tool_call_id = String(message.tool_call_id);
       }

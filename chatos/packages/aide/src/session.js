@@ -53,12 +53,16 @@ class ChatSession {
     this.messages.push(payload);
   }
 
-  addToolResult(toolCallId, content) {
-    this.messages.push({
+  addToolResult(toolCallId, content, toolName = null) {
+    const payload = {
       role: 'tool',
-      tool_call_id: toolCallId,
+      tool_call_id: String(toolCallId ?? ''),
       content: String(content ?? ''),
-    });
+    };
+    if (toolName !== undefined && toolName !== null && String(toolName).trim()) {
+      payload.name = String(toolName);
+    }
+    this.messages.push(payload);
   }
 
   getLastUserMessage() {

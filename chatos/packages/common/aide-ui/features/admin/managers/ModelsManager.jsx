@@ -100,6 +100,7 @@ function ModelsManager({
         type: 'select',
         options: [
           { label: '默认（不传）', value: '' },
+          { label: 'MINIMAL', value: 'minimal' },
           { label: 'LOW', value: 'low' },
           { label: 'MEDIUM', value: 'medium' },
           { label: 'HIGH', value: 'high' },

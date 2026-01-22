@@ -42,6 +42,38 @@ function getToolResultText(results = []) {
   return parts.join('\n\n');
 }
 
+function extractThinkContent(text) {
+  const raw = typeof text === 'string' ? text : String(text ?? '');
+  if (!raw) return { content: '', reasoning: '' };
+  const regex = /<think(?:\s[^>]*)?>([\s\S]*?)<\/think>/gi;
+  let cleaned = '';
+  let lastIndex = 0;
+  const reasoningParts = [];
+  let match;
+  while ((match = regex.exec(raw)) !== null) {
+    cleaned += raw.slice(lastIndex, match.index);
+    if (match[1]) {
+      reasoningParts.push(match[1]);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  const remainder = raw.slice(lastIndex);
+  const openMatch = remainder.match(/<think(?:\s[^>]*)?>([\s\S]*)$/i);
+  if (openMatch) {
+    cleaned += remainder.slice(0, openMatch.index);
+    if (openMatch[1]) {
+      reasoningParts.push(openMatch[1]);
+    }
+  } else {
+    cleaned += remainder;
+  }
+  const reasoning = reasoningParts
+    .map((part) => (typeof part === 'string' ? part.trim() : String(part || '').trim()))
+    .filter(Boolean)
+    .join('\n\n');
+  return { content: cleaned, reasoning };
+}
+
 export function AssistantTurnCard({ messages, streaming }) {
   const list = useMemo(() => (Array.isArray(messages) ? messages.filter(Boolean) : []), [messages]);
   const [copying, setCopying] = useState(false);
@@ -75,15 +107,21 @@ export function AssistantTurnCard({ messages, streaming }) {
       if (msg.role === 'assistant') {
         const reasoning =
           typeof msg?.reasoning === 'string' ? msg.reasoning : String(msg?.reasoning || '');
-        if (reasoning.trim()) {
+        const contentRaw = typeof msg?.content === 'string' ? msg.content : String(msg?.content || '');
+        const extracted = extractThinkContent(contentRaw);
+        const combinedReasoning = [reasoning, extracted.reasoning]
+          .map((part) => (typeof part === 'string' ? part.trim() : String(part || '').trim()))
+          .filter(Boolean)
+          .join('\n\n');
+        if (combinedReasoning) {
           out.push({
             type: 'assistant_reasoning',
             key: `${normalizeId(msg?.id) || `assistant_${msgIdx}`}_reasoning`,
-            content: reasoning,
+            content: combinedReasoning,
           });
         }
 
-        const content = typeof msg?.content === 'string' ? msg.content : String(msg?.content || '');
+        const content = extracted.content;
         if (content.trim()) {
           out.push({
             type: 'assistant',

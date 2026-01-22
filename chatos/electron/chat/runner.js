@@ -327,7 +327,7 @@ function buildChatSessionFromMessages({
       const callId = normalizeId(msg?.toolCallId);
       if (!callId) return;
       if (!pendingToolCallIds || !pendingToolCallIds.has(callId)) return;
-      chatSession.addToolResult(callId, msg?.content || '');
+      chatSession.addToolResult(callId, msg?.content || '', msg?.toolName || msg?.name);
       pendingToolCallIds.delete(callId);
     }
   });
