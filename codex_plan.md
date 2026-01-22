@@ -1,13 +1,12 @@
 # Analysis (pre-task)
-Goal: extend the devkit sandbox AsyncTask test to poll results from the ui-prompts.jsonl file (file-based), mirroring ChatOS behavior. This requires server-side endpoints to append/read ui prompts from disk, client-side hooks to write entries to file, and polling that reads from file rather than in-memory entries.
+Goal: align the sandbox UI Prompts panel and host.uiPrompts APIs with the file-based ui-prompts.jsonl flow so developers see the same data that polling reads. This requires rendering prompts from file entries when available and ensuring UI responses are appended to file.
 
 Key anchors:
-- Sandbox client uiPrompts store in chatos-uiapps-devkit/src/sandbox/server.js (entries array + host.uiPrompts).
-- Sandbox server request handler in chatos-uiapps-devkit/src/sandbox/server.js (add /api/ui-prompts/read + /api/ui-prompts/append).
-- ChatOS asyncTask + polling rules in chatos/packages/aide/src/mcp/runtime.js.
+- renderPrompts and entries store in chatos-uiapps-devkit/src/sandbox/server.js.
+- file-based ui-prompts.jsonl read/append endpoints already added.
 
 # Tasks
-1) Add server-side ui-prompts.jsonl helpers and API endpoints for append/read.
-2) Update sandbox client uiPrompts.request/respond to persist entries to file via API.
-3) Update AsyncTask polling to read from file API (fallback to memory if needed).
-4) Update sandbox paths to include ui-prompts.jsonl location.
+1) Update renderPrompts to accept an explicit entries list.
+2) Add refreshUiPromptsFromFile to read file entries and re-render/notify listeners.
+3) Update emitUpdate and panel open logic to prefer file entries.
+4) Ensure UI prompt responses append to ui-prompts.jsonl.

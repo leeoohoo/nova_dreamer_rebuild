@@ -1100,7 +1100,10 @@ const markMcpStreamStatus = (payload) => {
   }
 };
 
-const setPanelOpen = (open) => { panel.style.display = open ? 'flex' : 'none'; };
+const setPanelOpen = (open) => {
+  panel.style.display = open ? 'flex' : 'none';
+  if (open) refreshUiPromptsFromFile();
+};
 fab.addEventListener('click', () => setPanelOpen(panel.style.display !== 'flex'));
 panelClose.addEventListener('click', () => setPanelOpen(false));
 window.addEventListener('chatos:uiPrompts:open', () => setPanelOpen(true));
@@ -1601,18 +1604,30 @@ updateContextStatus();
 
 const entries = [];
 const listeners = new Set();
+const notifyUiPrompts = (list) => {
+  const payload = { path: '(sandbox)', entries: Array.isArray(list) ? [...list] : [] };
+  for (const fn of listeners) {
+    try {
+      fn(payload);
+    } catch {
+      // ignore
+    }
+  }
+};
+
 const emitUpdate = () => {
-  const payload = { path: '(sandbox)', entries: [...entries] };
-  for (const fn of listeners) { try { fn(payload); } catch {} }
-  renderPrompts();
+  notifyUiPrompts(entries);
+  renderPrompts(entries);
+  refreshUiPromptsFromFile();
 };
 
 const uuid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2));
 
-function renderPrompts() {
+function renderPrompts(sourceEntries = entries) {
   panelBody.textContent = '';
   const pending = new Map();
-  for (const e of entries) {
+  const list = Array.isArray(sourceEntries) ? sourceEntries : [];
+  for (const e of list) {
     if (e?.type !== 'ui_prompt') continue;
     const id = String(e?.requestId || '');
     if (!id) continue;
@@ -1663,7 +1678,15 @@ function renderPrompts() {
     };
 
     const submit = async (response) => {
-      entries.push({ ts: new Date().toISOString(), type: 'ui_prompt', action: 'response', requestId, response });
+      const entry = {
+        ts: new Date().toISOString(),
+        type: 'ui_prompt',
+        action: 'response',
+        requestId,
+        response,
+      };
+      entries.push(entry);
+      appendUiPromptsToFile(entry);
       emitUpdate();
     };
 
@@ -1824,6 +1847,13 @@ const readUiPromptsFromFile = async () => {
   return [];
 };
 
+const refreshUiPromptsFromFile = async () => {
+  const fileEntries = await readUiPromptsFromFile();
+  if (fileEntries.length === 0) return;
+  notifyUiPrompts(fileEntries);
+  renderPrompts(fileEntries);
+};
+
 const getTheme = () => currentTheme || resolveTheme();
 
 const host = {
@@ -1867,7 +1897,10 @@ const host = {
     },
   },
   uiPrompts: {
-    read: async () => ({ path: '(sandbox)', entries: [...entries] }),
+    read: async () => {
+      const fileEntries = await readUiPromptsFromFile();
+      return { path: '(sandbox)', entries: fileEntries.length > 0 ? fileEntries : [...entries] };
+    },
     onUpdate: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
     request: async (payload) => {
       const requestId = payload?.requestId ? String(payload.requestId) : uuid();
