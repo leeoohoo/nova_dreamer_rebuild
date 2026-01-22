@@ -1,7 +1,7 @@
 # Analysis (pre-task)
-Goal: inspect ChatOS code to identify how it calls the Codex MCP tool and handles asyncTask ACK + polling/backlog, so we can align the sandbox behavior.
+Goal: fix the sandbox MCP Send flow so it matches ChatOS asyncTask behavior. The Codex MCP tool expects taskId in _meta when asyncTask is configured. In ChatOS, the runtime injects taskId and waits/polls ui-prompts.jsonl for the final result. The sandbox currently calls MCP tools directly without this injection, causing the -32602 error. We'll add asyncTask normalization + taskId injection + ui-prompts polling in the sandbox server tool-call path.
 
 # Tasks
-1) Locate Codex tool invocation and asyncTask handling in chatos/packages/aide/src/mcp/runtime.js.
-2) Find where UI prompts backlog is written/read and how polling matches taskId (likely in chatos/electron or ui prompts utilities).
-3) Summarize the actual call flow with code references.
+1) Add asyncTask helper functions (normalize config, generate taskId, poll ui-prompts) in chatos-uiapps-devkit/src/sandbox/server.js.
+2) Update runSandboxChat tool-call logic to inject taskId into _meta when asyncTask applies, and return polled ui-prompts result (matching ChatOS).
+3) Validate the file syntax.

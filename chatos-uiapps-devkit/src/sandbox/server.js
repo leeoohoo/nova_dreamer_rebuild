@@ -66,9 +66,122 @@ function resolveSandboxConfigPath({ primaryRoot, legacyRoot }) {
 
 const DEFAULT_LLM_BASE_URL = 'https://api.openai.com/v1';
 const UI_PROMPTS_FILENAME = 'ui-prompts.jsonl';
+const DEFAULT_ASYNC_POLL_MS = 1000;
+const DEFAULT_ASYNC_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeAsyncToolName(value) {
+  const normalized = normalizeText(value);
+  return normalized ? normalized.toLowerCase() : '';
+}
+
+function normalizeAsyncTaskConfig(raw, toolName) {
+  if (!raw || typeof raw !== 'object') return null;
+  const tools = Array.isArray(raw.tools) ? raw.tools.map(normalizeAsyncToolName).filter(Boolean) : [];
+  const toolKey = normalizeAsyncToolName(toolName);
+  if (tools.length > 0 && toolKey && !tools.includes(toolKey)) return null;
+  const taskIdKey = typeof raw.taskIdKey === 'string' ? raw.taskIdKey.trim() : 'taskId';
+  if (!taskIdKey) return null;
+  const resultSource = typeof raw.resultSource === 'string' ? raw.resultSource.trim().toLowerCase() : 'ui_prompts';
+  const uiPromptFile = typeof raw.uiPromptFile === 'string' ? raw.uiPromptFile.trim() : UI_PROMPTS_FILENAME;
+  const pollIntervalMs = Number.isFinite(Number(raw.pollIntervalMs))
+    ? Math.max(200, Math.min(5000, Number(raw.pollIntervalMs)))
+    : DEFAULT_ASYNC_POLL_MS;
+  return {
+    taskIdKey,
+    resultSource,
+    uiPromptFile,
+    pollIntervalMs,
+  };
+}
+
+function generateTaskId({ sessionId, serverName, toolName } = {}) {
+  const parts = [];
+  const sid = normalizeText(sessionId);
+  if (sid) parts.push(sid);
+  const server = normalizeText(serverName);
+  const tool = normalizeText(toolName);
+  if (server || tool) parts.push([server, tool].filter(Boolean).join('.'));
+  let token = '';
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    token = globalThis.crypto.randomUUID();
+  } else {
+    token = Date.now().toString(36) + '_' + Math.random().toString(16).slice(2, 10);
+  }
+  parts.push(token);
+  return parts.filter(Boolean).join('_');
+}
+
+function resolveAsyncTimeoutMs(options) {
+  const timeout = Number(options?.timeoutMs || options?.maxTotalTimeout || options?.timeout || 0);
+  if (Number.isFinite(timeout) && timeout > 0) return timeout;
+  return DEFAULT_ASYNC_TIMEOUT_MS;
+}
+
+function extractUiPromptResult(entries, requestIds) {
+  const ids = new Set(
+    (Array.isArray(requestIds) ? requestIds : [])
+      .map((id) => (typeof id === 'string' ? id.trim() : ''))
+      .filter(Boolean)
+  );
+  if (ids.size === 0) return null;
+  const list = Array.isArray(entries) ? entries : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const entry = list[i];
+    if (!entry || typeof entry !== 'object') continue;
+    if (entry.type !== 'ui_prompt') continue;
+    if (entry.action !== 'request') continue;
+    const requestId = typeof entry.requestId === 'string' ? entry.requestId.trim() : '';
+    if (!requestId || !ids.has(requestId)) continue;
+    const prompt = entry.prompt && typeof entry.prompt === 'object' ? entry.prompt : null;
+    if (!prompt || typeof prompt.kind !== 'string' || prompt.kind.trim() !== 'result') continue;
+    const markdown =
+      typeof prompt.markdown === 'string'
+        ? prompt.markdown
+        : typeof prompt.result === 'string'
+          ? prompt.result
+          : typeof prompt.content === 'string'
+            ? prompt.content
+            : '';
+    return markdown;
+  }
+  return null;
+}
+
+async function waitForUiPromptResult({ taskId, config, callMeta, options } = {}) {
+  const id = typeof taskId === 'string' ? taskId.trim() : '';
+  if (!id) return { found: false, text: '' };
+
+  const stateDir = callMeta?.chatos?.uiApp?.stateDir
+    ? String(callMeta.chatos.uiApp.stateDir)
+    : '';
+  const uiPromptFile =
+    typeof config?.uiPromptFile === 'string' && config.uiPromptFile.trim()
+      ? config.uiPromptFile.trim()
+      : UI_PROMPTS_FILENAME;
+  const filePath = path.isAbsolute(uiPromptFile) ? uiPromptFile : stateDir ? path.join(stateDir, uiPromptFile) : '';
+  if (!filePath) return { found: false, text: '' };
+
+  const requestIds = [id, 'mcp-task:' + id];
+  const pollIntervalMs = config?.pollIntervalMs || DEFAULT_ASYNC_POLL_MS;
+  const timeoutMs = resolveAsyncTimeoutMs(options);
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const entries = readUiPromptsEntries(filePath);
+    const text = extractUiPromptResult(entries, requestIds);
+    if (text !== null) {
+      return { found: true, text };
+    }
+    await sleepMs(pollIntervalMs);
+  }
+
+  return { found: false, text: '' };
 }
 
 function ensureUiPromptsFile(filePath) {
@@ -2444,6 +2557,7 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
           const toolEntry = toolName ? toolMap.get(toolName) : null;
           let args = {};
           let resultText = '';
+          let toolCallMeta = effectiveCallMeta;
           if (!toolEntry) {
             resultText = `[error] Tool not registered: ${toolName || 'unknown'}`;
           } else {
@@ -2455,12 +2569,65 @@ export async function startSandboxServer({ pluginDir, port = 4399, appId = '' })
               args = {};
             }
             if (!resultText) {
+              const asyncTaskConfig = normalizeAsyncTaskConfig(effectiveCallMeta?.asyncTask, toolEntry.toolName);
+              let taskId = '';
+              if (asyncTaskConfig) {
+                const taskIdKey = asyncTaskConfig.taskIdKey || '';
+                const existingTaskId =
+                  taskIdKey && typeof effectiveCallMeta?.[taskIdKey] === 'string'
+                    ? effectiveCallMeta[taskIdKey].trim()
+                    : '';
+                taskId =
+                  existingTaskId ||
+                  generateTaskId({
+                    sessionId: normalizeText(effectiveCallMeta?.sessionId),
+                    serverName: toolEntry.serverName,
+                    toolName: toolEntry.toolName,
+                  });
+                toolCallMeta = mergeCallMeta(effectiveCallMeta, {
+                  ...(taskIdKey ? { [taskIdKey]: taskId } : null),
+                  stream: false,
+                });
+              }
               const toolResult = await toolEntry.client.callTool({
                 name: toolEntry.toolName,
                 arguments: args,
-                ...(effectiveCallMeta ? { _meta: effectiveCallMeta } : {}),
+                ...(toolCallMeta ? { _meta: toolCallMeta } : {}),
               });
-              resultText = formatMcpToolResult(toolEntry.serverName, toolEntry.toolName, toolResult);
+              if (asyncTaskConfig) {
+                if (toolResult?.isError) {
+                  resultText = formatMcpToolResult(toolEntry.serverName, toolEntry.toolName, toolResult);
+                } else if (asyncTaskConfig.resultSource && asyncTaskConfig.resultSource !== 'ui_prompts') {
+                  resultText =
+                    '[' +
+                    toolEntry.serverName +
+                    '/' +
+                    toolEntry.toolName +
+                    '] ❌ 不支持的异步结果源: ' +
+                    asyncTaskConfig.resultSource;
+                } else {
+                  const asyncResult = await waitForUiPromptResult({
+                    taskId,
+                    config: asyncTaskConfig,
+                    callMeta: toolCallMeta,
+                  });
+                  if (asyncResult.found) {
+                    const text = typeof asyncResult.text === 'string' ? asyncResult.text.trim() : '';
+                    resultText = text || '（无结果内容）';
+                  } else {
+                    resultText =
+                      '[' +
+                      toolEntry.serverName +
+                      '/' +
+                      toolEntry.toolName +
+                      '] ❌ 等待交互待办结果超时 (taskId=' +
+                      (taskId || 'unknown') +
+                      ')';
+                  }
+                }
+              } else {
+                resultText = formatMcpToolResult(toolEntry.serverName, toolEntry.toolName, toolResult);
+              }
             }
           }
           toolTrace.push({ tool: toolName || 'unknown', args, result: resultText });
