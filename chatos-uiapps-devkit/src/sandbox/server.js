@@ -1347,8 +1347,7 @@ const pollAsyncResult = async ({ taskId, timeoutMs = 6000, intervalMs = 500 } = 
   const deadline = Date.now() + Math.max(500, timeoutMs);
   while (Date.now() < deadline) {
     const fileEntries = await readUiPromptsFromFile();
-    const sourceEntries = fileEntries.length > 0 ? fileEntries : entries;
-    const text = extractAsyncResult(sourceEntries, requestIds);
+    const text = extractAsyncResult(fileEntries, requestIds);
     if (text !== null) return { found: true, text };
     await sleep(Math.max(200, intervalMs));
   }
@@ -1390,18 +1389,7 @@ const runMcpAsyncTest = async () => {
     setTimeout(async () => {
       const prompt = { kind: 'result', markdown: resultText, source: 'sandbox-async-test' };
       try {
-        if (host?.uiPrompts?.request) {
-          await host.uiPrompts.request({ requestId: taskId, prompt });
-        } else {
-          entries.push({
-            ts: new Date().toISOString(),
-            type: 'ui_prompt',
-            action: 'request',
-            requestId: taskId,
-            prompt,
-          });
-          emitUpdate();
-        }
+        await host.uiPrompts.request({ requestId: taskId, prompt });
         appendMcpOutput('asyncTask.result', { requestId: taskId, prompt });
         setMcpStatus(`Result stored in uiPrompts (taskId=${taskId})`);
       } catch (err) {
@@ -1605,7 +1593,10 @@ updateContextStatus();
 const entries = [];
 const listeners = new Set();
 const notifyUiPrompts = (list) => {
-  const payload = { path: '(sandbox)', entries: Array.isArray(list) ? [...list] : [] };
+  const payload = {
+    path: sandboxPaths.uiPromptsFile || '(sandbox)',
+    entries: Array.isArray(list) ? [...list] : [],
+  };
   for (const fn of listeners) {
     try {
       fn(payload);
@@ -1615,10 +1606,8 @@ const notifyUiPrompts = (list) => {
   }
 };
 
-const emitUpdate = () => {
-  notifyUiPrompts(entries);
-  renderPrompts(entries);
-  refreshUiPromptsFromFile();
+const emitUpdate = async () => {
+  await refreshUiPromptsFromFile();
 };
 
 const uuid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2));
@@ -1685,9 +1674,8 @@ function renderPrompts(sourceEntries = entries) {
         requestId,
         response,
       };
-      entries.push(entry);
-      appendUiPromptsToFile(entry);
-      emitUpdate();
+      await appendUiPromptsToFile(entry);
+      await emitUpdate();
     };
 
     if (kind === 'result') {
@@ -1826,13 +1814,15 @@ const callSandboxChat = async (payload, signal) => {
 
 const appendUiPromptsToFile = async (entry) => {
   try {
-    await fetch('/api/ui-prompts/append', {
+    const r = await fetch('/api/ui-prompts/append', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ entry }),
     });
+    const j = await r.json();
+    return Boolean(j?.ok);
   } catch {
-    // ignore
+    return false;
   }
 };
 
@@ -1847,11 +1837,19 @@ const readUiPromptsFromFile = async () => {
   return [];
 };
 
+const replaceEntries = (list) => {
+  entries.length = 0;
+  if (Array.isArray(list) && list.length > 0) {
+    entries.push(...list);
+  }
+};
+
 const refreshUiPromptsFromFile = async () => {
   const fileEntries = await readUiPromptsFromFile();
-  if (fileEntries.length === 0) return;
-  notifyUiPrompts(fileEntries);
-  renderPrompts(fileEntries);
+  replaceEntries(fileEntries);
+  notifyUiPrompts(entries);
+  renderPrompts(entries);
+  return entries;
 };
 
 const getTheme = () => currentTheme || resolveTheme();
@@ -1899,7 +1897,7 @@ const host = {
   uiPrompts: {
     read: async () => {
       const fileEntries = await readUiPromptsFromFile();
-      return { path: '(sandbox)', entries: fileEntries.length > 0 ? fileEntries : [...entries] };
+      return { path: sandboxPaths.uiPromptsFile || '(sandbox)', entries: fileEntries };
     },
     onUpdate: (listener) => { listeners.add(listener); return () => listeners.delete(listener); },
     request: async (payload) => {
@@ -1914,9 +1912,8 @@ const host = {
         runId: payload?.runId,
         prompt,
       };
-      entries.push(entry);
-      appendUiPromptsToFile(entry);
-      emitUpdate();
+      await appendUiPromptsToFile(entry);
+      await emitUpdate();
       return { ok: true, requestId };
     },
     respond: async (payload) => {
@@ -1931,9 +1928,8 @@ const host = {
         runId: payload?.runId,
         response,
       };
-      entries.push(entry);
-      appendUiPromptsToFile(entry);
-      emitUpdate();
+      await appendUiPromptsToFile(entry);
+      await emitUpdate();
       return { ok: true };
     },
     open: () => (setPanelOpen(true), { ok: true }),
