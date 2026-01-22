@@ -925,7 +925,10 @@ function htmlPage() {
               <input id="mcpDisableTools" type="checkbox" style="width:auto;" />
               Disable tools
             </label>
-            <button id="btnMcpSend" class="btn" type="button">Send</button>
+            <div class="row">
+              <button id="btnMcpAsync" class="btn" type="button">AsyncTask Test</button>
+              <button id="btnMcpSend" class="btn" type="button">Send</button>
+            </div>
           </div>
           <div id="mcpStatus" class="muted"></div>
         </div>
@@ -1003,6 +1006,7 @@ const mcpPanel = $('#mcpPanel');
 const btnMcpClose = $('#btnMcpClose');
 const btnMcpClear = $('#btnMcpClear');
 const btnMcpSend = $('#btnMcpSend');
+const btnMcpAsync = $('#btnMcpAsync');
 const mcpPaths = $('#mcpPaths');
 const mcpWorkdir = $('#mcpWorkdir');
 const mcpModelId = $('#mcpModelId');
@@ -1257,6 +1261,65 @@ const setMcpPanelOpen = (open) => {
   }
 };
 
+const buildAsyncTaskCallMeta = (taskId) => ({
+  asyncTask: {
+    tools: ['codex_app_window_run'],
+    taskIdKey: 'taskId',
+    resultSource: 'ui_prompts',
+    uiPromptFile: 'ui-prompts.jsonl',
+  },
+  taskId,
+});
+
+const runMcpAsyncTest = async () => {
+  const sendBtn = btnMcpAsync;
+  try {
+    const message = mcpMessage ? String(mcpMessage.value || '').trim() : '';
+    if (!message) {
+      setMcpStatus('Message is required.', true);
+      return;
+    }
+    resetMcpStreamState();
+    if (sendBtn) sendBtn.disabled = true;
+
+    const taskId = 'task_' + uuid();
+    const callMeta = buildAsyncTaskCallMeta(taskId);
+    const ack = { status: 'accepted', taskId };
+    const resultText = `AsyncTask result for ${taskId}`;
+
+    appendMcpOutput('asyncTask.request', { message, callMeta });
+    appendMcpOutput('asyncTask.ack', ack);
+    setMcpStatus(`ACK: ${taskId} (waiting for uiPrompts result)...`);
+
+    setTimeout(async () => {
+      const prompt = { kind: 'result', markdown: resultText, source: 'sandbox-async-test' };
+      try {
+        if (host?.uiPrompts?.request) {
+          await host.uiPrompts.request({ requestId: taskId, prompt });
+        } else {
+          entries.push({
+            ts: new Date().toISOString(),
+            type: 'ui_prompt',
+            action: 'request',
+            requestId: taskId,
+            prompt,
+          });
+          emitUpdate();
+        }
+        appendMcpOutput('asyncTask.result', { requestId: taskId, prompt });
+        setMcpStatus(`Result stored in uiPrompts (taskId=${taskId})`);
+      } catch (err) {
+        appendMcpOutput('asyncTask.error', err?.message || String(err));
+        setMcpStatus(err?.message || String(err), true);
+      }
+    }, 800);
+  } catch (err) {
+    setMcpStatus(err?.message || String(err), true);
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+  }
+};
+
 const runMcpTest = async () => {
   const sendBtn = btnMcpSend;
   try {
@@ -1418,6 +1481,10 @@ if (btnMcpClear)
   btnMcpClear.addEventListener('click', () => {
     if (mcpOutput) mcpOutput.textContent = '';
     setMcpStatus('');
+  });
+if (btnMcpAsync)
+  btnMcpAsync.addEventListener('click', () => {
+    runMcpAsyncTest();
   });
 if (btnMcpSend)
   btnMcpSend.addEventListener('click', () => {

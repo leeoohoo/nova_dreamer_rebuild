@@ -9,6 +9,7 @@
 - [`CHATOS_UI_APPS_STYLE_GUIDE.md`](./CHATOS_UI_APPS_STYLE_GUIDE.md)：主题与样式约定（CSS Tokens / 主题切换）。
 - [`CHATOS_UI_APPS_TROUBLESHOOTING.md`](./CHATOS_UI_APPS_TROUBLESHOOTING.md)：常见问题与排查清单。
 - [`CHATOS_UI_PROMPTS_PROTOCOL.md`](./CHATOS_UI_PROMPTS_PROTOCOL.md)：右下角笑脸「交互待办（UI Prompts）」协议（表单/单选/多选/复杂确认）。
+- [`CHATOS_UI_APPS_ASYNC_TASK_PROTOCOL.md`](./CHATOS_UI_APPS_ASYNC_TASK_PROTOCOL.md)：AsyncTask 轮询协议（ACK + 交互待办）。
 - [`CHATOS_UI_APPS_BACKEND_PROTOCOL.md`](./CHATOS_UI_APPS_BACKEND_PROTOCOL.md)：插件后端（Electron main 进程）协议与 `ctx` 运行时上下文。
 - [`CHATOS_UI_APPS_AI_CONTRIBUTIONS.md`](./CHATOS_UI_APPS_AI_CONTRIBUTIONS.md)：应用如何对 Chat Agent 暴露 MCP/Prompt（含命名规则、合并规则、内置清单机制）。
 
