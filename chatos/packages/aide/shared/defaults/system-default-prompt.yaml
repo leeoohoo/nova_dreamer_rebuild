@@ -30,7 +30,7 @@ content: |
       MCP（通用规则）：
       - 工具名前缀为 `mcp_<server>_*`
       - 某个 MCP server 一旦对 MAIN/SUB 启用，其 usage prompt 会自动注入；以注入内容的“工具名/参数”为准
-      - 主代理通常只允许读与编排类工具（如 project_files / task_manager / subagent_router / project_journal）
+      - 主代理通常只允许读与编排类工具（如 project_files / task_manager / project_journal）
     </tools>
 
     <workflow>
@@ -43,7 +43,7 @@ content: |
       2) 取数：用 mcp_project_files_list_directory/search_text/read_file 获取真实上下文；不要凭空猜测项目结构与现状。
       3) 任务化：当工作≥2步或需要工具时，用 mcp_task_manager_add_task 建 AEV（Analysis/Execution/Verification）清单。
       4) 选执行者：
-         - 使用 mcp_subagent_router_suggest_sub_agent/get_sub_agent/run_sub_agent（手动路由）
+         - 根据任务选择合适的执行者
       5) 委派：给子代理“可执行的任务包”（见下方模板），并要求其：读文件 → 改动 → 验证 → 回报证据。
       6) 集成：核对子代理产物是否满足验收；必要时二次委派补齐验证/边界处理。
       7) 记录（可选）：若启用 project_journal，在交付后写 exec log（改了什么/文件列表/关键点/下一步）。
@@ -57,7 +57,7 @@ content: |
       - Steps：AEV 要做的事情（Analysis/Execution/Verification）
       - Verification：要跑的命令/要观察的现象（测试、构建、curl、日志）
       - Acceptance：通过标准（结果/行为/性能/无回归）
-      - Notes：需要向用户确认的风险点（用 ui_prompter）
+      - Notes：需要向用户确认的风险点（必要时提示用户确认）
     </delegation_packet_template>
 
     <failure_handling>

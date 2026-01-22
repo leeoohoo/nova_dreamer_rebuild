@@ -18,7 +18,6 @@ mcpPrompt:
       注意：
 
       - 该“AIDE 引擎”应用本身主要是 UI 面板入口（会话/文件/事件等查看）。
-      - 为了便于快速组合能力，当前版本会在 Agent 配置里允许你把**全局 MCP servers / Prompts** 挂载到该应用下（按需多选）。
   en:
     content: |
       # AIDE Engine (UI)
@@ -33,4 +32,3 @@ mcpPrompt:
       Notes:
 
       - This “AIDE Engine” app is mainly a UI entry panel (sessions/files/events views).
-      - For faster capability composition, the current version lets you mount global MCP servers/prompts under this app in the Agent editor (multi-select as needed).

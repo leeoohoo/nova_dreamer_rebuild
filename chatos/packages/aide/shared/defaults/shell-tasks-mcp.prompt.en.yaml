@@ -32,7 +32,7 @@ prompt: |
       - Prefer non-interactive commands (add --yes/--no-input/--force etc.) to avoid hanging.
       - If the command prompts for input (Y/n, password, Enter passphrase...), switch to session_run + capture_output + session_send_input.
       - Always check stderr/exit code; on failure, write a concise stdout/stderr summary into task notes.
-      - For commands that may change many files (install/build/format/migrate), ask for user confirmation first (use ui_prompter when available).
+      - For commands that may change many files (install/build/format/migrate), ask for user confirmation first.
       - Never run dangerous commands (rm -rf, dd, mkfs, diskutil erase, etc.).
     </golden_rules>
 

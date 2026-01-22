@@ -48,6 +48,40 @@ function McpServersManager({
     if (typeof value !== 'string') return '';
     return value.trim();
   }, []);
+  const timeoutOptions = useMemo(
+    () => [
+      { label: '默认', value: '' },
+      { label: '5分钟', value: 5 },
+      { label: '10分钟', value: 10 },
+      { label: '30分钟', value: 30 },
+      { label: '1小时', value: 60 },
+      { label: '2小时', value: 120 },
+      { label: '4小时', value: 240 },
+      { label: '自定义', value: 'custom' },
+    ],
+    []
+  );
+  const formatTimeoutLabel = useCallback((ms) => {
+    if (!Number.isFinite(ms) || ms <= 0) return '-';
+    const minutes = Math.round(ms / 60000);
+    if (minutes >= 60 && minutes % 60 === 0) {
+      const hours = minutes / 60;
+      return `${hours}小时`;
+    }
+    return `${minutes}分钟`;
+  }, []);
+  const normalizeTimeoutPreset = useCallback((ms) => {
+    if (!Number.isFinite(ms) || ms <= 0) return '';
+    const minutes = Math.round(ms / 60000);
+    const presetValues = new Set([5, 10, 30, 60, 120, 240]);
+    return presetValues.has(minutes) ? minutes : 'custom';
+  }, []);
+  const normalizeTimeoutCustom = useCallback((ms) => {
+    if (!Number.isFinite(ms) || ms <= 0) return '';
+    const minutes = Math.round(ms / 60000);
+    const presetValues = new Set([5, 10, 30, 60, 120, 240]);
+    return presetValues.has(minutes) ? '' : String(minutes);
+  }, []);
   const promptMap = useMemo(() => {
     const map = new Map();
     (Array.isArray(prompts) ? prompts : []).forEach((prompt) => {
@@ -63,6 +97,10 @@ function McpServersManager({
       const { zh: promptZhName, en: promptEnName } = getPromptNames(item?.name);
       const promptZh = promptZhName ? promptMap.get(promptZhName.toLowerCase()) : null;
       const promptEn = promptEnName ? promptMap.get(promptEnName.toLowerCase()) : null;
+      const timeoutPreset = normalizeTimeoutPreset(item?.timeout_ms);
+      const timeoutCustom = normalizeTimeoutCustom(item?.timeout_ms);
+      const maxTimeoutPreset = normalizeTimeoutPreset(item?.max_timeout_ms);
+      const maxTimeoutCustom = normalizeTimeoutCustom(item?.max_timeout_ms);
       return {
         ...item,
         authToken: item?.auth?.token || '',
@@ -72,9 +110,13 @@ function McpServersManager({
         promptEnId: promptEn?.id || '',
         promptZhTitle: promptZh?.title || '',
         promptEnTitle: promptEn?.title || '',
+        timeoutPreset,
+        timeoutCustom,
+        maxTimeoutPreset,
+        maxTimeoutCustom,
       };
     });
-  }, [data, getPromptNames, promptMap]);
+  }, [data, getPromptNames, normalizeTimeoutCustom, normalizeTimeoutPreset, promptMap]);
   const builtinNames = useMemo(
     () =>
       new Set([
@@ -82,8 +124,6 @@ function McpServersManager({
         'code_writer',
         'shell_tasks',
         'task_manager',
-        'subagent_router',
-        'ui_prompter',
         'chrome_devtools',
       ]),
     []
@@ -227,6 +267,18 @@ function McpServersManager({
         render: (value) => renderPromptPreview(value),
       },
       {
+        title: '超时',
+        dataIndex: 'timeout_ms',
+        width: 120,
+        render: (value) => formatTimeoutLabel(value),
+      },
+      {
+        title: '最大超时',
+        dataIndex: 'max_timeout_ms',
+        width: 120,
+        render: (value) => formatTimeoutLabel(value),
+      },
+      {
         title: '标签',
         dataIndex: 'tags',
         render: (tags) => (Array.isArray(tags) && tags.length > 0 ? tags.map((t) => <Tag key={t}>{t}</Tag>) : '-'),
@@ -245,7 +297,7 @@ function McpServersManager({
       },
       { title: '更新时间', dataIndex: 'updatedAt', width: 180 },
     ],
-    [classifyEndpoint, loading, onUpdate, renderPromptPreview]
+    [classifyEndpoint, formatTimeoutLabel, loading, onUpdate, renderPromptPreview]
   );
   const fields = useMemo(
     () => [
@@ -269,6 +321,34 @@ function McpServersManager({
         extra: '关闭后不会连接该 MCP server，也不会注册其工具',
       },
       {
+        name: 'timeoutPreset',
+        label: '超时',
+        type: 'select',
+        options: timeoutOptions,
+        placeholder: '默认',
+        extra: '工具调用超时（分钟）。留空使用系统默认值。',
+      },
+      {
+        name: 'timeoutCustom',
+        label: '自定义超时（分钟）',
+        placeholder: '例如 45',
+        hidden: (values) => values?.timeoutPreset !== 'custom',
+      },
+      {
+        name: 'maxTimeoutPreset',
+        label: '最大超时',
+        type: 'select',
+        options: timeoutOptions,
+        placeholder: '默认',
+        extra: '工具调用最大总时长（分钟）。留空使用系统默认值。',
+      },
+      {
+        name: 'maxTimeoutCustom',
+        label: '自定义最大超时（分钟）',
+        placeholder: '例如 90',
+        hidden: (values) => values?.maxTimeoutPreset !== 'custom',
+      },
+      {
         name: 'promptZh',
         label: 'Prompt（中文）',
         type: 'textarea',
@@ -289,12 +369,16 @@ function McpServersManager({
         extra: '保存后会写入 mcp_<name>__en（英文版本）。',
       },
     ],
-    []
+    [timeoutOptions]
   );
   const mapPayload = (values, existing) => {
     const payload = { ...values };
     delete payload.promptZh;
     delete payload.promptEn;
+    delete payload.timeoutPreset;
+    delete payload.timeoutCustom;
+    delete payload.maxTimeoutPreset;
+    delete payload.maxTimeoutCustom;
     const token = typeof payload.authToken === 'string' ? payload.authToken.trim() : '';
     delete payload.authToken;
     const prevToken = typeof existing?.auth?.token === 'string' ? existing.auth.token.trim() : '';
@@ -308,6 +392,32 @@ function McpServersManager({
       } else {
         payload.auth = undefined;
       }
+    }
+    const parseMinutes = (value) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+      return Math.floor(parsed);
+    };
+    const resolveTimeoutMs = (preset, custom) => {
+      if (preset === '' || preset === null || preset === undefined) return 0;
+      if (preset === 'custom') {
+        const minutes = parseMinutes(custom);
+        return minutes > 0 ? minutes * 60 * 1000 : 0;
+      }
+      const minutes = Number(preset);
+      return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : 0;
+    };
+    const timeoutMs = resolveTimeoutMs(values?.timeoutPreset, values?.timeoutCustom);
+    const maxTimeoutMs = resolveTimeoutMs(values?.maxTimeoutPreset, values?.maxTimeoutCustom);
+    if (timeoutMs > 0) {
+      payload.timeout_ms = timeoutMs;
+    } else {
+      delete payload.timeout_ms;
+    }
+    if (maxTimeoutMs > 0) {
+      payload.max_timeout_ms = maxTimeoutMs;
+    } else {
+      delete payload.max_timeout_ms;
     }
     return payload;
   };

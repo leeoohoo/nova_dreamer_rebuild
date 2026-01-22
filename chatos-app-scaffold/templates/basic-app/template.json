@@ -1,7 +1,0 @@
-﻿{
-  "description": "Basic UI app template (no MCP).",
-  "defaults": {
-    "appId": "basic_app",
-    "withMcp": false
-  }
-}

@@ -210,6 +210,8 @@ export const mcpServerSchema = z.object({
   enabled: z.boolean().optional().default(true),
   allowMain: z.boolean().optional().default(false),
   allowSub: z.boolean().optional().default(true),
+  timeout_ms: z.number().int().min(0).optional(),
+  max_timeout_ms: z.number().int().min(0).optional(),
 });
 
 export const subagentSchema = z.object({

@@ -32,7 +32,7 @@ prompt: |
       - 尽量用非交互命令（加 --yes/--no-input/--force 等），避免卡住。
       - 一旦命令出现交互提示（Y/n、password、Enter passphrase...），优先改用 session_run + capture_output + session_send_input。
       - 命令返回后必须检查 stderr/exit code；失败时把关键 stdout/stderr 摘要写进任务备注。
-      - 对可能改动大量文件的命令（install/build/format/migrate），若不确定影响，先征求用户确认（有 UI 时用 ui_prompter）。
+      - 对可能改动大量文件的命令（install/build/format/migrate），若不确定影响，先征求用户确认。
       - 避免危险命令（rm -rf、dd、mkfs、diskutil erase 等）。
     </golden_rules>
 

@@ -1,6 +1,7 @@
 const NO_TIMEOUT_MS = 2_147_483_647; // ~24.8 days (max safe setTimeout)
+const MAX_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 
-function parseTimeoutMs(value, fallback, min = 1000, max = 30 * 60 * 1000) {
+function parseTimeoutMs(value, fallback, min = 1000, max = MAX_TIMEOUT_MS) {
   const parsed = Number.parseInt(value, 10);
   if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
     return parsed;
@@ -9,13 +10,13 @@ function parseTimeoutMs(value, fallback, min = 1000, max = 30 * 60 * 1000) {
 }
 
 const getDefaultToolTimeoutMs = () =>
-  parseTimeoutMs(process.env.MODEL_CLI_MCP_TIMEOUT_MS, 10 * 60 * 1000, 1000, 30 * 60 * 1000);
+  parseTimeoutMs(process.env.MODEL_CLI_MCP_TIMEOUT_MS, 60 * 60 * 1000, 1000, MAX_TIMEOUT_MS);
 const getDefaultToolMaxTimeoutMs = () =>
   parseTimeoutMs(
     process.env.MODEL_CLI_MCP_MAX_TIMEOUT_MS,
-    20 * 60 * 1000,
+    2 * 60 * 60 * 1000,
     getDefaultToolTimeoutMs(),
-    30 * 60 * 1000
+    MAX_TIMEOUT_MS
   );
 
 function withNoTimeoutOptions(options) {
@@ -53,6 +54,7 @@ function maybeForceUiPrompterTimeout({ server, tool, args }) {
 
 export {
   NO_TIMEOUT_MS,
+  MAX_TIMEOUT_MS,
   getDefaultToolTimeoutMs,
   getDefaultToolMaxTimeoutMs,
   maybeForceUiPrompterTimeout,

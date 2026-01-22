@@ -135,6 +135,18 @@ function normalizeServer(entry) {
       : entry.call_meta && typeof entry.call_meta === 'object'
         ? entry.call_meta
         : undefined;
+  const timeoutMs =
+    Number.isFinite(entry.timeout_ms)
+      ? entry.timeout_ms
+      : Number.isFinite(entry.timeoutMs)
+        ? entry.timeoutMs
+        : undefined;
+  const maxTimeoutMs =
+    Number.isFinite(entry.max_timeout_ms)
+      ? entry.max_timeout_ms
+      : Number.isFinite(entry.maxTimeoutMs)
+        ? entry.maxTimeoutMs
+        : undefined;
   return {
     app_id: String(entry.app_id || entry.appId || ''),
     name: String(entry.name || ''),
@@ -151,6 +163,8 @@ function normalizeServer(entry) {
       entry.allow_sub !== false &&
       entry.allowSubagent !== false &&
       entry.allow_subagent !== false,
+    timeout_ms: timeoutMs,
+    max_timeout_ms: maxTimeoutMs,
   };
 }
 
@@ -212,22 +226,6 @@ function getDefaultServers(baseDir) {
       args: '--root . --name project_journal',
       description: '记录/查询项目执行日志（实施记录）与项目基础信息（背景、git 地址、主要配置、迭代笔记）。',
       allowMain: true,
-      allowSub: true,
-    },
-    {
-      name: 'subagent_router',
-      script: path.join(CLI_ROOT, 'mcp_servers', 'subagent-server.js'),
-      args: '--name subagent_router',
-      description: '子代理目录/路由/执行：列出、查看详情并直接运行子代理任务。',
-      allowMain: true,
-      allowSub: false,
-    },
-    {
-      name: 'ui_prompter',
-      script: path.join(CLI_ROOT, 'mcp_servers', 'ui-prompt-server.js'),
-      args: '--name ui_prompter',
-      description: '在 Electron UI 的浮动岛上弹出表单/选择项，让用户补充信息或做出决策，并把结果返回给 AI。',
-      allowMain: false,
       allowSub: true,
     },
     {

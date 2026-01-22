@@ -27,7 +27,7 @@ content: |
     <tool_heuristics>
       - 需要代码上下文：mcp_project_files_search_text → mcp_project_files_read_file
       - 需要多步追踪：mcp_task_manager_add_task 建 AEV；每个阶段更新进展
-      - 需要执行：mcp_subagent_router_run_sub_agent
+      - 需要执行：委派给子代理执行
     </tool_heuristics>
 
     <handoff_quality>

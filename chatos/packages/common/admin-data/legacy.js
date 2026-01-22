@@ -113,6 +113,8 @@ export function parseMcpServers(raw) {
         s.allow_sub !== false &&
         s.allowSubagent !== false &&
         s.allow_subagent !== false,
+      timeout_ms: Number.isFinite(s.timeout_ms) ? s.timeout_ms : undefined,
+      max_timeout_ms: Number.isFinite(s.max_timeout_ms) ? s.max_timeout_ms : undefined,
     }));
   }
   return [];

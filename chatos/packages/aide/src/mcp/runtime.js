@@ -53,6 +53,93 @@ function normalizeSessionId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizeToolName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function resolveCancelToolCandidates(serverEntry, toolName) {
+  const candidates = [];
+  const callMeta = serverEntry?.callMeta ?? serverEntry?.call_meta;
+  const raw =
+    callMeta?.cancel_tool ||
+    callMeta?.cancelTool ||
+    callMeta?.cancelTools ||
+    callMeta?.cancel_tools;
+  if (Array.isArray(raw)) {
+    raw.forEach((entry) => {
+      const name = typeof entry === 'string' ? entry.trim() : '';
+      if (name) candidates.push(name);
+    });
+  } else if (typeof raw === 'string' && raw.trim()) {
+    candidates.push(raw.trim());
+  }
+  const normalizedTool = normalizeToolName(toolName);
+  if (normalizedTool.endsWith('_run')) {
+    candidates.push(`${normalizedTool.slice(0, -4)}_stop`);
+    candidates.push(`${normalizedTool.slice(0, -4)}_cancel`);
+  }
+  const serverName = normalizeToolName(serverEntry?.name);
+  if (serverName.includes('codex_app') && normalizedTool.includes('window_run')) {
+    candidates.push('window_stop');
+    candidates.push('window_cancel');
+    candidates.push('cancel');
+    candidates.push('stop');
+    candidates.push('abort');
+  }
+  const seen = new Set();
+  const unique = [];
+  candidates.forEach((entry) => {
+    const key = normalizeToolName(entry);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    unique.push(entry);
+  });
+  return unique;
+}
+
+function resolveCancelToolName(serverEntry, toolName, availableTools) {
+  const candidates = resolveCancelToolCandidates(serverEntry, toolName);
+  if (candidates.length === 0) return '';
+  if (availableTools && typeof availableTools.get === 'function') {
+    for (const entry of candidates) {
+      const actual = availableTools.get(normalizeToolName(entry));
+      if (actual) return actual;
+    }
+    return '';
+  }
+  return candidates[0];
+}
+
+function buildCancelArgs({ callMeta, toolContext, args, taskId } = {}) {
+  const payload = {};
+  const maybeSet = (key, value) => {
+    if (!key || payload[key] !== undefined) return;
+    if (value === undefined || value === null || value === '') return;
+    payload[key] = value;
+  };
+  const meta = callMeta && typeof callMeta === 'object' ? callMeta : {};
+  const sourceArgs = args && typeof args === 'object' ? args : {};
+  const sessionId = normalizeSessionId(toolContext?.session?.sessionId);
+  maybeSet('sessionId', sessionId);
+  if (taskId) {
+    maybeSet('taskId', taskId);
+    maybeSet('task_id', taskId);
+  }
+  ['taskId', 'task_id', 'requestId', 'request_id', 'windowId', 'window_id', 'jobId', 'job_id'].forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(meta, key)) {
+      maybeSet(key, meta[key]);
+    }
+    if (Object.prototype.hasOwnProperty.call(sourceArgs, key)) {
+      maybeSet(key, sourceArgs[key]);
+    }
+  });
+  const toolCallId = typeof toolContext?.toolCallId === 'string' ? toolContext.toolCallId.trim() : '';
+  if (toolCallId) {
+    maybeSet('tool_call_id', toolCallId);
+  }
+  return payload;
+}
+
 const MCP_STREAM_NOTIFICATION_METHODS = [
   'codex_app.window_run.stream',
   'codex_app.window_run.done',
@@ -362,7 +449,7 @@ const createMcpStreamTracker = () => {
     }
   };
 
-  const waitForFinalText = ({ rpcId, timeoutMs, signal, sessionId } = {}) =>
+  const waitForFinalText = ({ rpcId, timeoutMs, signal, sessionId, onAbort } = {}) =>
     new Promise((resolve) => {
       if (!Number.isFinite(rpcId)) {
         resolve('');
@@ -393,7 +480,16 @@ const createMcpStreamTracker = () => {
         }, effectiveTimeout);
       }
       if (signal && typeof signal.addEventListener === 'function') {
-        entry.abortHandler = () => finalize(rpcId, '', true);
+        entry.abortHandler = () => {
+          try {
+            if (typeof onAbort === 'function') {
+              onAbort();
+            }
+          } catch {
+            // ignore cancel errors
+          }
+          finalize(rpcId, '', true);
+        };
         signal.addEventListener('abort', entry.abortHandler, { once: true });
       }
     });
@@ -923,6 +1019,14 @@ async function connectAndRegisterTools({
     });
   }
   const runtimeMeta = buildRuntimeCallMeta({ workspaceRoot });
+  const availableTools = new Map(
+    toolsFromServer
+      .map((tool) => ({
+        raw: typeof tool?.name === 'string' ? tool.name.trim() : '',
+      }))
+      .filter((entry) => entry.raw)
+      .map((entry) => [normalizeToolName(entry.raw), entry.raw])
+  );
   let reconnectPromise = null;
   const reconnect = async ({ reason } = {}) => {
     if (!entry || !baseDir || !runtimeOptions) return null;
@@ -957,6 +1061,7 @@ async function connectAndRegisterTools({
     .map((tool) =>
       registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker, {
         reconnect,
+        availableTools,
       })
     )
     .filter(Boolean);
@@ -1093,6 +1198,7 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
       ? tool.inputSchema
       : { type: 'object', properties: {} };
   const requestOptions = buildRequestOptions(serverEntry);
+  const availableTools = options?.availableTools;
   if (normalizedServer === 'subagent_router' && tool.name === 'run_sub_agent') {
     registerTool({
       name: identifier,
@@ -1252,6 +1358,49 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
         }
         return baseCallMeta;
       };
+      const cancelToolName = resolveCancelToolName(serverEntry, tool.name, availableTools);
+      const cancelOptions = {
+        timeout: 2000,
+        maxTotalTimeout: 2000,
+        resetTimeoutOnProgress: false,
+      };
+      let cancelSent = false;
+      const sendCancel = () => {
+        if (cancelSent || !cancelToolName) return;
+        cancelSent = true;
+        const cancelArgs = buildCancelArgs({
+          callMeta: baseCallMeta,
+          toolContext,
+          args: normalizedArgs,
+          taskId,
+        });
+        const cancelMeta = baseCallMeta && typeof baseCallMeta === 'object'
+          ? { ...baseCallMeta, stream: false }
+          : { stream: false };
+        activeClient
+          .callTool(
+            {
+              name: cancelToolName,
+              arguments: cancelArgs,
+              ...(cancelMeta ? { _meta: cancelMeta } : {}),
+            },
+            undefined,
+            cancelOptions
+          )
+          .catch(() => {});
+      };
+      let cancelCleanup = null;
+      if (cancelToolName && toolContext?.signal && typeof toolContext.signal.addEventListener === 'function') {
+        const onAbort = () => sendCancel();
+        toolContext.signal.addEventListener('abort', onAbort, { once: true });
+        cancelCleanup = () => {
+          try {
+            toolContext.signal.removeEventListener('abort', onAbort);
+          } catch {
+            // ignore
+          }
+        };
+      }
       const logToolError = (err) => {
         runtimeLogger?.error(
           'MCP 工具调用失败',
@@ -1284,6 +1433,7 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
             timeoutMs: resolveMcpStreamTimeoutMs(optionsWithSignal),
             signal: toolContext?.signal,
             sessionId: toolContext?.session?.sessionId,
+            onAbort: sendCancel,
           });
         }
         const response = await activeClient.callTool(
@@ -1321,6 +1471,10 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
         } else {
           logToolError(err);
           throw err;
+        }
+      } finally {
+        if (cancelCleanup) {
+          cancelCleanup();
         }
       }
       if (isAsyncTask) {

@@ -29,11 +29,6 @@
       "name": "task_manager",
       "url": "cmd://node ./mcp_servers/task-server.js --root . --name task_manager",
       "description": "维护任务清单：新增、列表、更新状态、清理已完成任务。"
-    },
-    {
-      "name": "subagent_router",
-      "url": "cmd://node ./mcp_servers/subagent-server.js --name subagent_router",
-      "description": "子代理目录/路由/执行：列出、查看详情并直接运行子代理任务。"
     }
   ]
 }

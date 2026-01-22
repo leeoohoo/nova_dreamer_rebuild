@@ -24,11 +24,6 @@
       "name": "task_manager",
       "url": "cmd://node ./mcp_servers/task-server.js --root . --name task_manager",
       "description": "Task board for this workspace: add/list/update/complete/clear tasks."
-    },
-    {
-      "name": "subagent_router",
-      "url": "cmd://node ./mcp_servers/subagent-server.js --name subagent_router",
-      "description": "Sub-agent directory/router: list, inspect, and run sub-agents directly."
     }
   ]
 }

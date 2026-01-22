@@ -1,7 +1,0 @@
-{
-  "plugins": [
-    "python-development",
-    "spring-boot-development",
-    "frontend-react"
-  ]
-}
