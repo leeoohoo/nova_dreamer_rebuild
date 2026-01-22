@@ -296,11 +296,16 @@ const createMcpStreamTracker = () => {
     pending.delete(rpcId);
   };
 
-  const finalize = (rpcId, text) => {
+  const finalize = (rpcId, text, aborted = false) => {
     const entry = pending.get(rpcId);
     if (!entry) return;
     cleanup(rpcId);
-    entry.resolve(typeof text === 'string' ? text : '');
+    const finalText = aborted
+      ? '[MCP调用已停止] 用户取消了操作。'
+      : typeof text === 'string'
+        ? text
+        : '';
+    entry.resolve(finalText);
   };
 
   const attachSessionId = (notification) => {
@@ -383,11 +388,12 @@ const createMcpStreamTracker = () => {
       if (effectiveTimeout && effectiveTimeout > 0) {
         entry.timer = setTimeout(() => {
           const text = entry.finalWhole || buildFinalTextFromChunks(entry.chunks);
-          finalize(rpcId, text);
+          const timeoutText = text ? text : '[MCP调用超时] 操作执行时间过长。';
+          finalize(rpcId, timeoutText);
         }, effectiveTimeout);
       }
       if (signal && typeof signal.addEventListener === 'function') {
-        entry.abortHandler = () => finalize(rpcId, '');
+        entry.abortHandler = () => finalize(rpcId, '', true);
         signal.addEventListener('abort', entry.abortHandler, { once: true });
       }
     });

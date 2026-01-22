@@ -1,0 +1,8 @@
+﻿{
+  "description": "MCP app template (async task flow).",
+  "defaults": {
+    "appId": "mcp_app",
+    "withMcp": true,
+    "asyncTask": true
+  }
+}

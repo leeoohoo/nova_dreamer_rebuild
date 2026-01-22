@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "updatedAt": "2026-01-21T16:00:42.789Z",
+  "tasks": {
+    "task_test_1": {
+      "id": "task_test_1",
+      "type": "app_task_run",
+      "status": "done",
+      "createdAt": "2026-01-21T16:00:15.741Z",
+      "updatedAt": "2026-01-21T16:00:15.742Z",
+      "timeoutMs": 600000,
+      "payload": {
+        "prompt": "Hello from sandbox"
+      },
+      "meta": {
+        "sessionId": "session_test",
+        "runId": "run_test",
+        "source": "sandbox",
+        "stateDir": "C:\\project\\my_project_rebuild\\nova_dreamer_rebuild\\.state",
+        "dataDir": "C:\\project\\my_project_rebuild\\nova_dreamer_rebuild\\.state\\ui_apps\\data\\com.example.chatos_scaffold"
+      },
+      "attempts": 1,
+      "result": {
+        "ok": true,
+        "echo": "Hello from sandbox"
+      },
+      "error": null,
+      "startedAt": "2026-01-21T16:00:15.741Z"
+    },
+    "task_1769011242786": {
+      "id": "task_1769011242786",
+      "type": "app_task_run",
+      "status": "done",
+      "createdAt": "2026-01-21T16:00:42.788Z",
+      "updatedAt": "2026-01-21T16:00:42.788Z",
+      "timeoutMs": 600000,
+      "payload": {
+        "prompt": "Hello from sandbox"
+      },
+      "meta": {
+        "sessionId": "session_test",
+        "runId": "run_test",
+        "source": "sandbox",
+        "stateDir": "C:\\project\\my_project_rebuild\\nova_dreamer_rebuild\\.state",
+        "dataDir": "C:\\project\\my_project_rebuild\\nova_dreamer_rebuild\\.state\\ui_apps\\data\\com.example.chatos_scaffold"
+      },
+      "attempts": 1,
+      "result": {
+        "ok": true,
+        "echo": "Hello from sandbox"
+      },
+      "error": null,
+      "startedAt": "2026-01-21T16:00:42.788Z"
+    }
+  },
+  "sessions": {
+    "session_test": {
+      "id": "session_test",
+      "running": false,
+      "updatedAt": "2026-01-21T16:00:42.789Z"
+    }
+  }
+}
