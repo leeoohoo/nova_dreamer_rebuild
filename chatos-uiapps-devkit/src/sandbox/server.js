@@ -1318,7 +1318,7 @@ const normalizeRequestId = (value) => (typeof value === 'string' ? value.trim() 
 const buildAsyncRequestIds = (taskId) => {
   const id = normalizeRequestId(taskId);
   if (!id) return [];
-  return [id, `mcp-task:${id}`];
+  return [id, 'mcp-task:' + id];
 };
 
 const extractAsyncResult = (list, requestIds) => {
@@ -1378,11 +1378,11 @@ const runMcpAsyncTest = async () => {
     const taskId = 'task_' + uuid();
     const callMeta = buildAsyncTaskCallMeta(taskId);
     const ack = { status: 'accepted', taskId };
-    const resultText = `AsyncTask result for ${taskId}`;
+    const resultText = 'AsyncTask result for ' + taskId;
 
     appendMcpOutput('asyncTask.request', { message, callMeta });
     appendMcpOutput('asyncTask.ack', ack);
-    setMcpStatus(`ACK: ${taskId} (waiting for uiPrompts result)...`);
+    setMcpStatus('ACK: ' + taskId + ' (waiting for uiPrompts result)...');
 
     const pollPromise = pollAsyncResult({ taskId, timeoutMs: 8000, intervalMs: 400 });
 
@@ -1391,7 +1391,7 @@ const runMcpAsyncTest = async () => {
       try {
         await host.uiPrompts.request({ requestId: taskId, prompt });
         appendMcpOutput('asyncTask.result', { requestId: taskId, prompt });
-        setMcpStatus(`Result stored in uiPrompts (taskId=${taskId})`);
+        setMcpStatus('Result stored in uiPrompts (taskId=' + taskId + ')');
       } catch (err) {
         appendMcpOutput('asyncTask.error', err?.message || String(err));
         setMcpStatus(err?.message || String(err), true);
@@ -1401,10 +1401,10 @@ const runMcpAsyncTest = async () => {
     const pollResult = await pollPromise;
     if (pollResult.found) {
       appendMcpOutput('asyncTask.polled', pollResult.text);
-      setMcpStatus(`Polled result (taskId=${taskId})`);
+      setMcpStatus('Polled result (taskId=' + taskId + ')');
     } else {
       appendMcpOutput('asyncTask.timeout', { taskId });
-      setMcpStatus(`Polling timeout (taskId=${taskId})`, true);
+      setMcpStatus('Polling timeout (taskId=' + taskId + ')', true);
     }
   } catch (err) {
     setMcpStatus(err?.message || String(err), true);

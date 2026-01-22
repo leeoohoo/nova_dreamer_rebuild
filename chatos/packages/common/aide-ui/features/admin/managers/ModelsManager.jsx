@@ -52,6 +52,17 @@ function ModelsManager({
         },
       },
       {
+        title: '工具后续',
+        dataIndex: 'toolFollowupMode',
+        width: 110,
+        render: (v) => {
+          const value = typeof v === 'string' ? v.trim().toLowerCase() : '';
+          if (!value || value === 'auto') return <Tag>默认</Tag>;
+          if (value === 'none') return <Tag color="gold">NONE</Tag>;
+          return <Tag>{value.toUpperCase()}</Tag>;
+        },
+      },
+      {
         title: 'Base URL',
         dataIndex: 'baseUrl',
         width: 180,
@@ -107,6 +118,16 @@ function ModelsManager({
         ],
         extra: '仅 GPT 系列模型支持（请求参数 reasoning_effort）。',
         hidden: (values) => !isGptModelId(values?.model),
+      },
+      {
+        name: 'toolFollowupMode',
+        label: '工具后续',
+        type: 'select',
+        options: [
+          { label: '默认（继续传 tools）', value: '' },
+          { label: 'NONE（后续请求不传 tools）', value: 'none' },
+        ],
+        extra: '部分兼容网关需要在工具返回后关闭 tools 参数。',
       },
       { name: 'baseUrl', label: 'Base URL', placeholder: '可选，代理/自托管入口' },
       { name: 'apiKeyEnv', label: 'API Key Env', placeholder: '如 OPENAI_API_KEY' },

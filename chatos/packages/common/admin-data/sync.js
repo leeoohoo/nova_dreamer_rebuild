@@ -28,6 +28,12 @@ function buildModelsYamlPayload(models = []) {
         : typeof m.reasoning_effort === 'string'
           ? m.reasoning_effort
           : '';
+    const toolFollowupMode =
+      typeof m.toolFollowupMode === 'string'
+        ? m.toolFollowupMode
+        : typeof m.tool_followup_mode === 'string'
+          ? m.tool_followup_mode
+          : '';
     const supportsVision = Boolean(m.supportsVision ?? m.supports_vision);
     result[m.name] = {
       provider: m.provider || '',
@@ -36,6 +42,8 @@ function buildModelsYamlPayload(models = []) {
       supportsVision: supportsVision || undefined,
       reasoning_effort: reasoningEffort || undefined,
       reasoningEffort: reasoningEffort || undefined,
+      tool_followup_mode: toolFollowupMode || undefined,
+      toolFollowupMode: toolFollowupMode || undefined,
       base_url: m.baseUrl || m.base_url || '',
       baseUrl: m.baseUrl || m.base_url || '',
       api_key_env: m.apiKeyEnv || m.api_key_env || '',

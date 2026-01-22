@@ -387,7 +387,8 @@ export function formatToolResultText(result) {
 }
 
 export function sanitizeToolResultForSession(text, { tool } = {}) {
-  const value = typeof text === 'string' ? text : text == null ? '' : String(text);
+  const raw = typeof text === 'string' ? text : text == null ? '' : String(text);
+  const value = stripControlChars(stripAnsi(raw));
   const limit = getToolResultCharLimit();
   if (!value) return '';
   if (value.length <= limit) return value;

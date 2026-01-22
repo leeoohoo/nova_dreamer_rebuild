@@ -11,6 +11,7 @@ export const TABLE_SCHEMAS = {
       { name: 'model', type: 'string', required: true, note: '具体模型 ID' },
       { name: 'supportsVision', type: 'boolean', required: false, note: '是否支持图片理解/输入' },
       { name: 'reasoningEffort', type: 'enum(minimal|low|medium|high)', required: false, note: '可选推理等级（仅部分模型支持）' },
+      { name: 'toolFollowupMode', type: 'enum(auto|none)', required: false, note: '工具调用后续策略（auto: 继续传 tools；none: 后续请求不传 tools）' },
       { name: 'baseUrl', type: 'string', required: false, note: '可选自定义网关' },
       { name: 'apiKeyEnv', type: 'string', required: false, note: '读取密钥的环境变量' },
       { name: 'tools', type: 'string[]', required: false, note: '工具或插件列表（可选）' },
@@ -163,6 +164,10 @@ export const modelSchema = z.object({
   model: z.string().trim().min(1, 'model is required'),
   reasoningEffort: z
     .union([z.literal(''), z.enum(['minimal', 'low', 'medium', 'high'])])
+    .optional()
+    .default(''),
+  toolFollowupMode: z
+    .union([z.literal(''), z.enum(['auto', 'none'])])
     .optional()
     .default(''),
   baseUrl: z.string().trim().optional().default(''),

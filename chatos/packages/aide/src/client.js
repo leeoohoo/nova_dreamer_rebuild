@@ -42,16 +42,27 @@ export class ModelClient {
     const stream = options.stream !== false;
     const onBeforeRequest = typeof options.onBeforeRequest === 'function' ? options.onBeforeRequest : null;
 
-    const providerOptions = {
+    const toolDefinitions = toolset.map((tool) => tool.definition);
+    const providerOptionsBase = {
       stream,
-      tools: toolset.map((tool) => tool.definition),
       onToken: options.onToken,
       onReasoning: options.onReasoning,
       signal: options.signal,
     };
+    const rawToolFollowupMode =
+      typeof process.env.MODEL_CLI_TOOL_FOLLOWUP_MODE === 'string'
+        ? process.env.MODEL_CLI_TOOL_FOLLOWUP_MODE.trim().toLowerCase()
+        : typeof settings.tool_followup_mode === 'string'
+          ? settings.tool_followup_mode.trim().toLowerCase()
+          : '';
+    const toolFollowupMode =
+      rawToolFollowupMode === 'none' || rawToolFollowupMode === 'off' || rawToolFollowupMode === 'disabled'
+        ? 'none'
+        : 'auto';
 
     const maxToolPasses = options.maxToolPasses ?? 240;
     let iteration = 0;
+    let toolCallsSeen = false;
     const caller = typeof options?.caller === 'string' && options.caller.trim() ? options.caller.trim() : '';
     const resolveWorkdir = ({ toolName, callId, iteration: loopIndex, model } = {}) => {
       const raw = options?.workdir;
@@ -80,6 +91,12 @@ export class ModelClient {
       }
       throwIfAborted(options.signal);
       const messages = session.asDicts();
+      const allowToolsThisPass =
+        toolDefinitions.length > 0 &&
+        !(disableTools || (toolFollowupMode === 'none' && toolCallsSeen));
+      const providerOptions = allowToolsThisPass
+        ? { ...providerOptionsBase, tools: toolDefinitions }
+        : { ...providerOptionsBase };
       if (shouldLogRequest) {
         const preview = {
           model: settings.name,
@@ -108,6 +125,7 @@ export class ModelClient {
             ? { reasoning_content: '' }
             : null;
       if (toolCalls.length > 0) {
+        toolCallsSeen = true;
         if (disableTools) {
           session.addAssistant(finalText, null, assistantMeta);
           return finalText;

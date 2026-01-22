@@ -44,11 +44,17 @@ export function parseModelsWithDefault(raw) {
       : typeof cfg.reasoningEffort === 'string'
         ? cfg.reasoningEffort
         : '';
+    const toolFollowupMode = typeof cfg.tool_followup_mode === 'string'
+      ? cfg.tool_followup_mode
+      : typeof cfg.toolFollowupMode === 'string'
+        ? cfg.toolFollowupMode
+        : '';
     entries.push({
       name,
       provider: cfg.provider || '',
       model: cfg.model || '',
       reasoningEffort,
+      toolFollowupMode,
       baseUrl: cfg.base_url || cfg.baseUrl || '',
       apiKeyEnv: cfg.api_key_env || '',
       tools: Array.isArray(cfg.tools) ? cfg.tools : [],

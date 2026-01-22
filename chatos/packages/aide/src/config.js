@@ -41,6 +41,17 @@ function normalizeReasoningEffort(value) {
   return raw;
 }
 
+function normalizeToolFollowupMode(value) {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!raw || raw === 'default' || raw === 'auto') {
+    return '';
+  }
+  if (raw === 'none' || raw === 'off' || raw === 'disabled' || raw === 'no_tools' || raw === 'no-tools') {
+    return 'none';
+  }
+  return '';
+}
+
 function loadConfig(configPath) {
   const resolved = typeof configPath === 'string' ? configPath : String(configPath || '');
   if (!resolved) {
@@ -104,6 +115,13 @@ function createAppConfigFromModels(modelsList = [], secretsList = []) {
           ? m.reasoning_effort
           : ''
     );
+    const toolFollowupMode = normalizeToolFollowupMode(
+      typeof m.toolFollowupMode === 'string'
+        ? m.toolFollowupMode
+        : typeof m.tool_followup_mode === 'string'
+          ? m.tool_followup_mode
+          : ''
+    );
     const apiKeyEnv = m.apiKeyEnv || m.api_key_env || null;
     const resolvedKey = apiKeyEnv
       ? secretValueByName.get(normalizeSecretName(apiKeyEnv)) || null
@@ -114,6 +132,7 @@ function createAppConfigFromModels(modelsList = [], secretsList = []) {
       model: m.model,
       supports_vision: Boolean(m.supportsVision ?? m.supports_vision),
       reasoning_effort: reasoningEffort || null,
+      tool_followup_mode: toolFollowupMode || null,
       api_key_env: apiKeyEnv,
       api_key: resolvedKey,
       base_url: m.baseUrl || m.base_url || null,
@@ -150,6 +169,7 @@ function createModelSettings(name, raw) {
     model: String(raw.model),
     supports_vision: Boolean(raw.supports_vision ?? raw.supportsVision),
     reasoning_effort: normalizeReasoningEffort(raw.reasoning_effort || raw.reasoningEffort || null) || null,
+    tool_followup_mode: normalizeToolFollowupMode(raw.tool_followup_mode || raw.toolFollowupMode || null) || null,
     api_key_env: raw.api_key_env || raw.apiKeyEnv || null,
     api_key: raw.api_key || raw.apiKey || null,
     base_url: raw.base_url || raw.baseUrl || null,
