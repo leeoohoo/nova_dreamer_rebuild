@@ -1,0 +1,48 @@
+﻿{
+  "manifestVersion": 1,
+  "id": "com.example.chatos_scaffold",
+  "name": "ChatOS App Scaffold",
+  "version": "0.1.0",
+  "description": "Scaffold for async MCP task apps.",
+  "backend": {
+    "entry": "dist/backend/index.mjs"
+  },
+  "apps": [
+    {
+      "id": "scaffold_app",
+      "name": "Scaffold App",
+      "description": "Async MCP task scaffold with session status UI.",
+      "entry": {
+        "type": "module",
+        "path": "dist/index.mjs",
+        "compact": {
+          "type": "module",
+          "path": "dist/compact.mjs"
+        }
+      },
+      "ai": {
+        "mcp": {
+          "entry": "dist/mcp-server.mjs",
+          "description": "Async MCP tool runner (taskId + ui-prompts).",
+          "allowMain": true,
+          "allowSub": true,
+          "callMeta": {
+            "asyncTask": {
+              "tools": [
+                "app_task_run"
+              ],
+              "taskIdKey": "taskId",
+              "resultSource": "ui_prompts",
+              "uiPromptFile": "ui-prompts.jsonl"
+            }
+          }
+        },
+        "mcpPrompt": {
+          "title": "Scaffold MCP Prompt",
+          "zh": "dist/mcp-prompt.zh.md",
+          "en": "dist/mcp-prompt.en.md"
+        }
+      }
+    }
+  ]
+}

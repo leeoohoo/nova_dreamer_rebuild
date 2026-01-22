@@ -901,6 +901,8 @@ export function createChatRunner({
     return { ok: true };
   };
 
+  const listActiveSessionIds = () => Array.from(activeRuns.keys());
+
   const ensureMcp = async ({
     timeoutMs = MCP_INIT_TIMEOUT_MS,
     workspaceRoot: desiredWorkspaceRoot,
@@ -1721,6 +1723,7 @@ export function createChatRunner({
     let currentAssistantId = initialAssistantMessageId;
     const assistantTexts = new Map([[currentAssistantId, '']]);
     const assistantReasonings = new Map([[currentAssistantId, '']]);
+    const toolCallRefreshSent = new Set();
 
     const appendAssistantText = (messageId, delta) => {
       const mid = normalizeId(messageId);
@@ -1807,6 +1810,10 @@ export function createChatRunner({
         ...(currentReasoning ? { reasoning: currentReasoning } : {}),
       };
       syncAssistantRecord(mid, patch);
+      if (usableToolCalls && !toolCallRefreshSent.has(mid)) {
+        toolCallRefreshSent.add(mid);
+        scopedSendEvent({ type: 'messages_refresh', sessionId: sid });
+      }
     };
 
     const onToolResult = ({ tool, callId, result }) => {
@@ -1947,5 +1954,5 @@ export function createChatRunner({
     return { ok: true, sessionId: sid, userMessageId, assistantMessageId: initialAssistantMessageId };
   };
 
-  return { start, abort, dispose };
+  return { start, abort, dispose, listActiveSessionIds };
 }
