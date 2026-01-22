@@ -35,6 +35,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
     streamState,
     mcpStreamState,
     currentSession,
+    sessionStatusById,
     setComposerText,
     setComposerAttachments,
     refreshAll,
@@ -214,6 +215,7 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
           <ChatSidebar
             sessions={sessions}
             selectedSessionId={selectedSessionId}
+            sessionStatusById={sessionStatusById}
             onSelectSession={selectSession}
             onCreateSession={async () => {
               try {
@@ -222,9 +224,9 @@ export function ChatView({ admin, sidebarCollapsed: sidebarCollapsedProp, onSide
                 // createSession already toasts
               }
             }}
-            onDeleteSession={async (sid) => {
+            onDeleteSession={async (sid, options) => {
               try {
-                await deleteSession(sid);
+                await deleteSession(sid, options);
               } catch {
                 // deleteSession already toasts
               }

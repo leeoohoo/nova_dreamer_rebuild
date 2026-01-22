@@ -14,14 +14,16 @@ if (args.help || args.h) {
   process.exit(0);
 }
 
-const envSessionRoot =
-  typeof process.env.MODEL_CLI_SESSION_ROOT === 'string' && process.env.MODEL_CLI_SESSION_ROOT.trim()
-    ? process.env.MODEL_CLI_SESSION_ROOT.trim()
-    : '';
-const argSessionRoot = typeof args.root === 'string' && args.root.trim() ? args.root.trim() : '';
-const sessionRoot = envSessionRoot || argSessionRoot || resolveSessionRootCore({ preferCwd: true });
-const explicitSessionRoot = Boolean(envSessionRoot || argSessionRoot);
-const root = resolveAppStateDir(sessionRoot, { preferSessionRoot: explicitSessionRoot });
+const envWorkspaceRoot = safeTrim(process.env.MODEL_CLI_WORKSPACE_ROOT);
+const envSessionRoot = safeTrim(process.env.MODEL_CLI_SESSION_ROOT);
+const argSessionRoot = safeTrim(args.root);
+const sessionRoot =
+  envWorkspaceRoot || envSessionRoot || argSessionRoot || resolveSessionRootCore({ preferCwd: true });
+const explicitSessionRoot = Boolean(envWorkspaceRoot || envSessionRoot || argSessionRoot);
+const resolveEnv = envWorkspaceRoot
+  ? { ...process.env, MODEL_CLI_SESSION_ROOT: envWorkspaceRoot }
+  : process.env;
+const root = resolveAppStateDir(sessionRoot, { preferSessionRoot: explicitSessionRoot, env: resolveEnv });
 const serverName = args.name || 'project_journal';
 const execLogPath = resolveStorePath(
   args['exec-log'] || args.exec_log || args.execLog,

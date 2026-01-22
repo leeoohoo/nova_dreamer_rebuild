@@ -53,7 +53,24 @@ export class ModelClient {
     const maxToolPasses = options.maxToolPasses ?? 240;
     let iteration = 0;
     const caller = typeof options?.caller === 'string' && options.caller.trim() ? options.caller.trim() : '';
-    const workdir = typeof options?.workdir === 'string' ? options.workdir.trim() : '';
+    const resolveWorkdir = ({ toolName, callId, iteration: loopIndex, model } = {}) => {
+      const raw = options?.workdir;
+      if (typeof raw === 'function') {
+        try {
+          const value = raw({
+            session,
+            toolName,
+            callId,
+            iteration: loopIndex,
+            model,
+          });
+          return typeof value === 'string' ? value.trim() : '';
+        } catch {
+          return '';
+        }
+      }
+      return typeof raw === 'string' ? raw.trim() : '';
+    };
     while (iteration < maxToolPasses) {
       throwIfAborted(options.signal);
       if (onBeforeRequest) {
@@ -147,13 +164,19 @@ export class ModelClient {
               args: finalArgs,
             });
             try {
+              const toolWorkdir = resolveWorkdir({
+                toolName: target.name,
+                callId: call.id,
+                iteration,
+                model: settings.name,
+              });
               const toolResult = await target.handler(finalArgs, {
                 model: settings.name,
                 session,
                 signal: options.signal,
                 toolCallId: call.id,
                 ...(caller ? { caller } : {}),
-                ...(workdir ? { workdir } : {}),
+                ...(toolWorkdir ? { workdir: toolWorkdir } : {}),
               });
               const toolResultText = formatToolResultText(toolResult);
               const toolResultForSession = sanitizeToolResultForSession(toolResultText, {

@@ -29,7 +29,16 @@ let engineDepsPromise = null;
 async function loadEngineDeps() {
   if (engineDepsPromise) return engineDepsPromise;
   engineDepsPromise = (async () => {
-    const [sessionMod, clientMod, configMod, mcpRuntimeMod, subagentRuntimeMod, toolsMod, summaryMod] = await Promise.all([
+    const [
+      sessionMod,
+      clientMod,
+      configMod,
+      mcpRuntimeMod,
+      subagentRuntimeMod,
+      toolsMod,
+      summaryMod,
+      clientHelpersMod,
+    ] = await Promise.all([
       import(pathToFileURL(resolveEngineModule('session.js')).href),
       import(pathToFileURL(resolveEngineModule('client.js')).href),
       import(pathToFileURL(resolveEngineModule('config.js')).href),
@@ -37,6 +46,7 @@ async function loadEngineDeps() {
       import(pathToFileURL(resolveEngineModule('subagents/runtime.js')).href),
       import(pathToFileURL(resolveEngineModule('tools/index.js')).href),
       import(pathToFileURL(resolveEngineModule('chat/summary.js')).href),
+      import(pathToFileURL(resolveEngineModule('client-helpers.js')).href),
     ]);
     return {
       ChatSession: sessionMod.ChatSession,
@@ -49,6 +59,7 @@ async function loadEngineDeps() {
       summarizeSession: summaryMod.summarizeSession,
       estimateTokenCount: summaryMod.estimateTokenCount,
       throwIfAborted: summaryMod.throwIfAborted,
+      sanitizeToolResultForSession: clientHelpersMod.sanitizeToolResultForSession,
     };
   })();
   return engineDepsPromise;
@@ -219,21 +230,39 @@ function normalizeConversationMessages(messages) {
   const list = Array.isArray(messages) ? messages : [];
   const normalized = [];
   let pendingToolCallIds = null;
+  let pendingAssistantIndex = -1;
+  const stripToolCalls = (msg) => {
+    if (!msg || typeof msg !== 'object') return msg;
+    if (!Array.isArray(msg.toolCalls) || msg.toolCalls.length === 0) return msg;
+    const next = { ...msg };
+    next.toolCalls = [];
+    return next;
+  };
+  const clearPendingToolCalls = () => {
+    if (pendingToolCallIds && pendingToolCallIds.size > 0 && pendingAssistantIndex >= 0) {
+      normalized[pendingAssistantIndex] = stripToolCalls(normalized[pendingAssistantIndex]);
+    }
+    pendingToolCallIds = null;
+    pendingAssistantIndex = -1;
+  };
   list.forEach((msg) => {
     if (!msg || typeof msg !== 'object') return;
     const role = msg.role;
     if (role === 'user') {
+      clearPendingToolCalls();
       normalized.push(msg);
-      pendingToolCallIds = null;
       return;
     }
     if (role === 'assistant') {
+      clearPendingToolCalls();
       normalized.push(msg);
       const toolCalls = Array.isArray(msg?.toolCalls) ? msg.toolCalls.filter(Boolean) : [];
       if (toolCalls.length > 0) {
         pendingToolCallIds = new Set(toolCalls.map((call) => normalizeId(call?.id)).filter(Boolean));
+        pendingAssistantIndex = normalized.length - 1;
       } else {
         pendingToolCallIds = null;
+        pendingAssistantIndex = -1;
       }
       return;
     }
@@ -242,8 +271,13 @@ function normalizeConversationMessages(messages) {
       if (!callId || !pendingToolCallIds || !pendingToolCallIds.has(callId)) return;
       normalized.push(msg);
       pendingToolCallIds.delete(callId);
+      if (pendingToolCallIds.size === 0) {
+        pendingToolCallIds = null;
+        pendingAssistantIndex = -1;
+      }
     }
   });
+  clearPendingToolCalls();
   return normalized;
 }
 
@@ -1074,6 +1108,7 @@ export function createChatRunner({
       summarizeSession,
       estimateTokenCount,
       throwIfAborted,
+      sanitizeToolResultForSession,
     } = await loadEngineDeps();
 
     applySecretsToProcessEnv(adminServices);
@@ -1083,7 +1118,25 @@ export function createChatRunner({
 
     const runtimeConfig = adminServices.settings?.getRuntimeConfig ? adminServices.settings.getRuntimeConfig() : null;
     const promptLanguage = runtimeConfig?.promptLanguage || null;
-    const effectiveToolWorkdir = effectiveWorkspaceRoot;
+    const fallbackWorkspaceRoot = normalizeWorkspaceRoot(workspaceRoot) || process.cwd();
+    const resolveToolWorkdir = () => {
+      let sessionEntry = null;
+      try {
+        sessionEntry = store.sessions.get(sid);
+      } catch {
+        sessionEntry = null;
+      }
+      const sessionRoot = normalizeWorkspaceRoot(sessionEntry?.workspaceRoot);
+      const sessionAgentId = normalizeId(sessionEntry?.agentId) || effectiveAgentId;
+      let agentEntry = null;
+      try {
+        agentEntry = sessionAgentId ? store.agents.get(sessionAgentId) : null;
+      } catch {
+        agentEntry = null;
+      }
+      const agentRoot = normalizeWorkspaceRoot(agentEntry?.workspaceRoot);
+      return agentRoot || sessionRoot || effectiveWorkspaceRoot || fallbackWorkspaceRoot;
+    };
     const summaryConfigPath = typeof defaultPaths?.models === 'string' ? defaultPaths.models : null;
     const summaryManager = createSummaryManager({
       summaryThreshold: runtimeConfig?.summaryTokenThreshold,
@@ -1634,7 +1687,20 @@ export function createChatRunner({
         if (!changed) return didSummarize;
         const summaryText = extractLatestSummaryText(summarySession.messages);
         if (!summaryText) return didSummarize;
-        const tailStartIndex = computeTailStartIndex(conversation, keepRatio, estimateTokenCount);
+        const maxTailTokens = Math.max(2000, Math.floor(targetThreshold * 0.4));
+        let effectiveKeepRatio = keepRatio;
+        let tailStartIndex = computeTailStartIndex(conversation, effectiveKeepRatio, estimateTokenCount);
+        if (tailStartIndex > 0) {
+          let tailTokens = estimateTokenCount(conversation.slice(tailStartIndex));
+          let guard = 0;
+          while (tailTokens > maxTailTokens && effectiveKeepRatio > 0.05 && guard < 5) {
+            effectiveKeepRatio = Math.max(0.05, effectiveKeepRatio * 0.5);
+            tailStartIndex = computeTailStartIndex(conversation, effectiveKeepRatio, estimateTokenCount);
+            if (tailStartIndex <= 0) break;
+            tailTokens = estimateTokenCount(conversation.slice(tailStartIndex));
+            guard += 1;
+          }
+        }
         if (tailStartIndex <= 0) return didSummarize;
 
         const tail = conversation.slice(tailStartIndex);
@@ -1754,9 +1820,45 @@ export function createChatRunner({
         // ignore
       }
     };
+    const cleanupAssistantToolCalls = (messageId) => {
+      const mid = normalizeId(messageId);
+      if (!mid) return;
+      let assistantRecord = null;
+      let list = [];
+      try {
+        list = store.messages.list(sid);
+        assistantRecord = list.find((msg) => normalizeId(msg?.id) === mid) || null;
+      } catch {
+        assistantRecord = null;
+        list = [];
+      }
+      const toolCalls = Array.isArray(assistantRecord?.toolCalls) ? assistantRecord.toolCalls.filter(Boolean) : [];
+      if (toolCalls.length === 0) return;
+      const toolResultIds = new Set(
+        list
+          .filter((msg) => msg?.role === 'tool')
+          .map((msg) => normalizeId(msg?.toolCallId))
+          .filter(Boolean)
+      );
+      const filtered = toolCalls.filter((call) => toolResultIds.has(normalizeId(call?.id)));
+      if (filtered.length === toolCalls.length) return;
+      syncAssistantRecord(mid, { toolCalls: filtered });
+    };
 
-    const onBeforeRequest = ({ iteration } = {}) => {
+    const onBeforeRequest = async ({ iteration } = {}) => {
       const idx = Number.isFinite(iteration) ? iteration : 0;
+      const preflightThreshold = Number.isFinite(summaryThreshold) ? summaryThreshold : 60000;
+      if (preflightThreshold > 0) {
+        const snapshot = getConversationSnapshot();
+        const tokenCount = estimateConversationTokens(snapshot.conversation, snapshot.summaryRecord);
+        const softLimit = Math.max(20000, Math.floor(preflightThreshold * 1.1));
+        if (tokenCount > softLimit) {
+          const didSummarize = await summarizeConversation({ force: true, signal: controller.signal });
+          if (!didSummarize && tokenCount > softLimit * 1.2) {
+            hardTrimConversation();
+          }
+        }
+      }
       if (idx <= 0) {
         currentAssistantId = initialAssistantMessageId;
         if (!assistantTexts.has(currentAssistantId)) {
@@ -1819,7 +1921,11 @@ export function createChatRunner({
     const onToolResult = ({ tool, callId, result }) => {
       const toolName = typeof tool === 'string' ? tool : '';
       const toolCallId = typeof callId === 'string' ? callId : '';
-      const content = typeof result === 'string' ? result : String(result || '');
+      const rawContent = typeof result === 'string' ? result : String(result || '');
+      const content =
+        typeof sanitizeToolResultForSession === 'function'
+          ? sanitizeToolResultForSession(rawContent, { tool: toolName })
+          : rawContent;
       const record = store.messages.create({
         sessionId: sid,
         role: 'tool',
@@ -1855,7 +1961,7 @@ export function createChatRunner({
             toolsOverride,
             caller: 'main',
             signal: controller.signal,
-            ...(effectiveToolWorkdir ? { workdir: effectiveToolWorkdir } : {}),
+            workdir: resolveToolWorkdir,
             onBeforeRequest,
             onToken,
             onReasoning,
@@ -1922,6 +2028,7 @@ export function createChatRunner({
           content: existing || (aborted ? '' : `[error] ${message}`),
           ...(existingReasoning ? { reasoning: existingReasoning } : {}),
         });
+        cleanupAssistantToolCalls(mid);
         store.sessions.update(sid, { updatedAt: new Date().toISOString() });
         scopedSendEvent({
           type: aborted ? 'assistant_aborted' : 'assistant_error',

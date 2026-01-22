@@ -764,6 +764,8 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         runtimeLogger,
         eventLogger,
         streamTracker,
+        baseDir,
+        runtimeOptions,
       });
     } catch (err) {
       const normalizedCommand = String(resolved.command || endpoint.command || '')
@@ -820,6 +822,8 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
         runtimeLogger,
         eventLogger,
         streamTracker,
+        baseDir,
+        runtimeOptions,
       });
     } catch (err) {
       errors.push(`streamable_http: ${err?.message || err}`);
@@ -867,6 +871,8 @@ async function connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runt
       runtimeLogger,
       eventLogger,
       streamTracker,
+      baseDir,
+      runtimeOptions,
     });
   }
 
@@ -885,6 +891,8 @@ async function connectAndRegisterTools({
   runtimeLogger,
   eventLogger,
   streamTracker,
+  baseDir,
+  runtimeOptions,
 } = {}) {
   if (!client || !transport) {
     throw new Error('Missing MCP client or transport');
@@ -915,9 +923,41 @@ async function connectAndRegisterTools({
     });
   }
   const runtimeMeta = buildRuntimeCallMeta({ workspaceRoot });
+  let reconnectPromise = null;
+  const reconnect = async ({ reason } = {}) => {
+    if (!entry || !baseDir || !runtimeOptions) return null;
+    if (reconnectPromise) return reconnectPromise;
+    reconnectPromise = (async () => {
+      const message = reason?.message || String(reason || '');
+      runtimeLogger?.warn('MCP 连接中断，正在重连', {
+        server: entry?.name || '<unnamed>',
+        ...(message ? { message } : null),
+      });
+      try {
+        const handle = await connectMcpServer(entry, baseDir, sessionRoot, workspaceRoot, runtimeOptions);
+        if (!handle) {
+          throw new Error('MCP reconnect returned null');
+        }
+        return handle;
+      } catch (err) {
+        runtimeLogger?.error('MCP 重连失败', { server: entry?.name || '<unnamed>' }, err);
+        eventLogger?.log?.('mcp_error', {
+          stage: 'reconnect',
+          server: entry?.name || '<unnamed>',
+          message: err?.message || String(err),
+        });
+        throw err;
+      } finally {
+        reconnectPromise = null;
+      }
+    })();
+    return reconnectPromise;
+  };
   const registeredTools = toolsFromServer
     .map((tool) =>
-      registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker)
+      registerRemoteTool(client, entry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker, {
+        reconnect,
+      })
     )
     .filter(Boolean);
   return { entry, client, transport, registeredTools, streamTracker };
@@ -1022,9 +1062,21 @@ function summarizeArgs(value) {
   };
 }
 
-function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker) {
+function isMcpDisconnectedError(err) {
+  const message = String(err?.message || err || '').toLowerCase();
+  if (!message) return false;
+  if (message.includes('not connected')) return true;
+  if (message.includes('disconnected')) return true;
+  if (message.includes('connection closed')) return true;
+  return false;
+}
+
+function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogger, eventLogger, streamTracker, options = {}) {
   const serverName = serverEntry?.name || 'server';
   const normalizedServer = String(serverName || '').toLowerCase();
+  const reconnect = typeof options?.reconnect === 'function' ? options.reconnect : null;
+  let activeClient = client;
+  let activeStreamTracker = streamTracker;
   if (
     normalizedServer === 'subagent_router' &&
     (tool.name === 'get_sub_agent_status' ||
@@ -1171,15 +1223,11 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
         tool: tool.name,
         args: injectedArgs,
       });
-      let response;
-      let streamResultPromise = null;
-      const useFinalStream = streamTracker && shouldUseFinalStreamResult(serverName, tool.name);
       const baseCallMeta = buildCallMeta(serverEntry, runtimeMeta, toolContext);
       const asyncTaskConfig = normalizeAsyncTaskConfig(baseCallMeta?.asyncTask, tool.name);
       const isAsyncTask = Boolean(asyncTaskConfig);
       const taskIdKey = asyncTaskConfig?.taskIdKey || '';
       let taskId = '';
-      let callMeta = baseCallMeta;
       if (isAsyncTask) {
         const existingTaskId =
           taskIdKey && baseCallMeta && typeof baseCallMeta[taskIdKey] === 'string'
@@ -1190,37 +1238,21 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
           serverName,
           toolName: tool.name,
         });
-        callMeta = {
-          ...(baseCallMeta || {}),
-          ...(taskIdKey ? { [taskIdKey]: taskId } : null),
-          stream: false,
-        };
-      } else if (useFinalStream) {
-        if (!baseCallMeta || !Object.prototype.hasOwnProperty.call(baseCallMeta, 'stream')) {
-          callMeta = { ...(baseCallMeta || {}), stream: true };
+      }
+      const resolveCallMeta = (useFinalStream) => {
+        if (isAsyncTask) {
+          return {
+            ...(baseCallMeta || {}),
+            ...(taskIdKey ? { [taskIdKey]: taskId } : null),
+            stream: false,
+          };
         }
-      }
-      const streamEnabled = !isAsyncTask && useFinalStream && callMeta?.stream !== false;
-      if (streamEnabled && typeof client?._requestMessageId === 'number') {
-        const rpcId = client._requestMessageId;
-        streamResultPromise = streamTracker.waitForFinalText({
-          rpcId,
-          timeoutMs: resolveMcpStreamTimeoutMs(optionsWithSignal),
-          signal: toolContext?.signal,
-          sessionId: toolContext?.session?.sessionId,
-        });
-      }
-      try {
-        response = await client.callTool(
-          {
-            name: tool.name,
-            arguments: normalizedArgs,
-            ...(callMeta ? { _meta: callMeta } : {}),
-          },
-          undefined,
-          optionsWithSignal
-        );
-      } catch (err) {
+        if (useFinalStream && (!baseCallMeta || !Object.prototype.hasOwnProperty.call(baseCallMeta, 'stream'))) {
+          return { ...(baseCallMeta || {}), stream: true };
+        }
+        return baseCallMeta;
+      };
+      const logToolError = (err) => {
         runtimeLogger?.error(
           'MCP 工具调用失败',
           {
@@ -1239,7 +1271,57 @@ function registerRemoteTool(client, serverEntry, tool, runtimeMeta, runtimeLogge
           args: summarizeArgs(normalizedArgs),
           message: err?.message || String(err),
         });
-        throw err;
+      };
+      const callToolOnce = async () => {
+        const useFinalStream = activeStreamTracker && shouldUseFinalStreamResult(serverName, tool.name);
+        const callMeta = resolveCallMeta(useFinalStream);
+        const streamEnabled = !isAsyncTask && useFinalStream && callMeta?.stream !== false;
+        let streamResultPromise = null;
+        if (streamEnabled && typeof activeClient?._requestMessageId === 'number') {
+          const rpcId = activeClient._requestMessageId;
+          streamResultPromise = activeStreamTracker.waitForFinalText({
+            rpcId,
+            timeoutMs: resolveMcpStreamTimeoutMs(optionsWithSignal),
+            signal: toolContext?.signal,
+            sessionId: toolContext?.session?.sessionId,
+          });
+        }
+        const response = await activeClient.callTool(
+          {
+            name: tool.name,
+            arguments: normalizedArgs,
+            ...(callMeta ? { _meta: callMeta } : {}),
+          },
+          undefined,
+          optionsWithSignal
+        );
+        return { response, streamResultPromise, callMeta };
+      };
+      let response;
+      let streamResultPromise = null;
+      let callMeta = resolveCallMeta(false);
+      try {
+        ({ response, streamResultPromise, callMeta } = await callToolOnce());
+      } catch (err) {
+        const aborted = err?.name === 'AbortError' || toolContext?.signal?.aborted;
+        if (!aborted && isMcpDisconnectedError(err) && reconnect) {
+          try {
+            const handle = await reconnect({ reason: err });
+            if (handle?.client) {
+              activeClient = handle.client;
+            }
+            if (handle?.streamTracker) {
+              activeStreamTracker = handle.streamTracker;
+            }
+            ({ response, streamResultPromise, callMeta } = await callToolOnce());
+          } catch (retryErr) {
+            logToolError(retryErr);
+            throw retryErr;
+          }
+        } else {
+          logToolError(err);
+          throw err;
+        }
       }
       if (isAsyncTask) {
         if (response?.isError) {

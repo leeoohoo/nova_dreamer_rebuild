@@ -128,6 +128,7 @@ export function useChatSessions() {
   const [streamStates, setStreamStates] = useState({});
   const [streamBuffers, setStreamBuffers] = useState({});
   const [mcpStreams, setMcpStreams] = useState({});
+  const [sessionErrors, setSessionErrors] = useState({});
 
   const selectedSessionIdRef = useRef('');
   const streamStatesRef = useRef({});
@@ -166,6 +167,41 @@ export function useChatSessions() {
     if (!sid) return null;
     return mcpStreams[sid] || null;
   }, [selectedSessionId, mcpStreams]);
+
+  const sessionStatusById = useMemo(() => {
+    const list = Array.isArray(sessions) ? sessions : [];
+    const next = {};
+    for (const session of list) {
+      const sid = normalizeId(session?.id);
+      if (!sid) continue;
+      const hasStream = Boolean(streamStates?.[sid]);
+      const isRunning = Boolean(session?.running) || hasStream;
+      const hasError = Boolean(sessionErrors?.[sid]);
+      next[sid] = isRunning ? 'running' : hasError ? 'error' : 'idle';
+    }
+    return next;
+  }, [sessions, streamStates, sessionErrors]);
+
+  const clearSessionError = (sessionId) => {
+    const sid = normalizeId(sessionId);
+    if (!sid) return;
+    setSessionErrors((prev) => {
+      if (!prev || !prev[sid]) return prev;
+      const next = { ...prev };
+      delete next[sid];
+      return next;
+    });
+  };
+
+  const setSessionError = (sessionId, errorMessage) => {
+    const sid = normalizeId(sessionId);
+    if (!sid) return;
+    const message = typeof errorMessage === 'string' ? errorMessage.trim() : '';
+    setSessionErrors((prev) => ({
+      ...(prev || {}),
+      [sid]: { message, at: new Date().toISOString() },
+    }));
+  };
 
   const mergeStreamBuffer = (sessionId, list) => {
     const sid = normalizeId(sessionId);
@@ -400,6 +436,7 @@ export function useChatSessions() {
         const mid = normalizeId(record?.id);
         const sid = normalizeId(record?.sessionId);
         if (!mid || !sid) return;
+        clearSessionError(sid);
         setStreamStates((prev) => ({ ...prev, [sid]: { sessionId: sid, messageId: mid } }));
         updateStreamBuffer(sid, mid, (base) => ({
           ...base,
@@ -512,6 +549,7 @@ export function useChatSessions() {
         }
         if (type === 'assistant_error') {
           const errorMessage = extractErrorMessage(payload);
+          setSessionError(sid, errorMessage || payload?.message || '');
           const isContextLength = isContextLengthErrorPayload(payload);
           const friendlyMessage = isContextLength
             ? '上下文过长，系统正在自动恢复…'
@@ -537,6 +575,7 @@ export function useChatSessions() {
         }
         if (type === 'assistant_aborted') {
           toast.info('已停止');
+          clearSessionError(sid);
         }
         void refreshSessions();
       }
@@ -590,7 +629,7 @@ export function useChatSessions() {
   const createSession = async ({ agentId } = {}) => {
     const aid = normalizeId(agentId) || normalizeId(selectedAgentId);
     if (!aid) {
-      toast.error('请先创建/选择一个 Agent');
+      toast.error('请先选择 Agent（会话为空时需先在上方选择）');
       return;
     }
     try {
@@ -611,19 +650,31 @@ export function useChatSessions() {
     }
   };
 
-  const deleteSession = async (sessionId) => {
+  const deleteSession = async (sessionId, options = {}) => {
     const sid = normalizeId(sessionId);
     if (!sid) return;
+    const force = options?.force === true;
+    const status = sessionStatusById?.[sid] || '';
+    if (status === 'running' && !force) {
+      toast.info('会话正在执行中，无法删除');
+      return;
+    }
     try {
-      const res = await api.invoke('chat:sessions:delete', { id: sid });
+      const res = await api.invoke('chat:sessions:delete', { id: sid, force });
       if (res?.ok === false) throw new Error(res?.message || '删除会话失败');
       const nextSessions = sessions.filter((s) => normalizeId(s?.id) !== sid);
       setSessions(nextSessions);
+      clearSessionError(sid);
       if (normalizeId(selectedSessionIdRef.current) === sid) {
         const fallback = normalizeId(nextSessions?.[0]?.id);
-        setSelectedSessionId(fallback);
-        setSelectedAgentId(normalizeId(nextSessions?.[0]?.agentId));
-        await refreshMessages(fallback);
+        if (fallback) {
+          setSelectedSessionId(fallback);
+          setSelectedAgentId(normalizeId(nextSessions?.[0]?.agentId));
+          await refreshMessages(fallback);
+        } else {
+          setSelectedSessionId('');
+          await refreshMessages('');
+        }
       }
     } catch (err) {
       toast.error(err?.message || '删除会话失败');
@@ -647,7 +698,11 @@ export function useChatSessions() {
     const aid = normalizeId(agentId);
     if (!aid) return;
     const sid = normalizeId(selectedSessionIdRef.current);
-    if (!sid) return;
+    if (!sid) {
+      setSelectedAgentId(aid);
+      toast.info('已选择 Agent，新会话将使用该 Agent');
+      return;
+    }
     const previous = selectedAgentId;
     setSelectedAgentId(aid);
     try {
@@ -705,6 +760,7 @@ export function useChatSessions() {
       return;
     }
     try {
+      clearSessionError(sid);
       const res = await api.invoke('chat:send', { sessionId: sid, text, attachments });
       if (res?.ok === false) throw new Error(res?.message || '发送失败');
 
@@ -763,6 +819,7 @@ export function useChatSessions() {
     streamState: currentStreamState,
     mcpStreamState: currentMcpStream,
     currentSession,
+    sessionStatusById,
     setComposerText,
     setComposerAttachments,
     refreshSessions,

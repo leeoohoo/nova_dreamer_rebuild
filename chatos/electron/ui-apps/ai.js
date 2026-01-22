@@ -89,8 +89,6 @@ function buildUiAppCallMeta({ rawCallMeta, context } = {}) {
             ...(ctx.pluginDir ? { pluginDir: ctx.pluginDir } : null),
             ...(ctx.dataDir ? { dataDir: ctx.dataDir } : null),
             ...(ctx.stateDir ? { stateDir: ctx.stateDir } : null),
-            ...(ctx.sessionRoot ? { sessionRoot: ctx.sessionRoot } : null),
-            ...(ctx.projectRoot ? { projectRoot: ctx.projectRoot } : null),
           },
         },
       }

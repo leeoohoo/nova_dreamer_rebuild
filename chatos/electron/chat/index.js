@@ -205,6 +205,20 @@ export function registerChatApi(ipcMain, options = {}) {
     if (!id) throw new Error('id is required');
     const existing = store.sessions.get(id);
     if (!existing) throw new Error('session not found');
+    const force = payload?.force === true;
+    const activeIds = typeof runner.listActiveSessionIds === 'function' ? runner.listActiveSessionIds() : [];
+    const activeSet = new Set(activeIds.map((sid) => normalizeId(sid)).filter(Boolean));
+    const running = activeSet.has(id);
+    if (running && !force) {
+      return { ok: false, message: '会话正在执行中，无法删除' };
+    }
+    if (running && force) {
+      try {
+        runner.abort(id);
+      } catch {
+        // ignore abort errors
+      }
+    }
     store.messages.removeForSession(id);
     return { ok: true, removed: store.sessions.remove(id) };
   });

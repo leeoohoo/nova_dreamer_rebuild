@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Dropdown, Input, List, Modal, Space, Typography } from 'antd';
+import { Badge, Button, Dropdown, Input, List, Modal, Space, Tooltip, Typography } from 'antd';
 import { DeleteOutlined, EditOutlined, MenuFoldOutlined, MoreOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -14,9 +14,21 @@ function formatTime(ts) {
   return new Date(ms).toLocaleString();
 }
 
+const STATUS_META = {
+  running: { badge: 'processing', label: '执行中' },
+  error: { badge: 'error', label: '错误' },
+  idle: { badge: 'default', label: '空闲' },
+};
+
+function resolveStatusMeta(status) {
+  if (status && STATUS_META[status]) return STATUS_META[status];
+  return STATUS_META.idle;
+}
+
 export function ChatSidebar({
   sessions,
   selectedSessionId,
+  sessionStatusById,
   onSelectSession,
   onCreateSession,
   onDeleteSession,
@@ -30,20 +42,53 @@ export function ChatSidebar({
 }) {
   const [renameState, setRenameState] = useState(null);
 
-  const sessionMenu = (session) => ({
-    items: [
+  const confirmForceDelete = (session) => {
+    Modal.confirm({
+      title: '强制删除会话？',
+      content: '会话正在执行中，强制删除会终止当前任务，且无法恢复。',
+      okText: '强制删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => onDeleteSession?.(session.id, { force: true }),
+    });
+  };
+
+  const sessionMenu = (session) => {
+    const sid = normalizeId(session?.id);
+    const statusValue = sessionStatusById?.[sid] || 'idle';
+    const running = statusValue === 'running';
+    const deleteLabel = running ? (
+      <Tooltip title="会话正在执行中，无法删除">
+        <Space size={6}>
+          <span>删除</span>
+          <Text type="secondary" style={{ fontSize: 12 }}>会话正在执行中，无法删除</Text>
+        </Space>
+      </Tooltip>
+    ) : (
+      '删除'
+    );
+    const items = [
       { key: 'rename', label: '重命名', icon: <EditOutlined /> },
-      { key: 'delete', label: '删除', icon: <DeleteOutlined />, danger: true },
-    ],
-    onClick: ({ key }) => {
-      if (key === 'delete') {
-        onDeleteSession?.(session.id);
-      }
-      if (key === 'rename') {
-        setRenameState({ id: session.id, title: session.title || '' });
-      }
-    },
-  });
+      { key: 'delete', label: deleteLabel, icon: <DeleteOutlined />, danger: true, disabled: running },
+    ];
+    if (running) {
+      items.push({ key: 'force_delete', label: '强制删除', icon: <DeleteOutlined />, danger: true });
+    }
+    return {
+      items,
+      onClick: ({ key }) => {
+        if (key === 'delete') {
+          onDeleteSession?.(session.id);
+        }
+        if (key === 'force_delete') {
+          confirmForceDelete(session);
+        }
+        if (key === 'rename') {
+          setRenameState({ id: session.id, title: session.title || '' });
+        }
+      },
+    };
+  };
 
   return (
     <div style={{ padding: 14, height: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -62,6 +107,8 @@ export function ChatSidebar({
           dataSource={Array.isArray(sessions) ? sessions : []}
           renderItem={(item) => {
             const selected = normalizeId(item?.id) === normalizeId(selectedSessionId);
+            const statusValue = sessionStatusById?.[normalizeId(item?.id)] || 'idle';
+            const statusMeta = resolveStatusMeta(statusValue);
             return (
               <List.Item
                 style={{
@@ -79,7 +126,12 @@ export function ChatSidebar({
               >
                 <List.Item.Meta
                   title={<span style={{ fontWeight: selected ? 600 : 500 }}>{item.title || emptyLabel}</span>}
-                  description={<Text type="secondary">{formatTime(item.updatedAt || item.createdAt)}</Text>}
+                  description={(
+                    <Space size={8} align="center" wrap>
+                      <Text type="secondary">{formatTime(item.updatedAt || item.createdAt)}</Text>
+                      <Badge status={statusMeta.badge} text={statusMeta.label} />
+                    </Space>
+                  )}
                 />
               </List.Item>
             );
