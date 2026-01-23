@@ -1,8 +1,6 @@
 name: mcp_ui_prompter
 title: MCP / UI Prompter（浮动岛表单/选择）
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="ui_prompter">
     <description>

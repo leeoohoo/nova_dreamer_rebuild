@@ -1,8 +1,6 @@
 name: mcp_shell_tasks__en
 title: MCP / Shell Tasks (Commands & Sessions)
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="shell_tasks">
     <description>

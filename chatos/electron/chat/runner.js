@@ -830,12 +830,6 @@ export function createChatRunner({
         : entry?.call_meta && typeof entry.call_meta === 'object'
           ? entry.call_meta
           : undefined;
-    const allowMain = entry?.allowMain === true || entry?.allow_main === true;
-    const allowSub =
-      entry?.allowSub !== false &&
-      entry?.allow_sub !== false &&
-      entry?.allowSubagent !== false &&
-      entry?.allow_subagent !== false;
     const appId =
       typeof entry?.app_id === 'string'
         ? entry.app_id.trim()
@@ -848,8 +842,6 @@ export function createChatRunner({
       description: typeof entry?.description === 'string' ? entry.description : '',
       tags,
       enabled: entry?.enabled !== false,
-      allowMain,
-      allowSub,
       ...(apiKeyEnv ? { api_key_env: apiKeyEnv } : null),
       ...(auth ? { auth } : null),
       ...(callMeta ? { callMeta } : null),
@@ -1258,8 +1250,6 @@ export function createChatRunner({
                 description: typeof record?.description === 'string' ? record.description : '',
                 tags: Array.isArray(record?.tags) ? record.tags : [],
                 enabled: record?.enabled !== false,
-                allowMain: true,
-                allowSub: true,
                 auth: record?.auth || undefined,
                 callMeta: record?.callMeta || undefined,
               });
@@ -1269,8 +1259,6 @@ export function createChatRunner({
                 description: typeof record?.description === 'string' ? record.description : '',
                 tags: Array.isArray(record?.tags) ? record.tags : [],
                 enabled: record?.enabled !== false,
-                allowMain: true,
-                allowSub: true,
                 auth: record?.auth || undefined,
                 callMeta: record?.callMeta || undefined,
               });
@@ -1320,8 +1308,6 @@ export function createChatRunner({
                     : '',
                 tags: Array.isArray(registryAllowed?.tags) ? registryAllowed.tags : mergedTags,
                 enabled,
-                allowMain: true,
-                allowSub: true,
                 auth,
                 callMeta: registryAllowed?.callMeta || mcp?.callMeta || undefined,
               });
@@ -1335,8 +1321,6 @@ export function createChatRunner({
                     : '',
                 tags: Array.isArray(registryAllowed?.tags) ? registryAllowed.tags : mergedTags,
                 enabled,
-                allowMain: true,
-                allowSub: true,
                 auth,
                 callMeta: registryAllowed?.callMeta || mcp?.callMeta || undefined,
               });
@@ -1383,8 +1367,6 @@ export function createChatRunner({
                   title: typeof record?.title === 'string' ? record.title : '',
                   type: 'system',
                   content: String(record.content || '').trim(),
-                  allowMain: true,
-                  allowSub: true,
                   tags: Array.isArray(record?.tags) ? record.tags : [],
                 });
               }
@@ -1427,8 +1409,6 @@ export function createChatRunner({
               title: typeof allowedPrompt?.title === 'string' ? allowedPrompt.title : '',
               type: 'system',
               content: registryContent,
-              allowMain: true,
-              allowSub: true,
               tags: Array.isArray(allowedPrompt?.tags) ? allowedPrompt.tags : [],
             });
             derivedPromptNames.push(allowedName);
@@ -1477,8 +1457,6 @@ export function createChatRunner({
             title: typeof prompt?.title === 'string' ? prompt.title : '',
             type: 'system',
             content: pickedText,
-            allowMain: true,
-            allowSub: true,
           });
           derivedPromptNames.push(pickedName);
         } else {

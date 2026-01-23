@@ -1,8 +1,6 @@
 name: default__en
 title: default__en
 type: system
-allowMain: true
-allowSub: false
 content: |
   <default_rules>
     <voice>

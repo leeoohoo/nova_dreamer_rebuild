@@ -112,8 +112,6 @@ function normalizeServer(entry) {
       callMeta: undefined,
       tags: [],
       enabled: true,
-      allowMain: false,
-      allowSub: true,
     };
   }
   const tags = Array.isArray(entry.tags)
@@ -157,12 +155,6 @@ function normalizeServer(entry) {
     callMeta,
     tags,
     enabled: entry.enabled !== false && entry.disabled !== true,
-    allowMain: entry.allowMain === true || entry.allow_main === true,
-    allowSub:
-      entry.allowSub !== false &&
-      entry.allow_sub !== false &&
-      entry.allowSubagent !== false &&
-      entry.allow_subagent !== false,
     timeout_ms: timeoutMs,
     max_timeout_ms: maxTimeoutMs,
   };
@@ -175,16 +167,12 @@ function getDefaultServers(baseDir) {
       script: path.join(CLI_ROOT, 'mcp_servers', 'filesystem-server.js'),
       args: '--root . --mode read --name project_files',
       description: '浏览/搜索项目文件（只读，默认 root=.）。',
-      allowMain: true,
-      allowSub: true,
     },
     {
       name: 'code_maintainer',
       script: path.join(CLI_ROOT, 'mcp_servers', 'code-maintainer-server.js'),
       args: '--root . --write --name code_maintainer',
       description: '读写并维护项目代码（含额外工具：read_file_raw/read_file_range/stat_path/move_path/copy_path）。',
-      allowMain: false,
-      allowSub: true,
     },
     {
       name: 'lsp_bridge',
@@ -192,8 +180,6 @@ function getDefaultServers(baseDir) {
       args: '--root . --name lsp_bridge',
       description:
         'LSP 桥接（hover/definition/completion/diagnostics 等）。依赖本机已安装对应语言的 Language Server；如需把重命名/格式化 edits 应用到磁盘，请启动时加 --write。',
-      allowMain: true,
-      allowSub: true,
     },
     {
       name: 'code_writer',
@@ -201,48 +187,36 @@ function getDefaultServers(baseDir) {
       args: '--root . --write --name code_writer',
       description:
         '写入/追加/删除项目文件。局部修改优先用 apply_patch（标准 diff）或 edit_file（old_string/new_string 替换）；write_file 仅在需要整块覆盖或追加日志时使用。',
-      allowMain: false,
-      allowSub: true,
     },
     {
       name: 'shell_tasks',
       script: path.join(CLI_ROOT, 'mcp_servers', 'shell-server.js'),
       args: '--root . --name shell_tasks',
       description: '在受限 root 内执行常见 shell 命令、列出目录等操作。',
-      allowMain: false,
-      allowSub: true,
     },
     {
       name: 'task_manager',
       script: path.join(CLI_ROOT, 'mcp_servers', 'task-server.js'),
       args: '--root . --name task_manager',
       description: '维护任务清单：新增、列表、更新状态、清理已完成任务（DB 存储）。',
-      allowMain: true,
-      allowSub: true,
     },
     {
       name: 'project_journal',
       script: path.join(CLI_ROOT, 'mcp_servers', 'project-journal-server.js'),
       args: '--root . --name project_journal',
       description: '记录/查询项目执行日志（实施记录）与项目基础信息（背景、git 地址、主要配置、迭代笔记）。',
-      allowMain: true,
-      allowSub: true,
     },
     {
       name: 'subagent_router',
       script: path.join(CLI_ROOT, 'mcp_servers', 'subagent-server.js'),
       args: '--name subagent_router',
       description: '子代理目录/路由/执行：列出、查看详情并直接运行子代理任务。',
-      allowMain: true,
-      allowSub: false,
     },
     {
       name: 'ui_prompter',
       script: path.join(CLI_ROOT, 'mcp_servers', 'ui-prompt-server.js'),
       args: '--name ui_prompter',
       description: '在 Electron UI 的浮动岛上弹出表单/选择项，让用户补充信息或做出决策，并把结果返回给 AI。',
-      allowMain: false,
-      allowSub: true,
     },
     {
       name: 'chrome_devtools',
@@ -250,8 +224,6 @@ function getDefaultServers(baseDir) {
       description:
         'Chrome DevTools MCP：让子代理控制/调试本机 Chrome（桌面端内置；CLI 需 Node>=20.19；需要 Chrome）。',
       enabled: false,
-      allowMain: false,
-      allowSub: true,
     },
   ];
   return entries.map((entry) => ({
@@ -260,8 +232,6 @@ function getDefaultServers(baseDir) {
     api_key_env: '',
     description: entry.description,
     enabled: entry.enabled !== false,
-    allowMain: entry.allowMain === true,
-    allowSub: entry.allowSub !== false,
   }));
 }
 
@@ -432,8 +402,6 @@ function refreshWithDefaultsPreservingUserConfig({ existing = [], defaults = [],
       ...prev,
       url: nextUrl,
       enabled: prev.enabled !== false,
-      allowMain: prev.allowMain === true,
-      allowSub: prev.allowSub !== false,
       api_key_env: prev.api_key_env ? String(prev.api_key_env) : def.api_key_env || '',
       description: prev.description ? String(prev.description) : def.description || '',
     });

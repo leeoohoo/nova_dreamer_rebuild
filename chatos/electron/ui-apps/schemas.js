@@ -75,8 +75,6 @@ const aiMcpServerSchema = z
     description: z.string().trim().optional().default(''),
     tags: z.array(z.string().trim()).optional().default([]),
     enabled: z.boolean().optional(),
-    allowMain: z.boolean().optional(),
-    allowSub: z.boolean().optional(),
     auth: aiMcpAuthSchema.optional(),
   })
   .refine((value) => Boolean(value?.url || value?.entry), 'ai.mcp requires url or entry');

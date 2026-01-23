@@ -1,8 +1,6 @@
 name: mcp_ui_prompter__en
 title: MCP / UI Prompter (Floating Island)
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="ui_prompter">
     <description>

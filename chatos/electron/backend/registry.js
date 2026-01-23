@@ -161,14 +161,12 @@ function summarizePrompt(prompt) {
   const id = typeof prompt?.id === 'string' ? prompt.id : '';
   const name = typeof prompt?.name === 'string' ? prompt.name : '';
   const title = typeof prompt?.title === 'string' ? prompt.title : '';
-  const allowMain = Boolean(prompt?.allowMain);
-  const allowSub = Boolean(prompt?.allowSub);
   const builtin = Boolean(prompt?.builtin);
   const locked = Boolean(prompt?.locked);
   const updatedAt = typeof prompt?.updatedAt === 'string' ? prompt.updatedAt : '';
   const content = typeof prompt?.content === 'string' ? prompt.content : '';
   const preview = content.length > 240 ? `${content.slice(0, 240)}…` : content;
-  return { id, name, title, allowMain, allowSub, builtin, locked, updatedAt, preview, length: content.length };
+  return { id, name, title, builtin, locked, updatedAt, preview, length: content.length };
 }
 
 export function registerRegistryApi(ipcMain, options = {}) {

@@ -9,41 +9,6 @@ import { TaskService } from './task-service.js';
 import { SettingsService } from './settings-service.js';
 import { LandConfigService } from './land-config-service.js';
 
-function migratePromptAllowFlags(db) {
-  const prompts = db.list('prompts') || [];
-  prompts.forEach((prompt) => {
-    if (!prompt?.id) return;
-    const resolvedAllowMain =
-      typeof prompt.allowMain === 'boolean'
-        ? prompt.allowMain
-        : typeof prompt.useInMain === 'boolean'
-          ? prompt.useInMain
-          : true;
-    const resolvedAllowSub =
-      typeof prompt.allowSub === 'boolean'
-        ? prompt.allowSub
-        : typeof prompt.useInSubagent === 'boolean'
-          ? prompt.useInSubagent
-          : false;
-    const needsPatch =
-      typeof prompt.allowMain !== 'boolean' ||
-      typeof prompt.allowSub !== 'boolean' ||
-      Object.prototype.hasOwnProperty.call(prompt, 'useInMain') ||
-      Object.prototype.hasOwnProperty.call(prompt, 'useInSubagent');
-    if (!needsPatch) return;
-    try {
-      db.update('prompts', prompt.id, {
-        allowMain: resolvedAllowMain,
-        allowSub: resolvedAllowSub,
-        useInMain: undefined,
-        useInSubagent: undefined,
-      });
-    } catch {
-      // ignore migration errors
-    }
-  });
-}
-
 function stripPromptTypeField(db) {
   const prompts = db.list('prompts') || [];
   prompts.forEach((prompt) => {
@@ -58,7 +23,6 @@ function stripPromptTypeField(db) {
 }
 
 export function createAdminServices(db) {
-  migratePromptAllowFlags(db);
   stripPromptTypeField(db);
   const models = new ModelService(db);
   const secrets = new SecretService(db);

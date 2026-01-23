@@ -1,8 +1,6 @@
 name: internal_subagent__en
 title: internal_subagent__en
 type: system
-allowMain: false
-allowSub: true
 content: |
   <internal_rules>
     <voice>

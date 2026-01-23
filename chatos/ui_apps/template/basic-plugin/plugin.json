@@ -15,8 +15,6 @@
         "mcp": {
           "entry": "hello-module/mcp-server.mjs",
           "command": "node",
-          "allowMain": true,
-          "allowSub": true,
           "enabled": true,
           "description": "Template MCP server (hello-module)"
         },

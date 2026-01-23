@@ -1,8 +1,6 @@
 name: mcp_project_journal
 title: MCP / 项目实施记录（Project Journal）
 type: system
-allowMain: true
-allowSub: true
 prompt: |
   <mcp_server name="project_journal">
     <description>

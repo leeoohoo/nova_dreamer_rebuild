@@ -1,8 +1,6 @@
 name: mcp_code_maintainer
 title: MCP / 代码读写维护（Code Maintainer）
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="code_maintainer">
     <description>

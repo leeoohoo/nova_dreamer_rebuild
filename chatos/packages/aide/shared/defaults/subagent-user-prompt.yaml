@@ -1,6 +1,4 @@
 name: subagent_user_prompt
 title: subagent_user_prompt
 type: system
-allowMain: false
-allowSub: true
 content: ''

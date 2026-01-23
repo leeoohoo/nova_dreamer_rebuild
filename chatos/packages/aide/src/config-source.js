@@ -237,8 +237,6 @@ function refreshBuiltinMcpServers(adminDb, services, defaultPaths) {
       const payload = {
         ...srv,
         app_id: prev?.app_id || srv.app_id || hostApp,
-        allowMain: typeof prev?.allowMain === 'boolean' ? prev.allowMain : srv.allowMain === true,
-        allowSub: typeof prev?.allowSub === 'boolean' ? prev.allowSub : srv.allowSub !== false,
         enabled: typeof prev?.enabled === 'boolean' ? prev.enabled : srv.enabled !== false,
         locked: true,
         id: prev?.id || srv.id,
@@ -267,16 +265,12 @@ function refreshBuiltinPrompts(adminDb, services, defaultPaths) {
     mergedList.forEach((prompt) => {
       if (!prompt?.name) return;
       const prev = map.get(prompt.name);
-      const allowMain = typeof prev?.allowMain === 'boolean' ? prev.allowMain : prompt.allowMain === true;
-      const allowSub = typeof prev?.allowSub === 'boolean' ? prev.allowSub : prompt.allowSub === true;
       const payload = {
         ...prompt,
         builtin: true,
         locked: true,
         content: prompt.content,
         defaultContent: prompt.content,
-        allowMain,
-        allowSub,
         id: prev?.id,
         createdAt: prev?.createdAt || now,
         updatedAt: now,

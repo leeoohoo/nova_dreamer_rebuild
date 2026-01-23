@@ -81,37 +81,68 @@ function registerTools() {
     })
     .strict();
 
-  const batchTaskInput = z.object({
-    tasks: z.array(singleTaskInput).min(1).describe('Batch of tasks to create'),
-    runId: z.string().optional().describe('Run ID (optional; defaults to current run)'),
-    sessionId: z.string().optional().describe('Session ID (optional; defaults to current session)'),
-    caller: z
-      .string()
-      .optional()
-      .describe('Caller kind override ("main" | "subagent"). Used to decide which confirmation toggle applies.'),
-  });
+  const batchTaskInput = z.array(singleTaskInput).min(1);
 
-  const addTaskInputSchema = z.preprocess((value) => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      return value;
-    }
-    if (typeof value.tasks !== 'string') {
-      return value;
-    }
-    const rawTasks = value.tasks.trim();
-    if (!rawTasks) {
-      return value;
-    }
-    try {
-      const parsed = JSON.parse(rawTasks);
-      if (Array.isArray(parsed)) {
-        return { ...value, tasks: parsed };
+  const addTaskInputSchema = z
+    .object({
+      title: z.string().min(1).optional().describe('Task title'),
+      details: z.string().optional().describe('Context or acceptance criteria'),
+      priority: z.enum(['high', 'medium', 'low']).optional().describe('Priority (default medium)'),
+      status: z.enum(['todo', 'doing', 'blocked', 'done']).optional().describe('Initial status (default todo)'),
+      tags: z.array(z.string()).optional().describe('Tags, e.g., ["backend","release"]'),
+      tasks: z
+        .union([batchTaskInput, z.string()])
+        .optional()
+        .describe('Batch of tasks to create (array or JSON string)'),
+      runId: z.string().optional().describe('Run ID (optional; defaults to current run)'),
+      sessionId: z.string().optional().describe('Session ID (optional; defaults to current session)'),
+      caller: z
+        .string()
+        .optional()
+        .describe('Caller kind override ("main" | "subagent"). Used to decide which confirmation toggle applies.'),
+    })
+    .strict();
+
+  const normalizeAddTaskPayload = (payload) => {
+    const base = payload && typeof payload === 'object' ? payload : {};
+    let tasks = base.tasks;
+
+    if (typeof tasks === 'string') {
+      const raw = tasks.trim();
+      if (!raw) {
+        throw new Error('tasks 为空时请省略该字段，或提供 JSON 数组字符串。');
       }
-    } catch {
-      // ignore parse errors; schema validation will surface tasks shape problems
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        throw new Error('tasks 必须是 JSON 数组字符串，例如: [{"title":"Fix login bug"}]。');
+      }
+      if (!Array.isArray(parsed)) {
+        throw new Error('tasks 必须是 JSON 数组字符串，例如: [{"title":"Fix login bug"}]。');
+      }
+      const validated = batchTaskInput.safeParse(parsed);
+      if (!validated.success) {
+        const first = validated.error?.errors?.[0];
+        const detail = first?.message ? `（${first.message}）` : '';
+        throw new Error(`tasks JSON 数组校验失败${detail}`);
+      }
+      tasks = validated.data;
     }
-    return value;
-  }, z.union([batchTaskInput, singleTaskInput]));
+
+    if (Array.isArray(tasks)) {
+      if (tasks.length === 0) {
+        throw new Error('tasks 至少包含 1 项任务。');
+      }
+    } else {
+      const title = typeof base.title === 'string' ? base.title.trim() : '';
+      if (!title) {
+        throw new Error('add_task 需要提供 title 或 tasks。');
+      }
+    }
+
+    return tasks === undefined ? base : { ...base, tasks };
+  };
 
   server.registerTool(
     'add_task',
@@ -125,11 +156,15 @@ function registerTools() {
       inputSchema: addTaskInputSchema,
     },
     async (payload) => {
-      const runDefault = pickRunId(payload.runId);
-      const sessionDefault = pickSessionId(payload.sessionId);
-      const inputs = Array.isArray(payload.tasks) && payload.tasks.length > 0 ? payload.tasks : [payload];
+      const normalizedPayload = normalizeAddTaskPayload(payload);
+      const runDefault = pickRunId(normalizedPayload.runId);
+      const sessionDefault = pickSessionId(normalizedPayload.sessionId);
+      const inputs =
+        Array.isArray(normalizedPayload.tasks) && normalizedPayload.tasks.length > 0
+          ? normalizedPayload.tasks
+          : [normalizedPayload];
 
-      const requestCallerKind = pickCallerKind(payload?.caller);
+      const requestCallerKind = pickCallerKind(normalizedPayload?.caller);
       const shouldConfirm = shouldConfirmTaskCreate(requestCallerKind);
       const draftTasks = inputs.map((item, idx) => ({
         draftId: crypto.randomUUID(),

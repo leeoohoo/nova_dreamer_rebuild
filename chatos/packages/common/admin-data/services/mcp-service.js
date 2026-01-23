@@ -101,11 +101,11 @@ export class McpService extends BaseService {
     }
     if (existing?.locked) {
       const keys = payload && typeof payload === 'object' ? Object.keys(payload) : [];
-      const allowedKeys = new Set(['allowMain', 'allowSub', 'enabled']);
+      const allowedKeys = new Set(['enabled']);
       const disallowed = keys.filter((key) => !allowedKeys.has(key));
       const hasAllowedUpdate = keys.some((key) => allowedKeys.has(key));
       if (disallowed.length > 0 || !hasAllowedUpdate) {
-        throw new Error('该 MCP Server 为内置配置，仅允许调整启用状态或主/子流程可用开关');
+        throw new Error('该 MCP Server 为内置配置，仅允许调整启用状态');
       }
     }
     if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'app_id')) {

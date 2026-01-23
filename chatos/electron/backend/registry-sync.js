@@ -194,8 +194,6 @@ export async function syncRegistryFromAppDb({ registry, providerAppId, dbPath } 
         description: typeof srv?.description === 'string' ? srv.description : '',
         tags: normalizeRecordTags(srv?.tags),
         enabled: typeof srv?.enabled === 'boolean' ? srv.enabled : srv?.enabled !== false,
-        allowMain: typeof srv?.allowMain === 'boolean' ? srv.allowMain : srv?.allowMain === true,
-        allowSub: typeof srv?.allowSub === 'boolean' ? srv.allowSub : srv?.allowSub !== false,
         auth: srv?.auth || undefined,
       });
       serverCount += 1;
@@ -215,8 +213,6 @@ export async function syncRegistryFromAppDb({ registry, providerAppId, dbPath } 
         name,
         title: typeof prompt?.title === 'string' ? prompt.title : '',
         content,
-        allowMain: typeof prompt?.allowMain === 'boolean' ? prompt.allowMain : prompt?.allowMain !== false,
-        allowSub: typeof prompt?.allowSub === 'boolean' ? prompt.allowSub : prompt?.allowSub === true,
       });
       promptCount += 1;
     } catch {
@@ -268,8 +264,6 @@ export function syncRegistryFromServices({ registry, providerAppId, services } =
         description: typeof srv?.description === 'string' ? srv.description : '',
         tags: normalizeRecordTags(srv?.tags),
         enabled: typeof srv?.enabled === 'boolean' ? srv.enabled : srv?.enabled !== false,
-        allowMain: typeof srv?.allowMain === 'boolean' ? srv.allowMain : srv?.allowMain === true,
-        allowSub: typeof srv?.allowSub === 'boolean' ? srv.allowSub : srv?.allowSub !== false,
         auth: srv?.auth || undefined,
       });
       serverCount += 1;
@@ -289,8 +283,6 @@ export function syncRegistryFromServices({ registry, providerAppId, services } =
         name,
         title: typeof prompt?.title === 'string' ? prompt.title : '',
         content,
-        allowMain: typeof prompt?.allowMain === 'boolean' ? prompt.allowMain : prompt?.allowMain !== false,
-        allowSub: typeof prompt?.allowSub === 'boolean' ? prompt.allowSub : prompt?.allowSub === true,
       });
       promptCount += 1;
     } catch {

@@ -1,8 +1,6 @@
 name: mcp_subagent_router__en
 title: MCP / Subagent Router
 type: system
-allowMain: true
-allowSub: false
 prompt: |
   <mcp_server name="subagent_router">
     <description>

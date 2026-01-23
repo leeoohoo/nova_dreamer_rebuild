@@ -178,8 +178,6 @@ function McpServersManager({
         name,
         title: resolvePromptTitle(existing, serverName, lang),
         content: trimmed,
-        allowMain: true,
-        allowSub: true,
       };
       if (existing?.id) {
         await promptActions.update(existing.id, payload);

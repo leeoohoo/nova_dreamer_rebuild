@@ -69,8 +69,6 @@ function buildMcpConfig(mcpServers = []) {
       callMeta: s.callMeta || undefined,
       tags: s.tags || [],
       enabled: s.enabled !== false,
-      allowMain: s.allowMain === true,
-      allowSub: s.allowSub !== false,
       timeout_ms: Number.isFinite(s.timeout_ms) ? s.timeout_ms : undefined,
       max_timeout_ms: Number.isFinite(s.max_timeout_ms) ? s.max_timeout_ms : undefined,
     })),
@@ -118,7 +116,7 @@ function buildPromptsYaml(prompts = [], options = {}) {
   return payload;
 }
 
-function buildPromptFile(prompts = [], name, defaults = {}) {
+function buildPromptFile(prompts = [], name) {
   const promptName = typeof name === 'string' ? name.trim() : '';
   const list = Array.isArray(prompts) ? prompts : [];
   const record = list.find((p) => p?.name === promptName) || null;
@@ -131,21 +129,11 @@ function buildPromptFile(prompts = [], name, defaults = {}) {
       ? record.type.trim()
       : 'system';
   const content = typeof record?.content === 'string' ? record.content : '';
-  const allowMain =
-    typeof record?.allowMain === 'boolean'
-      ? record.allowMain
-      : defaults.allowMain === true;
-  const allowSub =
-    typeof record?.allowSub === 'boolean'
-      ? record.allowSub
-      : defaults.allowSub === true;
 
   return {
     name: promptName,
     title,
     type,
-    allowMain,
-    allowSub,
     content,
   };
 }
@@ -180,35 +168,35 @@ export function syncAdminToFiles(snapshot, paths) {
   if (paths.promptsPath && Array.isArray(snapshot?.prompts)) {
     writeYaml(
       paths.promptsPath,
-      buildPromptFile(snapshot.prompts, 'internal_main', { allowMain: true, allowSub: false })
+      buildPromptFile(snapshot.prompts, 'internal_main')
     );
     summary.promptsPath = paths.promptsPath;
   }
   if (paths.systemDefaultPromptPath && Array.isArray(snapshot?.prompts)) {
     writeYaml(
       paths.systemDefaultPromptPath,
-      buildPromptFile(snapshot.prompts, 'default', { allowMain: true, allowSub: false })
+      buildPromptFile(snapshot.prompts, 'default')
     );
     summary.systemDefaultPromptPath = paths.systemDefaultPromptPath;
   }
   if (paths.systemUserPromptPath && Array.isArray(snapshot?.prompts)) {
     writeYaml(
       paths.systemUserPromptPath,
-      buildPromptFile(snapshot.prompts, 'user_prompt', { allowMain: true, allowSub: false })
+      buildPromptFile(snapshot.prompts, 'user_prompt')
     );
     summary.systemUserPromptPath = paths.systemUserPromptPath;
   }
   if (paths.subagentPromptsPath && Array.isArray(snapshot?.prompts)) {
     writeYaml(
       paths.subagentPromptsPath,
-      buildPromptFile(snapshot.prompts, 'internal_subagent', { allowMain: false, allowSub: true })
+      buildPromptFile(snapshot.prompts, 'internal_subagent')
     );
     summary.subagentPromptsPath = paths.subagentPromptsPath;
   }
   if (paths.subagentUserPromptPath && Array.isArray(snapshot?.prompts)) {
     writeYaml(
       paths.subagentUserPromptPath,
-      buildPromptFile(snapshot.prompts, 'subagent_user_prompt', { allowMain: false, allowSub: true })
+      buildPromptFile(snapshot.prompts, 'subagent_user_prompt')
     );
     summary.subagentUserPromptPath = paths.subagentUserPromptPath;
   }

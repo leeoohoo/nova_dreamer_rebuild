@@ -1,8 +1,6 @@
 name: mcp_code_writer__en
 title: MCP / Code Writer (Write & Patch)
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="code_writer">
     <description>

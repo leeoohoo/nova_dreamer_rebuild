@@ -1,8 +1,6 @@
 name: mcp_project_files__en
 title: MCP / Project Files (read-only)
 type: system
-allowMain: true
-allowSub: true
 prompt: |
   <mcp_server name="project_files">
     <description>

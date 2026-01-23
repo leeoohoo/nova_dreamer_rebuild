@@ -1,8 +1,6 @@
 name: mcp_code_writer
 title: MCP / 文件写入与补丁（Code Writer）
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="code_writer">
     <description>

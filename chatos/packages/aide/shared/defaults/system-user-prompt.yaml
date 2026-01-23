@@ -1,6 +1,4 @@
 name: user_prompt
 title: user_prompt
 type: system
-allowMain: true
-allowSub: false
 content: ''

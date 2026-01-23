@@ -154,8 +154,6 @@ class UiAppsManager {
               description: mcp.description || '',
               tags: Array.isArray(mcp.tags) ? mcp.tags : [],
               enabled: typeof mcp.enabled === 'boolean' ? mcp.enabled : undefined,
-              allowMain: typeof mcp.allowMain === 'boolean' ? mcp.allowMain : undefined,
-              allowSub: typeof mcp.allowSub === 'boolean' ? mcp.allowSub : undefined,
             }
           : null,
         mcpPrompt: mcpPrompt
@@ -612,8 +610,6 @@ class UiAppsManager {
               description: String(mcp.description || '').trim(),
               tags: desiredTags,
               enabled: typeof mcp.enabled === 'boolean' ? mcp.enabled : true,
-              allowMain: typeof mcp.allowMain === 'boolean' ? mcp.allowMain : true,
-              allowSub: typeof mcp.allowSub === 'boolean' ? mcp.allowSub : true,
               auth: mcp.auth || undefined,
             });
             if (serverRecord?.id) {
@@ -684,8 +680,6 @@ class UiAppsManager {
                 title,
                 type: 'system',
                 content,
-                allowMain: true,
-                allowSub: true,
               });
               if (promptRecord?.id) {
                 if (allowGrants) {

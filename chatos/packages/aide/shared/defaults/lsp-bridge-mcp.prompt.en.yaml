@@ -1,8 +1,6 @@
 name: mcp_lsp_bridge__en
 title: MCP / LSP Bridge (Hover/Definition/Diagnostics)
 type: system
-allowMain: true
-allowSub: true
 prompt: |
   <mcp_server name="lsp_bridge">
     <description>

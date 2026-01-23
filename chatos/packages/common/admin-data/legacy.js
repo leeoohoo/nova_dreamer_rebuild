@@ -113,12 +113,6 @@ export function parseMcpServers(raw) {
       tags: s.tags || [],
       locked: s.locked === true,
       enabled: s.enabled !== false && s.disabled !== true,
-      allowMain: s.allowMain === true || s.allow_main === true,
-      allowSub:
-        s.allowSub !== false &&
-        s.allow_sub !== false &&
-        s.allowSubagent !== false &&
-        s.allow_subagent !== false,
       timeout_ms: Number.isFinite(s.timeout_ms) ? s.timeout_ms : undefined,
       max_timeout_ms: Number.isFinite(s.max_timeout_ms) ? s.max_timeout_ms : undefined,
     }));
@@ -465,8 +459,6 @@ export function buildAdminSeed(defaultPaths = {}) {
       title: prompt.title || prompt.name,
       content: prompt.content,
       defaultContent: prompt.content,
-      allowMain: prompt.allowMain === true,
-      allowSub: prompt.allowSub === true,
       builtin: true,
       locked: true,
       variables: extractVariables(prompt.content),
@@ -591,8 +583,6 @@ export function loadBuiltinPromptFiles(defaultPaths = {}) {
         name,
         title: typeof node.title === 'string' ? node.title.trim() : name,
         content: trimmed,
-        allowMain: node.allowMain === true,
-        allowSub: node.allowSub === true,
       });
     });
   });

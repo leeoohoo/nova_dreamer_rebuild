@@ -1,0 +1,11 @@
+name: openai-proxy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - flask
+      - flask-cors
+      - openai
+      - requests

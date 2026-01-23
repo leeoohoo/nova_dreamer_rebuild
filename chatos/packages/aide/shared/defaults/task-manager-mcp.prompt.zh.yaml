@@ -1,8 +1,6 @@
 name: mcp_task_manager
 title: MCP / 任务管理（Task Manager）
 type: system
-allowMain: true
-allowSub: true
 prompt: |
   <mcp_server name="task_manager">
     <description>

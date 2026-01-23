@@ -216,8 +216,6 @@ export function resolveUiAppsAi(pluginDir, pluginIdRaw, app, errors, context = {
         description: ai.mcp.description || '',
         tags: Array.isArray(ai.mcp.tags) ? ai.mcp.tags : [],
         enabled: typeof ai.mcp.enabled === 'boolean' ? ai.mcp.enabled : undefined,
-        allowMain: typeof ai.mcp.allowMain === 'boolean' ? ai.mcp.allowMain : undefined,
-        allowSub: typeof ai.mcp.allowSub === 'boolean' ? ai.mcp.allowSub : undefined,
         auth: ai.mcp.auth || undefined,
       }
     : null;
@@ -337,8 +335,6 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
           description: String(mcp.description || '').trim(),
           tags: desiredTags,
           enabled: typeof mcp.enabled === 'boolean' ? mcp.enabled : true,
-          allowMain: typeof mcp.allowMain === 'boolean' ? mcp.allowMain : true,
-          allowSub: typeof mcp.allowSub === 'boolean' ? mcp.allowSub : true,
           auth: mcp.auth || undefined,
           callMeta: mcp.callMeta || undefined,
           updatedAt: now(),
@@ -366,8 +362,6 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
           const nextTags = Array.isArray(desired.tags) ? desired.tags.slice().sort() : [];
           if (JSON.stringify(existingTags) !== JSON.stringify(nextTags)) patch.tags = desired.tags;
           if (existing.enabled !== desired.enabled) patch.enabled = desired.enabled;
-          if (existing.allowMain !== desired.allowMain) patch.allowMain = desired.allowMain;
-          if (existing.allowSub !== desired.allowSub) patch.allowSub = desired.allowSub;
           const existingAuth = existing.auth || undefined;
           const nextAuth = desired.auth || undefined;
           if (JSON.stringify(existingAuth || null) !== JSON.stringify(nextAuth || null)) patch.auth = nextAuth || undefined;
@@ -421,8 +415,6 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
             name: String(variant.name || '').trim(),
             title,
             content,
-            allowMain: true,
-            allowSub: true,
             updatedAt: now(),
           };
           const key = normalizePromptNameKey(desired.name);
@@ -445,8 +437,6 @@ export function syncUiAppsAiContributes({ adminServices, maxPromptBytes }, plugi
           const patch = {};
           if ((existing.title || '') !== (desired.title || '')) patch.title = desired.title || '';
           if ((existing.content || '') !== desired.content) patch.content = desired.content;
-          if (existing.allowMain !== desired.allowMain) patch.allowMain = desired.allowMain;
-          if (existing.allowSub !== desired.allowSub) patch.allowSub = desired.allowSub;
 
           if (Object.keys(patch).length > 0) {
             try {

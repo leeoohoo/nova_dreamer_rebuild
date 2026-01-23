@@ -29,19 +29,7 @@ export class PromptService extends BaseService {
   update(id, payload) {
     const existing = this.get(id);
     if (existing?.locked || RESERVED_SYSTEM_PROMPTS.has(existing?.name)) {
-      const allowedFields = new Set(['allowMain', 'allowSub']);
-      const keys = Object.keys(payload || {});
-      const forbidden = keys.filter((key) => !allowedFields.has(key));
-      if (forbidden.length > 0) {
-        throw new Error('该 Prompt 为内置锁定，仅允许切换主/子代理使用开关');
-      }
-      const patch = {};
-      allowedFields.forEach((key) => {
-        if (Object.prototype.hasOwnProperty.call(payload || {}, key)) {
-          patch[key] = payload[key];
-        }
-      });
-      return super.update(id, patch);
+      throw new Error('该 Prompt 为内置锁定，禁止修改');
     }
     const enriched = this.withVariables(payload);
     return super.update(id, enriched);

@@ -184,8 +184,6 @@ function ensureSystemPromptFile(filePath, internalMain = DEFAULT_INTERNAL_SYSTEM
   const payload = {
     name: 'internal_main',
     title: 'internal_main',
-    allowMain: true,
-    allowSub: false,
     content: internalMain,
   };
   fs.writeFileSync(filePath, YAML.stringify(payload), 'utf8');
@@ -199,8 +197,6 @@ function ensureSystemDefaultPromptFile(filePath, defaultPrompt = DEFAULT_SYSTEM_
   const payload = {
     name: 'default',
     title: 'default',
-    allowMain: true,
-    allowSub: false,
     content: defaultPrompt,
   };
   fs.writeFileSync(filePath, YAML.stringify(payload), 'utf8');
@@ -214,8 +210,6 @@ function ensureSystemUserPromptFile(filePath, userPrompt = '') {
   const payload = {
     name: 'user_prompt',
     title: 'user_prompt',
-    allowMain: true,
-    allowSub: false,
     content: userPrompt,
   };
   fs.writeFileSync(filePath, YAML.stringify(payload), 'utf8');
@@ -229,8 +223,6 @@ function ensureSubagentSystemPromptFile(filePath, internalSubagent = DEFAULT_INT
   const payload = {
     name: 'internal_subagent',
     title: 'internal_subagent',
-    allowMain: false,
-    allowSub: true,
     content: internalSubagent,
   };
   fs.writeFileSync(filePath, YAML.stringify(payload), 'utf8');
@@ -244,8 +236,6 @@ function ensureSubagentUserPromptFile(filePath, userPrompt = '') {
   const payload = {
     name: 'subagent_user_prompt',
     title: 'subagent_user_prompt',
-    allowMain: false,
-    allowSub: true,
     content: userPrompt,
   };
   fs.writeFileSync(filePath, YAML.stringify(payload), 'utf8');

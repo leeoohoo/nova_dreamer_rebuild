@@ -1,8 +1,6 @@
 name: mcp_chrome_devtools
 title: MCP / Chrome DevTools
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="chrome_devtools">
     <description>

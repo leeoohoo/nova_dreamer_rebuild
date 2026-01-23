@@ -109,8 +109,6 @@ export class RegistryCenter {
       description: typeof serverConfig?.description === 'string' ? serverConfig.description : '',
       tags: uniqStrings(serverConfig?.tags),
       enabled: typeof serverConfig?.enabled === 'boolean' ? serverConfig.enabled : true,
-      allowMain: typeof serverConfig?.allowMain === 'boolean' ? serverConfig.allowMain : true,
-      allowSub: typeof serverConfig?.allowSub === 'boolean' ? serverConfig.allowSub : true,
       auth: serverConfig?.auth || undefined,
     };
 
@@ -143,8 +141,6 @@ export class RegistryCenter {
       title: typeof promptConfig?.title === 'string' ? promptConfig.title : '',
       content,
       tags: uniqStrings(promptConfig?.tags),
-      allowMain: typeof promptConfig?.allowMain === 'boolean' ? promptConfig.allowMain : true,
-      allowSub: typeof promptConfig?.allowSub === 'boolean' ? promptConfig.allowSub : true,
     };
 
     if (existing) {

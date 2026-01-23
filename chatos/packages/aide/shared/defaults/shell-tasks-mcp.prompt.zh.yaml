@@ -1,8 +1,6 @@
 name: mcp_shell_tasks
 title: MCP / Shell 执行与会话（Shell Tasks）
 type: system
-allowMain: false
-allowSub: true
 prompt: |
   <mcp_server name="shell_tasks">
     <description>
